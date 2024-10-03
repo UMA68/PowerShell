@@ -1,0 +1,11 @@
+SELECT * FROM TESTTABLE WHERE
+(TableNameId = 5)
+
+DELETE FROM TESTTABLE WHERE
+(TableNameId = 5)
+
+INSERT INTO TESTTABLE (TableNameId,Column1,Column2) VALUES (5,N'日本語',N'Tiếng Nhật');
+
+SELECT * FROM TESTTABLE WHERE
+(TableNameId = 5)
+

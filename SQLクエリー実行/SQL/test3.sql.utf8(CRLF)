@@ -1,0 +1,1 @@
+SELECT TableNameId,Column1 FROM TESTTABLE

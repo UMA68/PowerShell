@@ -1,0 +1,56 @@
+# =================
+Project: ExecuteSQL
+Version: 0.0.0
+# =================
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell: 
+ Version: 7.3.9
+# 実行に必要なモジュール
+Module:
+ Powershell-Yaml:
+  Name: Powershell-Yaml
+  Version: 0.4.7
+ SqlServer:
+  Name: SqlServer
+  Version: 22.1.1
+#  Version: 21.1.18235
+
+# -----------------
+# 接続情報
+# -----------------
+# VERIONには"SELECT @@VERSION;"の結果をコピペ
+HOST:
+ SERVER: localhost  # サーバー名
+ DATABASE: TestDB   # データベース名
+ USERNAME: sa       # ユーザー名
+ PWF: test.pass     # パスワードファイル名
+ VERSION: Microsoft SQL Server 2022 (RTM-CU5) (KB5026806) - 16.0.4045.3 (X64)
+        May 26 2023 12:52:08
+        Copyright (C) 2022 Microsoft Corporation
+        Developer Edition (64-bit) on Linux (Ubuntu 20.04.6 LTS) <X64>
+
+# -----------------
+# ログ保存先
+# -----------------
+LOG:
+ FOLDER: LOG      # ログ保存先(フォルダ名)
+ FILENAME: log    # ログファイル名
+ EXTENSION: .log  # ログファイル拡張子
+
+# =================
+# リリースフォルダ
+# -----------------
+# SAMPLE:   # リリース種別
+#  FolderBy # リリース元
+#   - 一つだけ: リリース元フォルダ
+# =================
+RELEASE:
+ SQL:
+  FolderBy:
+   - SQL
+ STP:
+  FolderBy:
+   - STP
