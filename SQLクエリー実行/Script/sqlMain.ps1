@@ -16,8 +16,8 @@ begin{
     # $log = $ScriptDir+"\LOG"                                        # ログファイルのパス
     $comPath = $PowerShellDir+"\Common"                             # 共通スクリプト格納ディレクトリ
     $Yaml = $UpperDir+"\YAML"                                       # yamlファイルの格納場所
-    $KeyPath = $comPath+"\"+$DecryptionKey                          # 鍵ファイルのパス
-    $YamlPath = $Yaml+"\"+$EnvYaml                                  # yamlファイルのパス
+    $KeyPath = Join-Path -Path $comPath -ChildPath $DecryptionKey   # 鍵ファイルのパス
+    $YamlPath = Join-Path -Path $Yaml -ChildPath $EnvYaml           # yamlファイルのパス
 
     # .ps1ファイル読み込み
     try {
