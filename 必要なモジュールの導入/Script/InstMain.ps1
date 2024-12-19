@@ -16,17 +16,16 @@ begin{
     $envPath = $yamlDir+"\"+$envFileName                    # yamlファイルのパス
     $comPath = $PowerShellDir+"\Common"                     # 共通スクリプト格納ディレクトリ
     
-    # ユーザ名取得
-    $global:glbUser = $env:USERNAME
-    # ホスト名取得
-    $global:glbHost = $env:COMPUTERNAME
+    # 環境変数の取得
+    $UserName = $env:USERNAME       # ユーザ名取得
+    $HostName = $env:COMPUTERNAME   # ホスト名取得
 
     # .ps1ファイル読み込み
     try {
         . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop
         . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop
         . $scriptDir"\Log-Output.ps1" -ErrorAction Stop
-        . $scriptDir"\Chck-YamlModule.ps1" -ErrorAction Stop
+        . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop
     } catch {
         $obj = New-Object -ComObject WScript.Shell
         $scriptName = $_.InvocationInfo.MyCommand.Name
@@ -50,15 +49,16 @@ begin{
         Exit    # おわり
     }
     # ログの定義
-    $Log = Join-Path -Path $LogDir -ChildPath ($glbHost+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
+    $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
         
     # ログの書き込み関数
     function Write-Log {
         param(
             [Parameter(Mandatory=$true)]
-            [string]$Message
+            [string]$Message,
+            [string]$LogPath
         )
-        Log-Output -Message $Message -LogPath $Log
+        Log-Output -Message $Message -LogPath $LogPath
     }
 }
 Process{
@@ -79,37 +79,37 @@ Process{
     }
 
     # ログの記録開始
-    Write-Log ("HOST: "+$glbHost)   # ホスト名
-    Write-Log ("USER: "+$glbUser)   # ユーザ名
+    Write-Log -Message ("HOST: "+$HostName) -LogPath $Log   # ホスト名
+    Write-Log -Message ("USER: "+$userName) -LogPath $Log   # ユーザ名
 
-    Write-Log ("Running PowerShell Version: "+$pwsVerChk)
-    Write-Log "============================"
-    Write-Log ($yaml.Project)
-    Write-Log ("Version: "+$yaml.Version)
-    Write-Log "============================"
+    Write-Log -Message ("Running PowerShell Version: "+$pwsVerChk) -LogPath $Log
+    Write-Log -Message "============================" -LogPath $Log
+    Write-Log -Message ($yaml.Project) -LogPath $Log
+    Write-Log -Message ("Version: "+$yaml.Version) -LogPath $Log
+    Write-Log -Message "============================" -LogPath $Log
 
-    Write-Log ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]")
+    Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log
 
     # モジュールのインストール
     foreach($module in $yaml.Module.Keys){
         Check-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
     }
 
-    Write-Log ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]")
-    Write-Log "-----------------------------"
-    }
+    Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log
+    Write-Log -Message "-----------------------------" -LogPath $Log
+}
 end{
     # 終了メッセージ
     $obj = New-Object -ComObject WScript.Shell
     $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
 
     # ログの見方を追記
-    Write-Log " "
-    Write-Log "ログの見方"
-    Write-Log "[EXIST] : yaml記述バージョンのモジュールを発見"
-    Write-Log "[OTHER] : yaml記述バージョン以外のモジュールを発見"
-    Write-Log "[NOTHING] : yaml記述モジュールが存在しない"
-    Write-Log "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール"
+    Write-Log -Message " " -LogPath $Log
+    Write-Log -Message "ログの見方" -LogPath $Log
+    Write-Log -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log
+    Write-Log -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log
+    Write-Log -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log
+    Write-Log -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log
 
     # ログファイルを開く
     Invoke-Item $Log

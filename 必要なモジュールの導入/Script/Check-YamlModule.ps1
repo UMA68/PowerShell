@@ -39,7 +39,7 @@ function Check-YamlModule {
         $obj.Popup("Powershell-Yamlがインストールされていません。インストールします。",0,"情報",0x40) | Out-Null
         try {
             Install-Module -Name "Powershell-Yaml" -RequiredVersion $Ver -Force -ErrorAction Stop   
-            Write-Log -Message "Installed Powershell-Yaml "+$Ver   
+            Write-Log -Message "Installed Powershell-Yaml "+$Ver -LogPath $Log
         }
         catch {
             $obj.Popup("Powershell-Yamlのインストールに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30) | Out-Null
