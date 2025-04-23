@@ -1,6 +1,8 @@
-# =========================
-# 起動オプション必須
-# =========================
+# ===================================
+# 起動オプション
+#  -DecryptionKey   鍵ファイル指定
+#  -EnvYaml         YAMLファイル指定
+# ===================================
 
 param(
     # [Parameter(Mandatory = $true)]
@@ -23,19 +25,28 @@ begin{
 
     # .ps1ファイルの読み込み
     try{
-        . $PowerShellDir"\Common\FindModule.ps1" # モジュールの読み込み
-        . $scriptPath"\CopyItemCustom.ps1" # モジュールの読み込み
+        . $PowerShellDir"\Common\FindModule.ps1"
+        . $PowerShellDir"\Common\NoDoubleActivation.ps1"
+        . $scriptPath"\CopyItemCustom.ps1"
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
-        $obj = New-Object PSObject WScript.Shell
+        $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
     # PowerShell-Yamlモジュールがインストールされていなければ、終了
-    if (-not (Find-Module -ModuleName "PowerShell-Yaml")) {
-        $obj = New-Object PSObject WScript.Shell
-        $obj.Popup("Module 'PowerShell-Yaml' is not installed.", 0, "Module Check", 0x30) | Out-Null
+    try {
+        if (-not (Find-Module -ModuleName "PowerShell-Yaml")) {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup("Module 'PowerShell-Yaml' is not installed.", 0, "Module Check", 0x30) | Out-Null
+            exit # 終了
+        }            
+    }
+    catch {
+        # Find-Moduleを実行できない場合は警告を表示し終了
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.Popup("I couldn't execute 'Find-Module'. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
@@ -44,7 +55,7 @@ begin{
         $yaml = Get-Content $YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
-        $obj = New-Object PSObject WScript.Shell
+        $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
@@ -86,6 +97,10 @@ begin{
     }
 }
 process{
+
+    # 二重起動の禁止
+    Check-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
+
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
     if(!($Yaml.PowerShell.Version -eq $PwsVerChk)){
@@ -95,9 +110,9 @@ process{
         [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$Yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
         switch($Button){
             6 { break } # OK(Continue)
-            7 { Exit }  # Cancel(End)
+            7 { exit }  # Cancel(End)
             # default { Write-Log "不明なボタンが押されました。" } # Unknown
-            default { Write-Log "An unknown button was pressed." } # Unknown
+            default { Write-Log "An unknown button was pressed." ; exit } # Unknown
         }
     }
 
@@ -107,9 +122,13 @@ process{
     [int]$Button = $obj.Popup("Do you want to execute the release?", 0, "INQUIRY", 4)
     switch($Button){
         6 { break } # OK(Continue)
-        7 { Exit }  # Cancel(End)
-        # default { Write-Log "不明なボタンが押されました。" } # Unknown
-        default { Write-Log "An unknown button was pressed." } # Unknown
+        7 { exit }  # Cancel(End)
+        default { 
+            Write-Log "An unknown button was pressed."
+            # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
+            $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
+            exit
+        } # Unknown
     }
 
     # タイトル表示
@@ -142,10 +161,15 @@ process{
                 6 { break } # OK(Continue)
                 7 { Exit }  # Cancel(End)
                 # default { Write-Log "不明なボタンが押されました。" } # Unknown
-                default { Write-Log "An unknown button was pressed." } # Unknown
+                default { 
+                    Write-Log "An unknown button was pressed."
+                    # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
+                    $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
+                    exit
+                } # Unknown
             }
         }
-                
+        
         try{
             # モジュールのインポート
             Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop # モジュールのインポート
@@ -191,5 +215,6 @@ end{
     # Write-Log ("Elapsed time for release: "+$TimeLap.TotalSeconds+" seconds").ToString() # リリース処理の経過時間をログに出力
     Write-Log ("Elapsed time for release: "+$TimeLap.Minutes.ToString("00")+":Min "+$TimeLap.Seconds.ToString("00")+":Sec") # リリース処理の経過時間をログに出力
     Write-Log ("Release end time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() # リリース終了時間をログに出力
+    Invoke-Item -Path $glbLogPath # ログファイルを開く
 }
 
