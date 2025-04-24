@@ -31,6 +31,7 @@ begin{
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
+        # $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
@@ -39,13 +40,15 @@ begin{
     try {
         if (-not (Find-Module -ModuleName "PowerShell-Yaml")) {
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup("Module 'PowerShell-Yaml' is not installed.", 0, "Module Check", 0x30) | Out-Null
+            # $obj.Popup("モジュール 'PowerShell-Yaml' がインストールされていません。処理を終了します。", 0, "Module Check", 0x30) | Out-Null
+            $obj.Popup("Module 'PowerShell-Yaml' is not installed. I'm ending the process.", 0, "Module Check", 0x30) | Out-Null
             exit # 終了
-        }            
+        }
     }
     catch {
         # Find-Moduleを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
+        # $obj.Popup("'Find-Module'を実行できませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null 
         $obj.Popup("I couldn't execute 'Find-Module'. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
@@ -56,6 +59,7 @@ begin{
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
+        # $obj.Popup("YAMLファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
@@ -148,6 +152,7 @@ process{
         
         # もし、モジュール名かバージョンが空であれば、スキップ
         if ($ModuleName -eq "" -or $ModuleVersion -eq "") {
+            # Write-Log ("モジュール名かバージョンが空でした。 処理をスキップします。").ToString() # ログにエラーメッセージを出力
             Write-Log "Module name or version is empty. Skipping module import." # ログにエラーメッセージを出力
             continue # スキップ
         }
@@ -155,7 +160,7 @@ process{
         if (-not (Find-Module -ModuleName $ModuleName)) {
             # モジュールがインストールされていない場合は、インストールを促す
             $obj = New-Object -ComObject WScript.Shell
-            # [int]$Button = $obj.Popup("Module '$ModuleName' is not installed. Do you want to install it?", 0, "Module Check", 4) | Out-Null
+            # [int]$Button = $obj.Popup("Module '$ModuleName' がインストールされていません. インストールを実施してください。", 0, "Module Check", 4)
             [int]$Button = $obj.Popup("Module '$ModuleName' is not installed. Do you want to install it?", 0, "Module Check", 4)
             switch($Button){
                 6 { break } # OK(Continue)

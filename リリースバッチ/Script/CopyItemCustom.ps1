@@ -38,8 +38,9 @@ function Copy-ItemCustom {
                 $FilePath = $File.DirectoryName
                 $FileNameWithDatePattern = $FileBaseName + "_????????-??????"+$FileExtension
                 $FileNameWithDate = Get-ChildItem -Path $ReleaseDestination -Filter $FileNameWithDatePattern -ErrorAction SilentlyContinue
+                # リネームファイルの削除
                 foreach($FileNameWithDate in $FileNameWithDate){
-                    # リネームファイルの削除
+                    # リネームファイルの削除処理
                     try{
                         Remove-Item -Path $FileNameWithDate.FullName -Force -ErrorAction Stop
                         # 削除結果をログに記述
