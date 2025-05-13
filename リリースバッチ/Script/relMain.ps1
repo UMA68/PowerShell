@@ -188,11 +188,11 @@ process{
     }
 
     # リリースの実行
-    Write-Log (" ").ToString() # 改行をログに出力
+    Write-Log ("`r").ToString() # 改行をログに出力
     Write-Log ("HOST: "+$glbHostName).ToString()    # ホスト名をログに出力
     Write-Log ("USER: "+$gblUser).ToString()        # ユーザ名をログに出力
     Write-Log ("Running PowerShell version: "+$PwsVerChk).ToString() # PowerShellのバージョンをログに出力
-    Write-Log (" ").ToString() # 改行をログに出力
+    Write-Log ("`r").ToString() # 改行をログに出力
     Write-Log ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() # リリース開始時間をログに出力
 
     # ここから時間計測
