@@ -55,20 +55,14 @@ RELEASE:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_A
   ReleaseTo:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_A\DEV
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_A\STG
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_A\PROD
  TYPE_B:
   FolderBy:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_B
   ReleaseTo:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_B\DEV
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_B\STG
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_B\PROD
  TYPE_C:
   FolderBy:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_C
   ReleaseTo:
    - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_C\DEV
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_C\STG
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_C\PROD
  
