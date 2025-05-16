@@ -125,10 +125,10 @@ function Invoke-ReleaseRules{
     # リネームファイルの検索
     $FileNameWithDate = Get-ChildItem -Path $ReleaseDestination -Filter $FileNameWithDatePattern -ErrorAction SilentlyContinue
     # 検索したリネームファイルを削除
-    foreach($FileNameWithDate in $FileNameWithDate){
+    foreach($RenamedFileName in $FileNameWithDate){
         # リネームファイルの削除処理
         try{
-            Remove-Item -Path $FileNameWithDate.FullName -Force -ErrorAction Stop
+            Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop
             # 削除結果をログに記述
             Write-Log ("INFO: "+(Get-Date -Format "yyyy-MM-dd HH:mm:ss")+" [DELETE] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE STARTED.").ToString()
             Write-Log ("INFO: "+(Get-Date -Format "yyyy-MM-dd HH:mm:ss")+" [DELETE] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE TO '"+$FileNameWithDate.FullName+"'.").ToString()

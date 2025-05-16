@@ -8,7 +8,9 @@ param(
     # [Parameter(Mandatory = $true)]
     [string]$DecryptionKey = "Encryption.Key" , # オプション無しのデフォルト値
     # [string]$EnvYaml = "Env.yaml"               # オプション無しのデフォルト値
-    [string]$EnvYaml = "EnvDEV.yaml"               # オプション無しのデフォルト値
+    [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用
+    # [string]$EnvYaml = "EnvSTG.yaml"            # STG環境用
+    # [string]$EnvYaml = "EnvPRD.yaml"            # 本番環境用
 )
 begin{
     # スクリプトの実行環境を取得
