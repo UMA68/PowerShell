@@ -1,5 +1,5 @@
 # =================
-Project: release(STG)
+Project: release(STAGING)
 Version: 0.0.0
 # =================
 
@@ -35,8 +35,8 @@ HOST:
 # ログ保存先
 # -----------------
 LOG:
- Path: \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
- FILENAME: release          # ログファイル名
+ Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ FILENAME: release(STG)     # ログファイル名
  EXTENSION: .log            # ログファイル拡張子
 
 # ===================
@@ -52,17 +52,17 @@ LOG:
 RELEASE:
  TYPE_A:
   FolderBy:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_A
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース元\TYPE_A
   ReleaseTo:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_A\STG
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース先\TYPE_A\STG
  TYPE_B:
   FolderBy:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_B
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース元\TYPE_B
   ReleaseTo:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_B\STG
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース先\TYPE_B\STG
  TYPE_C:
   FolderBy:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース元\TYPE_C
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース元\TYPE_C
   ReleaseTo:
-   - \\localhost\C$\Users\徳永光浩\Documents\TEST_FOLDER\リリース先\TYPE_C\STG
+   - \\localhost\C$\SandBox\TEST_FOLDER\リリース先\TYPE_C\STG
  
