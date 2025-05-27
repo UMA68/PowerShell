@@ -24,6 +24,13 @@ process{
     # Start logging
     Log-Message "Script started."
 
+    # Unblock-Fileコマンドレットが存在しなければ終了
+    if (-not (Get-Command -Name Unblock-File -ErrorAction SilentlyContinue)) {
+        Log-Message "Unblock-File command not found. Please ensure you are running this script in a PowerShell environment that supports it."
+        Invoke-Item -Path $logFilePath
+        exit # Exit if Unblock-File is not available
+    }
+
     Get-ChildItem -Path $folderPath -Recurse -File |
         Where-Object {
             $_.FullName -notmatch '\\Script\\' -and
@@ -32,9 +39,18 @@ process{
         ForEach-Object {
             $filePath = $_.FullName
             if (Get-Item -Path $filePath -Stream "Zone.Identifier" -ErrorAction SilentlyContinue) {
-                Log-Message "Zone.Identifier found for file: $filePath. Unblocking file."
-                Unblock-File -Path $filePath
-                Log-Message "File unblocked: $filePath"
+                try{
+                    # Unblock-Fileコマンドレット実行
+                    Log-Message "Zone.Identifier found for file: $filePath. Unblocking file."
+                    Unblock-File -Path $filePath
+                    Log-Message "File unblocked: $filePath"
+                } catch {
+                    # Unblockに失敗しました
+                    Log-Message "Failed to unblock file: $filePath"
+                    Log-Message "Error: $_"
+                    return
+                }
+
             } else {
                 Log-Message "No Zone.Identifier found for file: $filePath"
             }
