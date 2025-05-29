@@ -42,7 +42,7 @@ process{
                 try{
                     # Unblock-Fileコマンドレット実行
                     Log-Message "Zone.Identifier found for file: $filePath. Unblocking file."
-                    Unblock-File -Path $filePath
+                    Unblock-File -Path $filePath -ErrorAction Stop
                     Log-Message "File unblocked: $filePath"
                 } catch {
                     # Unblockに失敗しました
