@@ -48,7 +48,6 @@ process{
                     # Unblockに失敗しました
                     Log-Message "Failed to unblock file: $filePath"
                     Log-Message "Error: $_"
-                    return
                 }
 
             } else {
