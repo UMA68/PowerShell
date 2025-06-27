@@ -1,0 +1,25 @@
+# ===============================
+Project: Report(Decompiled DLL)
+Version: 0.9.0
+# ===============================
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell: 
+ Version: 7.5.2
+
+# -----------------
+# ログ設定
+# -----------------
+LOG:
+#  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ FILENAME: Report(dll)  # ログファイル名
+ EXTENSION: .log        # ログファイル拡張子
+
+# ----------------------------------------
+# OSの違いによるWinMergeのインストール先指定
+# ----------------------------------------
+InstWinMerge:
+ Win10: C:\Program Files\WinMerge
+ Win11: $HOME\AppData\Local\Programs\WinMerge
