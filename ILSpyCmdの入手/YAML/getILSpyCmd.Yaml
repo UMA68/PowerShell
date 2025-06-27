@@ -1,0 +1,27 @@
+# =================
+Project: Install ILSpyCmd
+Version: 0.9.0
+# =================
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell: 
+ Version: 7.5.2
+# 実行に必要なモジュール
+Module:
+ Powershell-Yaml:
+  Name: powershell-yaml
+  Version: 0.4.7
+#  SqlServer:
+#   Name: SqlServer
+#   Version: 22.1.1
+# #  Version: 21.1.18235
+
+# -----------------
+# ログ保存先
+# -----------------
+LOG:
+#  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ FILENAME: ILSpyCmd # ログファイル名
+ EXTENSION: .log    # ログファイル拡張子
