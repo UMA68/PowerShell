@@ -18,8 +18,14 @@ Module:
 #   Version: 22.1.1
 # #  Version: 21.1.18235
 
+# .NET SDKの導入設定
+DotnetSdk:
+ DownloadUrl: https://download.visualstudio.microsoft.com/download/pr/2f2b7c3e-2e3e-4f2e-9b0e-2e3e2f2b7c3e/dotnet-sdk-8.0.100-win-x64.exe
+ Installer: dotnet-sdk-installer.exe
+ Version: 8.0.100
+
 # -----------------
-# ログ保存先
+# ログ設定
 # -----------------
 LOG:
 #  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
