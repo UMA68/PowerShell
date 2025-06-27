@@ -9,3 +9,14 @@ SQLクエリー実行\SQL
 
 # ファイルアクセスブロック解除
 ファイルアクセスブロック解除\FileAccessBlock
+
+# ILSpyCmdの入手
+ILSpyCmdの入手\LOG
+
+# DecompileDLL
+DecompileDLL\Dlls\Decompiled\Reports
+DecompileDLL\Dlls\Decompiled
+DecompileDLL\Dlls\New
+DecompileDLL\Dlls\Old
+DecompileDLL\Dlls\Reports
+DecompileDLL\LOG
