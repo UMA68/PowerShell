@@ -41,7 +41,7 @@ begin{
         $winMergePath = $yaml.InstWinMerge.Win11 -replace '\$HOME', $HOME
     } else {
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("このスクリプトはWindows 10またはWindows 11でのみ動作します。異なるバージョンで使用する場合はスクリプトを調整してください。",0,"エラー",0x30)
+        $obj.Popup("このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n異なるバージョンで使用する場合はスクリプトとyamlを調整してください。",0,"エラー",0x30)
         exit
     }
 
@@ -51,7 +51,6 @@ begin{
         $obj.Popup("「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n"+"「ILSpyCmdインストール」を実行してインストールするのも手です。",0,"エラー",0x30)
         exit
     }
-
 
 }
 process{
