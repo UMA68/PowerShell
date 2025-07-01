@@ -78,7 +78,7 @@ process{
         exit
     } else {
         Log-Message "ILSpyCmd is not installed."
-        Invoke-Item -Path $Log
+        # Invoke-Item -Path $Log
     }
 
     # SDKの存在確認
@@ -144,6 +144,7 @@ process{
             7 {
                 # $obj = New-Object -ComObject WScript.Shell
                 $obj.Popup("プログラムを終了します。",0,"情報",0x40) | Out-Null
+                Invoke-Item -Path $Log
                 exit 
             }
         }
