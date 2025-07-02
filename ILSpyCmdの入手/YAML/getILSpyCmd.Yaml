@@ -20,9 +20,9 @@ Module:
 
 # .NET SDKの導入設定
 DotnetSdk:
- DownloadUrl: https://download.visualstudio.microsoft.com/download/pr/2f2b7c3e-2e3e-4f2e-9b0e-2e3e2f2b7c3e/dotnet-sdk-8.0.100-win-x64.exe
- Installer: dotnet-sdk-installer.exe
- Version: 8.0.100
+ SdkFolder: DotnetSDK
+ Installer: dotnet-sdk-8.0.411-win-x64.exe
+ Version: 8.0.411
 
 # -----------------
 # ログ設定

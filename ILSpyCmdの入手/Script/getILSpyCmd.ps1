@@ -90,46 +90,32 @@ process{
         # $obj = New-Object -ComObject WScript.Shell
         [int]$retButton = $obj.Popup("dotnet(sdk)がインストールされていません。.NET SDK をインストールしますか？",0,"警告",4)   # はい=6 いいえ=7
         switch($retButton){
-            # はい(.NET SDKをダウンロード&インストール)
+            # はい(.NET SDKをインストール)
             6 {
-                # ダウンロードURLと保存先
-                $downloadUrl = $yaml.DotnetSdk.DownloadUrl
-                $installerPath = Join-Path -Path $env:TEMP -ChildPath ($yaml.DotnetSdk.Installer)
+                # インストーラ格納先
+                $SdkFolderName = $yaml.DotnetSdk.SdkFolder
+                $SdkFolderPath = Join-Path -Path $UpperPath -ChildPath $SdkFolderName
+                $installerPath = Join-Path -Path $SdkFolderPath -ChildPath ($yaml.DotnetSdk.Installer)
                 $verSDK = $yaml.DotnetSdk.Version
 
                 #  dotnet SDKのインストール
                 $obj.Popup("dotnet SDK($verSDK)のインストールを開始します。",0,"情報",0x40) | Out-Null
                 # ログにメッセージを出力
-                Log-Message "dotnet SDK installer download started."
+                Log-Message "Starting the installation of the .NET SDK."
 
                 Try{
-                    # WebClientで進捗表示付きダウンロード
-                    $webClient = New-Object System.Net.WebClient
-
-                    $webClient.DownloadProgressChanged += {
-                        param($sender, $e)
-                        Write-Progress -Activity "Downloading .NET SDK" -Status "$($e.ProgressPercentage)% 完了" -PercentComplete $e.ProgressPercentage
-                    }
-
-                    $webClient.DownloadFileCompleted += {
-                        Log-Message "`n✅ ダウンロード完了。インストールを開始します..."
-
-                        # サイレントインストール
-                        Start-Process -FilePath $installerPath -ArgumentList "/install /quiet /norestart" -Wait
-
-                        Log-Message "`n✅ インストール完了。確認中..."
-                        dotnet --info
-                        $DotnetInfo = dotnet --info
-                        Log-Message "dotnet --info"
-                        Log-Message $DotnetInfo
-                    }
-
-                    Log-Message "🌐 .NET SDK をダウンロード中..."
-                    $webClient.DownloadFileAsync($downloadUrl, $installerPath)
-
-                    # ダウンロード完了まで待機
-                    while ($webClient.IsBusy) {
-                        Start-Sleep -Milliseconds 500
+                    # インストール（パッシブモード：進捗見えるが操作不要）
+                    Start-Process -FilePath $installerPath -ArgumentList "/install /passive /norestart" -Wait
+                    Log-Message "dotnet SDK installation completed."
+                    # インストール確認
+                    if (Get-Command "dotnet" -ErrorAction SilentlyContinue) {
+                        Log-Message "dotnet SDK installed successfully."
+                    } else {
+                        Log-Message "dotnet SDK installation failed."
+                        # $obj = New-Object -ComObject WScript.Shell
+                        $obj.Popup("dotnet SDKのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+                        Invoke-Item -Path $Log
+                        exit
                     }
             
                 } catch {
@@ -164,7 +150,11 @@ process{
     $obj.Popup("ILSpyCmdをインストールします。",0,"情報",0x40) | Out-Null
     #  dotnet tool install --global ilspycmd を実行
     try {
-        dotnet tool install --global ilspycmd
+        # dotnet tool install --global ilspycmd
+
+        $cmdCommand = 'dotnet tool install --global ilspycmd && echo ILSpyCmd のインストールが完了しました。Enter キーで終了します && pause'
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdCommand" -Wait -ErrorAction Stop
+
         Log-Message "'dotnet tool install --global ilspycmd' executed successfully."
         Log-Message "ILSpyCmd installation completed."
     } catch {
@@ -268,18 +258,18 @@ process{
 }
 
 end{
-    # ILSpyCmdのインストール完了確認
-    $ILSpyCmdInstalled = Get-Command "ilspycmd" -ErrorAction SilentlyContinue
-    if ($ILSpyCmdInstalled) {
-        Log-Message "ilspycmd is already installed."
-        $obj.Popup("ILSpyCmdは無事インストールできました。",0,"情報",0x40) | Out-Null
-    } else {
-        Log-Message "ILSpyCmd installation failed."
-        # $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("ILSpyCmdのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-        Invoke-Item -Path $Log
-        exit
-    }
+    # # ILSpyCmdのインストール完了確認
+    # $ILSpyCmdInstalled = Get-Command "ilspycmd" -ErrorAction SilentlyContinue
+    # if ($ILSpyCmdInstalled) {
+    #     Log-Message "ilspycmd is already installed."
+    #     $obj.Popup("ILSpyCmdは無事インストールできました。",0,"情報",0x40) | Out-Null
+    # } else {
+    #     Log-Message "ILSpyCmd installation failed."
+    #     # $obj = New-Object -ComObject WScript.Shell
+    #     $obj.Popup("ILSpyCmdのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+    #     Invoke-Item -Path $Log
+    #     exit
+    # }
     # スクリプトの終了メッセージをログに出力
     Log-Message "Script ended."
     # ログファイルを開く
