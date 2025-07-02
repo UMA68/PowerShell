@@ -1,5 +1,5 @@
 # アンインストールしたい SDK のバージョンを指定
-$targetVersion = "8.0.100"
+$targetVersion = "8.0.411"
 
 # インストール済みの .NET SDK 一覧を取得
 $installedSdks = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft .NET SDK%'"
