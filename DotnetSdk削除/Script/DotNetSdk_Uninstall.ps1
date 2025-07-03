@@ -14,7 +14,7 @@ if (-not $installedSdks) {
     exit
 }
 # どのバージョンを削除しますか？
-Write-Host "インストールされているSDKバージョン:"
+Write-Host "インストールされているSDKバージョンは以下の通りです"
 $installedSdks | ForEach-Object { Write-Host $_ }
 # バージョンを指定
 $dotnetSdkVersion = Read-Host "削除したいSDKのバージョンを入力してください (例: 9.0.301): "
