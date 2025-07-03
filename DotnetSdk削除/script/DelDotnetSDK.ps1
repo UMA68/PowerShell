@@ -1,3 +1,8 @@
+# ==========================================================
+# PowerShell スクリプト: Microsoft .NET SDK のアンインストール
+# 必ず管理者権限で実行してください。
+# ==========================================================
+
 # アンインストールしたい SDK のバージョンを指定
 $targetVersion = "8.0.411"
 
@@ -13,4 +18,8 @@ if ($matchedSdk) {
     Write-Host "✅ アンインストール完了しました。"
 } else {
     Write-Host "⚠️ Microsoft .NET SDK $targetVersion は見つかりませんでした。"
+    Write-Host $installedSdks.Name
+    # Enterキーを押して終了
+    Read-Host "Enterキーを押して終了します..."
+    exit
 }
