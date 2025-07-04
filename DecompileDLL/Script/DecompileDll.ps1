@@ -96,13 +96,12 @@ end{
     # WinMergeの実行準備
     $oldFile = "$outputFolder\old"  # 逆コンパイルされた古いDLLファイルの格納ディレクトリ
     $newFile = "$outputFolder\new"  # 逆コンパイルされた新しいDLLファイルの格納ディレクトリ
-    # $diffReport = "$reportFolder\$baseName-diff.txt"
     
     # WinMergeの実行パスの確認
     $ExecWinMerge = Join-Path -Path $winMergePath -ChildPath "WinMergeU.exe"
     if (-not (Test-Path -Path $ExecWinMerge)) {
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("WinMergeがインストールされていません。`r`n`r`n"+$ExecWinMerge+"を確認してください。",0,"エラー",0x30)
+        $obj.Popup("WinMergeが見つかりませんでした。`r`n`r`n"+$ExecWinMerge+"を確認してください。",0,"エラー",0x30)
         exit
     }
  
