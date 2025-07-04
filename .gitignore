@@ -15,6 +15,10 @@ ILSpyCmdの入手/LOG
 ILSpyCmdの入手/DotnetSDK
 ILSpyCmdの入手/DotnetSDK/dotnet-sdk-8.0.411-win-x64.exe
 
+# dotNetSdkUninstallToolの入手
+dotNetSdkUninstallToolの入手/dotNetSdkUninstallTool
+dotNetSdkUninstallToolの入手/dotNetSdkUninstallTool/dotnet-core-uninstall.msi
+
 # DecompileDLL
 DecompileDLL/Dlls/Decompiled\Reports
 DecompileDLL/Dlls/Decompiled
@@ -22,3 +26,4 @@ DecompileDLL/Dlls/New
 DecompileDLL/Dlls/Old
 DecompileDLL/Dlls/Reports
 DecompileDLL/LOG
+
