@@ -3,9 +3,6 @@
 # 必ず管理者権限で実行してください。
 # ================================
 
-# # 削除対象のSDKバージョンを指定
-# $dotnetSdkVersion = "9.0.301"
-
 # .NET SDKがインストールされているか確認
 $installedSdks = dotnet --list-sdks
 if (-not $installedSdks) {
@@ -17,7 +14,7 @@ if (-not $installedSdks) {
 Write-Host "インストールされているSDKバージョンは以下の通りです"
 $installedSdks | ForEach-Object { Write-Host $_ }
 # バージョンを指定
-$dotnetSdkVersion = Read-Host "削除したいSDKのバージョンを入力してください (例: 9.0.301): "
+$dotnetSdkVersion = Read-Host "削除したいSDKのバージョンを入力してください (例: 9.0.301)"
 # 入力されたか確認
 if (-not $dotnetSdkVersion) {
     Write-Host "入力されていません。スクリプトを終了します。"
@@ -32,12 +29,17 @@ if ($confirmation -ne "Y" -and $confirmation -ne "y") {
     exit
 }
 
-if ($installedSdks -notcontains $dotnetSdkVersion) {
+# もし、入力したバージョンとインストールされているSDKのバージョンが一致するものがなかったら、
+# エラーメッセージを表示
+if ($installedSdks | Where-Object { $_ -like "*$dotnetSdkVersion*" }) {
+    Write-Host "指定されたSDKバージョン $dotnetSdkVersion はインストールされています。"
+} else {
     Write-Host "指定されたSDKバージョン $dotnetSdkVersion はインストールされていません。"
     $installedSdks
     Read-Host "Enterキーを押して終了します..."
     exit
 }
+
 try{
     
     dotnet-core-uninstall remove --sdk --version $dotnetSdkVersion -ErrorAction Stop
@@ -47,5 +49,5 @@ try{
     Read-Host "Enterキーを押して終了します..."
     exit
 }
-# Enerキーを押して終了
+# Enterキーを押して終了
 Read-Host "Enterキーを押して終了します..."
