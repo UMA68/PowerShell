@@ -166,8 +166,8 @@ process{
     }else{
         # dotnetがインストールされていた場合の処理
         Log-Message "✅ .NET SDK はすでにインストールされています。"
-        dotnet --list-sdks
-        $DotnetSdks = dotnet --list-sdks
+        & dotnet --list-sdks
+        $DotnetSdks = & dotnet --list-sdks
         Log-Message "dotnet --list-sdks"
         Log-Message $DotnetSdks
     }
