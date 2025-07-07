@@ -116,7 +116,7 @@ process{
         # dotnetがインストールされていない場合の処理
         Log-Message "dotnet(sdk) is not installed. Please install .NET SDK."
         # $obj = New-Object -ComObject WScript.Shell
-        [int]$retButton = $obj.Popup("dotnet(sdk)がインストールされていません。.NET SDK をインストールしますか？",0,"警告",4)   # はい=6 いいえ=7
+        [int]$retButton = $obj.Popup("dotnet(sdk)がインストールされていません。.NET SDK をインストールしますか？",0,"警告",20)   # はい=6 いいえ=7
         switch($retButton){
             # はい(.NET SDKをインストール)
             6 {
