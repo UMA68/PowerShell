@@ -19,6 +19,15 @@ begin{
         $obj.Popup("YAMLファイルが存在しません。`r`n`r`n"+$YamlPath+"を確認してください。",0,"エラー",0x30)
         exit
     }
+    # powershell-yamlのインポート
+    try {
+        Import-Module -Name "powershell-yaml" -ErrorAction Stop
+    } catch {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.Popup("powershell-yamlモジュールのインポートに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        exit
+    }
+    
     # YAMLファイルの読み込み
     try {
         $yaml = Get-Content -Path $YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered
@@ -27,6 +36,25 @@ begin{
         $obj.Popup("YAMLファイルの読み込みに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
         exit
     }
+    # PowerShell-Yamlのバージョン取得
+    [string]$PowershellYamlVersion = ($yaml.Module.'Powershell-Yaml'.Version).ToString()
+    # YAMLファイルにあるpowershell-yamlのバージョンをインポート
+    if ($PowershellYamlVersion) {
+        try {
+            Import-Module -Name $yaml.Module.'Powershell-Yaml'.Name -RequiredVersion $PowershellYamlVersion -ErrorAction Stop
+        } catch {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup("Powershell-Yaml($PowershellYamlVersion)モジュールのインポートに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+            exit
+        }
+    } # else {
+    #     try {
+    #         Import-Module -Name "powershell-yaml" -ErrorAction Stop
+    #     } catch {
+    #         $obj = New-Object -ComObject WScript.Shell
+    #         $obj.Popup("powershell-yamlモジュールのインポートに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+    #         exit
+    #     }
 
     # ユーザの特定
     $global:gblUser = $env:USERNAME
