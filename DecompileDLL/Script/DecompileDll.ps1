@@ -62,7 +62,8 @@ process{
     # 一括逆コンパイル
     $oldDlls = Get-ChildItem $oldDllFolder -Filter *.dll    # 古いDLLファイルの取得
     $totalCount = $oldDlls.Count                            # 逆コンパイル予定数の取得
-    
+    $currentCount = 0                                       # 進捗カウンタの初期化
+
     foreach ($oldDll in $oldDlls) {
         $baseName = $oldDll.BaseName
         $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" | Sort-Object LastWriteTime | Select-Object -Last 1
@@ -70,11 +71,9 @@ process{
         # oldDllの逆コンパイル予定数と現在の進捗を表示
         $currentCount = $currentCount + 1
         Write-Host "進捗: $currentCount/$totalCount"
-        # 進捗をグラフィカルに表示
         $progress = (($currentCount / $totalCount) * 100)
         $roundedProgress = [Math]::Round($progress, 2)
         Write-Progress -Activity "逆コンパイル中" -Status "$currentCount/$totalCount" -PercentComplete $roundedProgress
-        Write-Progress "逆コンパイル中" ([String]$Progress+"%") -PercentComplete $progress
 
         # 逆コンパイル
         if ($newDll) {
