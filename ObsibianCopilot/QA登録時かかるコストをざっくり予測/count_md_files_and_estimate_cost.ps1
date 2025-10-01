@@ -1,6 +1,6 @@
 
 # Obsidian Vault のパスを指定してください
-$vaultPath = "C:\Users\徳永光浩\GitHub\obsidian"
+$vaultPath = ($HOME+"\GitHub\obsidian")
 
 # .mdファイルを再帰的に検索してカウント
 $mdFiles = Get-ChildItem -Path $vaultPath -Recurse -Filter *.md -File
