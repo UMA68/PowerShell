@@ -34,14 +34,43 @@ function Check-NoDoubleActivation{
         )
     Process{
         # 二重起動の禁止
-        $mutex = New-Object Threading.Mutex($true, $Thread)
-        if (-not $mutex.WaitOne(0, $false)) {
+        # 変更点:
+        # - 初期所有(true)で作成するとこのプロセスが最初に所有者となり
+        #   直後の WaitOne は常に true を返してしまうため、別プロセスの検出ができない。
+        # - そこでまず所有権を取らずに名前付きミューテックスを作成(open)し、
+        #   WaitOne(0) で即時取得を試みる方式に変更する。
+        $mutexName = $Thread
+        $createdRef = [ref]$false
+        # 所有しないで名前付きミューテックスを作成（存在しなければ作成される）
+        $mutex = New-Object System.Threading.Mutex($false, $mutexName, $createdRef)
+
+        # すぐに所有権を取得できるか試す（タイムアウト 0）
+        $hasHandle = $mutex.WaitOne(0, $false)
+        if (-not $hasHandle) {
             $Msg = "既に起動しています。起動を終了します。"
             Write-Host $Msg -ForegroundColor Red
             $obj = New-Object -ComObject WScript.Shell
-            $obj.popup($_.Exception.Message + $Msg, 0, "エラー", 0x10)  # 0x10:エラーアイコン
-                $mutex.Close()
+            $obj.popup($Msg, 0, "エラー", 0x10)  # 0x10:エラーアイコン
+            $mutex.Close()
             Exit
+        }
+
+        # ミューテックスオブジェクトをグローバルに保持してプロセス終了までロックを維持する
+        Set-Variable -Name "NoDoubleActivation_Mutex" -Value $mutex -Scope Global -Force
+
+        # 終了時にミューテックスを確実に解放するためのイベント登録
+        if (-not (Get-Variable -Name NoDoubleActivation_Event -Scope Global -ErrorAction SilentlyContinue)) {
+            $cleanupAction = {
+                $v = Get-Variable -Name NoDoubleActivation_Mutex -Scope Global -ErrorAction SilentlyContinue
+                if ($v) {
+                    try { $v.Value.ReleaseMutex() } catch {}
+                    try { $v.Value.Close() } catch {}
+                }
+            }
+
+            # PowerShell エンジン終了時に実行されるハンドラを登録（PassThru でサブスクリプションを取得）
+            $eventSub = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction -PassThru
+            Set-Variable -Name "NoDoubleActivation_Event" -Value $eventSub -Scope Global -Force
         }
     }
 }
