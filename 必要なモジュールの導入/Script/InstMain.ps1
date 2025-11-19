@@ -99,7 +99,7 @@ Process{
     Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
 
     # Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log
-    Write-CommonLog -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("[[[START]]]") -LogPath $Log -Level 'INFO'
 
     # モジュールのインストール
     foreach($module in $yaml.Module.Keys){
@@ -108,7 +108,7 @@ Process{
 
     # Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log
     # Write-Log -Message "-----------------------------" -LogPath $Log
-    Write-CommonLog -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("[[[END]]]") -LogPath $Log -Level 'INFO'
     Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO'
 }
 end{
