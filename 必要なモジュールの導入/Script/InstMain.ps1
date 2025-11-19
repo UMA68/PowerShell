@@ -23,6 +23,10 @@ begin{
     # .ps1ファイル読み込み
     try {
         . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop
+        . $comPath"\Get-EncryptionKey.ps1" -ErrorAction Stop
+        . $comPath"\Get-ScriptPaths.ps1" -ErrorAction Stop
+        . $comPath"\Import-YamlConfig.ps1" -ErrorAction Stop
+        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop
         . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop
         . $scriptDir"\Log-Output.ps1" -ErrorAction Stop
         . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop
@@ -32,6 +36,17 @@ begin{
         $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
             # おわり
     }
+    # ログの定義
+    $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
+    # # ログの書き込み関数
+    # function Write-Log {
+    #     param(
+    #         [Parameter(Mandatory=$true)]
+    #         [string]$Message,
+    #         [string]$LogPath
+    #     )
+    #     Log-Output -Message $Message -LogPath $LogPath
+    # }
 
     # Powershell-Yamlモジュールの存在チェック
     # なければインストールする(無指定だと0.4.7をインストールする)
@@ -47,18 +62,6 @@ begin{
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
         Exit    # おわり
-    }
-    # ログの定義
-    $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
-        
-    # ログの書き込み関数
-    function Write-Log {
-        param(
-            [Parameter(Mandatory=$true)]
-            [string]$Message,
-            [string]$LogPath
-        )
-        Log-Output -Message $Message -LogPath $LogPath
     }
 }
 Process{
@@ -79,24 +82,34 @@ Process{
     }
 
     # ログの記録開始
-    Write-Log -Message ("HOST: "+$HostName) -LogPath $Log   # ホスト名
-    Write-Log -Message ("USER: "+$userName) -LogPath $Log   # ユーザ名
+    # Write-Log -Message ("HOST: "+$HostName) -LogPath $Log   # ホスト名
+    # Write-Log -Message ("USER: "+$userName) -LogPath $Log   # ユーザ名
+    Write-CommonLog -Message ("HOST: "+$HostName) -LogPath $Log -Level 'INFO'   # ホスト名
+    Write-CommonLog -Message ("USER: "+$userName) -LogPath $Log -Level 'INFO'   # ユーザ名
 
-    Write-Log -Message ("Running PowerShell Version: "+$pwsVerChk) -LogPath $Log
-    Write-Log -Message "============================" -LogPath $Log
-    Write-Log -Message ($yaml.Project) -LogPath $Log
-    Write-Log -Message ("Version: "+$yaml.Version) -LogPath $Log
-    Write-Log -Message "============================" -LogPath $Log
+    # Write-Log -Message ("Running PowerShell Version: "+$pwsVerChk) -LogPath $Log
+    # Write-Log -Message "============================" -LogPath $Log
+    # Write-Log -Message ($yaml.Project) -LogPath $Log
+    # Write-Log -Message ("Version: "+$yaml.Version) -LogPath $Log
+    # Write-Log -Message "============================" -LogPath $Log
+    Write-CommonLog -Message ("Running PowerShell Version: "+$pwsVerChk) -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ($yaml.Project) -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("Version: "+$yaml.Version) -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
 
-    Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log
+    # Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log
+    Write-CommonLog -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[START]]]") -LogPath $Log -Level 'INFO'
 
     # モジュールのインストール
     foreach($module in $yaml.Module.Keys){
         Check-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
     }
 
-    Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log
-    Write-Log -Message "-----------------------------" -LogPath $Log
+    # Write-Log -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log
+    # Write-Log -Message "-----------------------------" -LogPath $Log
+    Write-CommonLog -Message ("MSG: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [[[END]]]") -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO'
 }
 end{
     # 終了メッセージ
@@ -104,13 +117,19 @@ end{
     $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
 
     # ログの見方を追記
-    Write-Log -Message " " -LogPath $Log
-    Write-Log -Message "ログの見方" -LogPath $Log
-    Write-Log -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log
-    Write-Log -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log
-    Write-Log -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log
-    Write-Log -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log
-
+    # Write-Log -Message " " -LogPath $Log
+    # Write-Log -Message "ログの見方" -LogPath $Log
+    # Write-Log -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log
+    # Write-Log -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log
+    # Write-Log -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log
+    # Write-Log -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log
+    Write-CommonLog -Message " " -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "ログの見方" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log -Level 'INFO'
+    
     # ログファイルを開く
     Invoke-Item $Log
 }

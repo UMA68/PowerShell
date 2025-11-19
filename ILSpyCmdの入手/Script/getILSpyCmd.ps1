@@ -47,14 +47,7 @@ begin{
             $obj.Popup("Powershell-Yaml($PowershellYamlVersion)モジュールのインポートに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
             exit
         }
-    } # else {
-    #     try {
-    #         Import-Module -Name "powershell-yaml" -ErrorAction Stop
-    #     } catch {
-    #         $obj = New-Object -ComObject WScript.Shell
-    #         $obj.Popup("powershell-yamlモジュールのインポートに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
-    #         exit
-    #     }
+    }
 
     # ユーザの特定
     $global:gblUser = $env:USERNAME
@@ -193,96 +186,6 @@ process{
         exit
     }
 
-
-    # # dotnet toolがインストールされているか確認
-    # if (-not (Get-Command "dotnet" -ErrorAction SilentlyContinue)) {
-    #     # dotnetがインストールされていない場合の処理
-    #     Log-Message "dotnet is not installed. Please install .NET SDK."
-    #     # $obj = New-Object -ComObject WScript.Shell
-    #     [int]$retButton = $obj.Popup("dotnetがインストールされていません。.NET SDK をインストールしますか？",0,"警告",4)   # はい=6 いいえ=7
-    #     switch($retButton){
-    #         # はい
-    #         6 { 
-    #             # ダウンロード先とファイル名
-    #             # $downloadUrl = "https://download.visualstudio.microsoft.com/download/pr/2f2b7c3e-2e3e-4f2e-9b0e-2e3e2f2b7c3e/dotnet-sdk-8.0.100-win-x64.exe"
-    #             # $installerPath = "$env:TEMP\dotnet-sdk-installer.exe"
-    #             $downloadUrl = $yaml.DotnetSdk.DownloadUrl
-    #             $installerPath = Join-Path -Path $env:TEMP -ChildPath ($yaml.DotnetSdk.Installer)
-    #             $verSDK = $yaml.DotnetSdk.Version
-
-    #             #  dotnet SDKのインストール
-    #             $obj.Popup("dotnet SDK($verSDK)をインストールします。",0,"情報",0x40) | Out-Null
-    #             try {
-    #                 # Start-Process "https://dotnet.microsoft.com/download/dotnet" -Wait
-                    
-    #                 # ログにメッセージを出力
-    #                 Log-Message "dotnet SDK installer download started."
-    #                 # インストーラーをダウンロード
-    #                 Invoke-WebRequest -Uri $downloadUrl -OutFile $installerPath
-    #                 Log-Message "dotnet SDK installer downloaded to $installerPath."
-
-    #                 # ログにメッセージを出力
-    #                 Log-Message "dotnet SDK installation started."
-    #                 # インストール（サイレントモード）
-    #                 Start-Process -FilePath $installerPath -ArgumentList "/install /quiet /norestart" -Wait
-    #                 Log-Message "dotnet SDK installation completed."
-                    
-    #                 # インストール確認
-    #                 if (Get-Command "dotnet" -ErrorAction SilentlyContinue) {
-    #                     Log-Message "dotnet SDK installed successfully."
-    #                 } else {
-    #                     Log-Message "dotnet SDK installation failed."
-    #                     # $obj = New-Object -ComObject WScript.Shell
-    #                     $obj.Popup("dotnet SDKのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-    #                     exit
-    #                 }
-
-    #             } catch {
-    #                 Log-Message "Failed to start dotnet SDK installation: $_"
-    #                 # $obj = New-Object -ComObject WScript.Shell
-    #                 $obj.Popup("Failed to start dotnet SDK installation: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-    #                 exit
-    #             }
-    #             # dotnet tool install --global ILSpyCmdを実行する前に、ユーザに確認
-    #             # $obj.Popup("dotnet SDKのインストールが完了しました。",0,"情報",0x40) | Out-Null
-    #             $obj.Popup("dotnet SDKのインストールが完了しました。`r ILSpyCmdをインストールします。",0,"情報",0x40) | Out-Null
-    #             try {
-    #                 # dotnet tool install --global ilspycmd --version $ILSpyCmdVersion -s $ILSpyCmdSource -nologo -v q
-    #                 dotnet tool install --global ilspycmd
-    #                 Log-Message "'dotnet tool install --global ilspycmd' executed successfully."
-    #                 Log-Message "ILSpyCmd installation completed."
-    #             } catch {
-    #                 Log-Message "Failed to install ILSpyCmd: $_"
-    #                 # $obj = New-Object -ComObject WScript.Shell
-    #                 $obj.Popup("Failed to install ILSpyCmd: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-    #                 exit
-    #             }
-    #         }
-    #         # いいえ 
-    #         7 { 
-    #             # $obj = New-Object -ComObject WScript.Shell
-    #             $obj.Popup("プログラムを終了します。",0,"情報",0x40) | Out-Null
-    #             exit 
-    #         }
-    #     }
-    # }else{
-    #     # dotnetがインストールされている場合の処理
-    #     Log-Message "dotnet is already installed."
-    #     # dotnet tool install --global ilspycmdを実行する前に、ユーザに確認
-    #     # $obj = New-Object -ComObject WScript.Shell
-    #     $obj.Popup("ILSpyCmdをインストールします。",0,"情報",0x40) | Out-Null
-    #     try {
-    #         # dotnet tool install --global ilspycmd --version $ILSpyCmdVersion -s $ILSpyCmdSource -nologo -v q
-    #         dotnet tool install --global ilspycmd
-    #         Log-Message "'dotnet tool install --global ilspycmd' executed successfully."
-    #         Log-Message "ILSpyCmd installation completed."
-    #     } catch {
-    #         Log-Message "Failed to install ilspycmd: $_"
-    #         # $obj = New-Object -ComObject WScript.Shell
-    #         $obj.Popup("Failed to install ILSpyCmd: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-    #         exit
-    #     }
-    # }
 }
 
 end{
