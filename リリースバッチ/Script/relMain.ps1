@@ -8,9 +8,7 @@ param(
     # [Parameter(Mandatory = $true)]
     [string]$DecryptionKey = "Encryption.Key" , # オプション無しのデフォルト値
     # [string]$EnvYaml = "Env.yaml"               # オプション無しのデフォルト値
-    [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用
-    # [string]$EnvYaml = "EnvSTG.yaml"            # STG環境用
-    # [string]$EnvYaml = "EnvPRD.yaml"            # 本番環境用
+    [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
     # スクリプトの実行環境を取得
@@ -25,8 +23,6 @@ begin{
     # ユーザの特定
     $global:gblUser = $env:USERNAME
     $global:glbHostName = $env:COMPUTERNAME
-    # $global:gblUser = $global:gblUser.ToLower()     # ユーザ名を小文字に変換
-    # $global:HostName = $global:HostName.ToLower()   # ホスト名を小文字に変換
 
     # .ps1ファイルの読み込み
     try{
@@ -74,42 +70,10 @@ begin{
         $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
-    # # PowerShellオブジェクトに変換
-    # try{
-    #     $yamlObj = ConvertFrom-Yaml -Ordered $Yaml -ErrorAction Stop # -Ordered: YAMLの順序を保持するオプション
-    # }catch{ 
-    #     # 変換できない場合は警告を表示し終了
-    #     $obj = New-Object PSObject WScript.Shell
-    #     $obj.Popup("I couldn't convert the YAML file to PowerShell object. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
-    #     exit # 終了
-    # }
-
-    # # YAML指定モジュールがインストール済みか確認
-    # foreach ($module in $yaml.Module.Keys) {
-    #     if (-not (Find-Module -ModuleName $module)) {
-    #         $obj = New-Object PSObject WScript.Shell
-    #         $obj.Popup("Module '$module' is not installed.", 0, "Module Check", 0x30) | Out-Null
-    #         exit # 終了
-    #     }
-    # }
 
     # ログの定義
     $global:glbLogPath = Join-Path -Path $yaml.LOG.PATH -ChildPath ($yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$yaml.LOG.EXTENSION) # ログの保存先
-    # $glbLogPath = $logPath -replace "\\", "/" # パスの区切り文字を変換
 
-    # # ログの出力関数
-    # function Write-Log {
-    #     [CmdletBinding()]
-    #     param(
-    #         [Parameter(Mandatory = $true)]
-    #         [string]$Message
-    #         # [string]$LogPath = $logPath
-    #     )
-    #     # $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss" # タイムスタンプの取得
-    #     # $logMessage = "$timestamp - $Message" # ログメッセージの作成
-    #     # Add-Content -Path $LogPath -Value $logMessage # ログファイルに追記
-    #     Write-Output $Message | Tee-Object -FilePath $glbLogPath -Append | Out-Default # メッセージを出力し、ログファイルに追記
-    # }
 }
 process{
 
@@ -120,14 +84,12 @@ process{
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
     if(!($Yaml.PowerShell.Version -eq $PwsVerChk)){
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("PowerShell version is not matched. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30)
         # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$Yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
         [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$Yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
         switch($Button){
             6 { break } # OK(Continue)
             7 { exit }  # Cancel(End)
             # default { Write-Log "不明なボタンが押されました。" } # Unknown
-            # default { Write-Log "An unknown button was pressed." ; exit } # Unknown
             default { Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR' ; exit } # Unknown
         }
     }
@@ -141,7 +103,6 @@ process{
         7 { exit }  # Cancel(End)
         default { 
             # Write-Log "An unknown button was pressed."
-            # Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
             Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
             # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
             $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
@@ -152,11 +113,6 @@ process{
     # タイトル表示
     $ProjectLength = (("Project name: "+$yaml.Project).ToString()).Length   # プロジェクト名の長さを取得
     $ProjectLine = "=" * $ProjectLength                         # プロジェクト名の長さと同じ長さの=を作成
-    # Write-Log $ProjectLine                                      # プロジェクト名の長さと同じ長さの=をログに出力
-    # Write-Log ("Project name: "+$yaml.Project).ToString()       # プロジェクト名をログに出力
-    # Write-Log ("Project version: "+$yaml.Version).ToString()    # バージョンをログに出力
-    # Write-Log $ProjectLine                  # プロジェクト名の長さと同じ長さの=をログに出力
-    # # Write-Log ("`r`n").ToString()           # 改行をログに出力
     Write-CommonLog -Message $ProjectLine -LogPath $global:glbLogPath -Level 'INFO'                                      # プロジェクト名の長さと同じ長さの=をログに出力
     Write-CommonLog -Message ("Project name: "+$yaml.Project).ToString() -LogPath $global:glbLogPath -Level 'INFO'       # プロジェクト名をログに出力
     Write-CommonLog -Message ("Project version: "+$yaml.Version).ToString() -LogPath $global:glbLogPath -Level 'INFO'    # バージョンをログに出力
@@ -165,14 +121,12 @@ process{
     
     # モジュールのインポート
     foreach($ModuleType in $yaml.Module.Keys){
-        # if ($yaml.Module.ContainsKey($ModuleType)) {
         $ModuleName = $yaml.Module.$ModuleType.Name # モジュール名
         $ModuleVersion = $yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
         
         # もし、モジュール名かバージョンが空であれば、スキップ
         if ($ModuleName -eq "" -or $ModuleVersion -eq "") {
             # Write-Log ("モジュール名かバージョンが空でした。 処理をスキップします。").ToString() # ログにエラーメッセージを出力
-            # Write-Log "Module name or version is empty. Skipping module import." # ログにエラーメッセージを出力
             Write-CommonLog -Message "Module name or version is empty. Skipping module import." -LogPath $global:glbLogPath -Level 'WARN' # ログにエラーメッセージを出力
             continue # スキップ
         }
@@ -185,7 +139,6 @@ process{
             switch($Button){
                 6 { break } # OK(Continue)
                 7 { Exit }  # Cancel(End)
-                # default { Write-Log "不明なボタンが押されました。" } # Unknown
                 default { 
                     # Write-Log "An unknown button was pressed."
                     Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
@@ -199,7 +152,6 @@ process{
         try{
             # モジュールのインポート
             Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop # モジュールのインポート
-            # Write-Log "The import of module '$ModuleName($ModuleVersion)' was successful." # モジュールのインポート成功メッセージ
             Write-CommonLog -Message "The import of module '$ModuleName($ModuleVersion)' was successful." -LogPath $global:glbLogPath -Level 'INFO' # モジュールのインポート成功メッセージ
         }catch{
             # モジュールのインポートに失敗した場合は警告を表示し終了
@@ -210,12 +162,6 @@ process{
     }
 
     # リリースの実行
-    # Write-Log ("`r").ToString() # 改行をログに出力
-    # Write-Log ("HOST: "+$glbHostName).ToString()    # ホスト名をログに出力
-    # Write-Log ("USER: "+$gblUser).ToString()        # ユーザ名をログに出力
-    # Write-Log ("Running PowerShell version: "+$PwsVerChk).ToString() # PowerShellのバージョンをログに出力
-    # Write-Log ("`r").ToString() # 改行をログに出力
-    # Write-Log ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() # リリース開始時間をログに出力
     Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
     Write-CommonLog -Message ("HOST: "+$glbHostName).ToString() -LogPath $global:glbLogPath -Level 'INFO'    # ホスト名をログに出力
     Write-CommonLog -Message ("USER: "+$gblUser).ToString() -LogPath $global:glbLogPath -Level 'INFO'        # ユーザ名をログに出力
@@ -228,14 +174,7 @@ process{
 
     # リリース処理
     $AllTypeObj = $yaml.RELEASE.Keys # リリースタイプの取得
-    foreach($ReleaseType in $AllTypeObj){
-        # リリースタイプの取得
-        # $ReleaseType = $yaml.RELEASE.$ReleaseType.Type # リリースタイプの取得
-        # # リリース元フォルダの取得
-        # $ReleaseSource = $yaml.RELEASE.$ReleaseType.FolderBy # リリース元フォルダの取得
-        # # リリース先フォルダの取得
-        # $ReleaseDestination = $yaml.RELEASE.$ReleaseType.FolderTo # リリース先フォルダの取得
-        
+    foreach($ReleaseType in $AllTypeObj){        
         # リリース処理を実行
         Copy-ItemCustom -ReleaseType $ReleaseType
     }
@@ -245,9 +184,6 @@ process{
 }
 end{
     # Measure-Commandの結果をログに出力
-    # Write-Log ("Elapsed time for release: "+$TimeLap.TotalSeconds+" seconds").ToString() # リリース処理の経過時間をログに出力
-    # Write-Log ("Elapsed time for release: "+$TimeLap.Minutes.ToString("00")+":Min "+$TimeLap.Seconds.ToString("00")+":Sec") # リリース処理の経過時間をログに出力
-    # Write-Log ("Release end time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() # リリース終了時間をログに出力
     Write-CommonLog -Message ("Elapsed time for release: "+$TimeLap.TotalSeconds+" seconds").ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース処理の経過時間をログに出力
     Write-CommonLog -Message ("Elapsed time for release: "+$TimeLap.Minutes.ToString("00")+":Min "+$TimeLap.Seconds.ToString("00")+":Sec") -LogPath $global:glbLogPath -Level 'INFO' # リリース処理の経過時間をログに出力
     Write-CommonLog -Message ("Release end time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース終了時間をログに出力

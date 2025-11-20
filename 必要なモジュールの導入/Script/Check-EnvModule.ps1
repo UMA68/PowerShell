@@ -38,20 +38,16 @@ function Check-EnvModule {
         foreach($ver in $getVer){
             if($ver.ToString() -eq $ModuleVersion){
                 $flg = $true    # 存在したらフラグを立てる
-                # Write-Log -Message ("INFO: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [EXIST] "+$ModuleName+" Version: "+$ver.ToString()) -LogPath $Log
                 Write-CommonLog -Message ("[EXIST] "+$ModuleName+" Version: "+$ver.ToString()) -LogPath $Log -Level 'INFO'
             }else{
-                # Write-Log -Message ("INFO: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [OTHER] "+$ModuleName+" Version: "+$ver.ToString()) -LogPath $Log
                 Write-CommonLog -Message ("[OTHER] "+$ModuleName+" Version: "+$ver.ToString()) -LogPath $Log -Level 'INFO'
             }
         }
     }else{
-        # Write-Log -Message ("WARN: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [NOTHING] "+$ModuleName) -LogPath $Log
         Write-CommonLog -Message ("[NOTHING] "+$ModuleName) -LogPath $Log -Level 'WARN'
     }
     # yaml記述バージョンのモジュールが存在しない場合はインストール
     if($flg -eq $false){
-        # Write-Log -message ("WARN: "+(Get-Date -Format "yyyyMMdd HH:mm:ss")+" [INSTALL] "+$ModuleName+" Version: "+$ModuleVersion.ToString()) -LogPath $Log
         Write-CommonLog -message ("[INSTALL] "+$ModuleName+" Version: "+$ModuleVersion.ToString()) -LogPath $Log -Level 'WARN'
         Install-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force # | Tee-Object -FilePath $glbLog -Append | Out-Default
     }

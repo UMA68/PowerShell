@@ -12,6 +12,18 @@ begin{
     $YamlPath = Join-Path -Path $UpperPath"\YAML" -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
     # $KeyPath = Join-Path -Path $PowerShellDir"\Common" -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得 
     $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"                # ログファイルの格納ディレクトリを取得
+    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"        # 共通スクリプトのパスを取得
+
+    # 共通スクリプトのインポート
+    try{
+        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop
+    }catch{
+        # スクリプトファイルが読めない場合は警告を表示し終了
+        $obj = New-Object -ComObject WScript.Shell
+        # $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        exit # 終了
+    }
 
     # YAMLファイルの存在チェック
     if (-not (Test-Path -Path $YamlPath)) {
@@ -59,29 +71,22 @@ begin{
 
     # ログの定義
     $Log = Join-Path -Path $LogDir -ChildPath ($LogFileName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$Logextension)
-
-    # ログの表示&書き込み
-    function Log-Message {
-        param (
-            [string]$message
-        )
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $logMessage = "$timestamp - $message"
-        Write-Output $logMessage | Tee-Object -FilePath $Log -Append
-    }
-
+    # ログディレクトリが作成されていなければ作成
+    if (-not (Test-Path -Path $LogDir)) {
+        New-Item -Path $LogDir -ItemType Directory | Out-Null
+    }    
 }
 process{
     # タイトル表示
-    Log-Message "HOST: $glbHostName"    # ホスト名をログに出力
-    Log-Message "USER: $gblUser"        # ユーザ名をログに出
-    Log-Message "Running PowerShell Version: $($PSVersionTable.PSVersion)"  # PowerShellのバージョンをログに出力
-    $ProjectLength = (("Project name: "+$yaml.Project).ToString()).Length   # プロジェクト名の長さを取得
-    $ProjectLine = "=" * $ProjectLength                         # プロジェクト名の長さと同じ長さの=を作成
-    Log-Message $ProjectLine                                    # プロジェクト名の長さと同じ長さの=をログに出力
-    Log-Message ("Project name: "+$yaml.Project).ToString()     # プロジェクト名をログに出力
-    Log-Message ("Project version: "+$yaml.Version).ToString()  # バージョンをログに出力
-    Log-Message $ProjectLine                                    # プロジェクト名の長さと同じ長さの=をログに出力
+    Write-CommonLog -Message "HOST: $glbHostName" -LogPath $Log -Level "INFO"   # ホスト名をログに出力
+    Write-CommonLog -Message "USER: $gblUser" -LogPath $Log -Level "INFO"       # ユーザ名をログに出力
+    Write-CommonLog -Message "Running PowerShell Version: $($PSVersionTable.PSVersion)" -LogPath $Log -Level "INFO"  # PowerShellのバージョンをログに出力
+    $ProjectLength = (("Project name: "+$yaml.Project).ToString()).Length       # プロジェクト名の長さを取得
+    $ProjectLine = "=" * $ProjectLength                                         # プロジェクト名の長さと同じ長さの=を作成
+    Write-CommonLog -Message $ProjectLine -LogPath $Log -Level "INFO"                                    # プロジェクト名の長さと同じ長さの=をログに出力
+    Write-CommonLog -Message ("Project name: "+$yaml.Project).ToString() -LogPath $Log -Level "INFO"     # プロジェクト名をログに出力
+    Write-CommonLog -Message ("Project version: "+$yaml.Version).ToString() -LogPath $Log -Level "INFO"  # バージョンをログに出力
+    Write-CommonLog -Message $ProjectLine -LogPath $Log -Level "INFO"                                    # プロジェクト名の長さと同じ長さの=をログに出力
     
     # 改行をログに出力
     Write-Output ("`r`n").ToString() | Tee-Object -FilePath $Log -Append
@@ -92,13 +97,13 @@ process{
     # ILSpyCmdがインストールされているか確認(あったら終了)
     $ILSpyCmdInstalled = Get-Command "ilspycmd" -ErrorAction SilentlyContinue
     if ($ILSpyCmdInstalled) {
-        Log-Message "ilspycmd is already installed."
+        Write-CommonLog -Message "✅ ilspycmd is already installed." -LogPath $Log -Level "INFO"
         # $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("ILSpyCmdはインストール済みで問題ありません。プログラムを終了します。",0,"情報",0x40) | Out-Null
         Invoke-Item -Path $Log
         exit
     } else {
-        Log-Message "ILSpyCmd is not installed."
+        Write-CommonLog -Message "ILSpyCmd is not installed." -LogPath $Log -Level "INFO"
         # Invoke-Item -Path $Log
     }
 
@@ -107,7 +112,7 @@ process{
     # SDKのインストール
     if (-not $sdks) {
         # dotnetがインストールされていない場合の処理
-        Log-Message "dotnet(sdk) is not installed. Please install .NET SDK."
+        Write-CommonLog -Message "dotnet(sdk) is not installed. Please install .NET SDK." -LogPath $Log -Level "WARN"
         # $obj = New-Object -ComObject WScript.Shell
         [int]$retButton = $obj.Popup("dotnet(sdk)がインストールされていません。.NET SDK をインストールしますか？",0,"警告",20)   # はい=6 いいえ=7
         switch($retButton){
@@ -122,27 +127,29 @@ process{
                 #  dotnet SDKのインストール
                 $obj.Popup("dotnet SDK($verSDK)のインストールを開始します。",0,"情報",0x40) | Out-Null
                 # ログにメッセージを出力
-                Log-Message "Starting the installation of the .NET SDK."
+                Write-CommonLog -Message "Starting the installation of the .NET SDK." -LogPath $Log -Level "INFO"
 
                 Try{
                     # インストール（パッシブモード：進捗見えるが操作不要）
                     Start-Process -FilePath $installerPath -ArgumentList "/install /passive /norestart" -Wait
-                    Log-Message "dotnet SDK installation completed."
+                    Write-CommonLog -Message "dotnet SDK installation completed." -LogPath $Log -Level "INFO"
                     # インストール確認
                     if (Get-Command "dotnet" -ErrorAction SilentlyContinue) {
-                        Log-Message "dotnet SDK installed successfully."
+                        Write-CommonLog -Message "dotnet SDK installed successfully." -LogPath $Log -Level "INFO"
                     } else {
-                        Log-Message "dotnet SDK installation failed."
+                        Write-CommonLog -Message "dotnet SDK installation failed." -LogPath $Log -Level "ERROR"
                         # $obj = New-Object -ComObject WScript.Shell
-                        $obj.Popup("dotnet SDKのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+                        # $obj.Popup("dotnet SDKのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+                        $obj.Popup("dotnet SDKのインストールに失敗しました。`r`nプログラムを終了します。",0,"エラー",0x10) | Out-Null
                         Invoke-Item -Path $Log
                         exit
                     }
             
                 } catch {
-                    Log-Message "Failed to start dotnet SDK installation: $_"
+                    Write-CommonLog -Message "Failed to start dotnet SDK installation: $_" -LogPath $Log -Level "ERROR"
                     # $obj = New-Object -ComObject WScript.Shell
-                    $obj.Popup("Failed to start dotnet SDK installation: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+                    # $obj.Popup("Failed to start dotnet SDK installation: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
+                    $obj.Popup("Failed to start dotnet SDK installation: $_ `r`nプログラムを終了します。",0,"エラー",0x10) | Out-Null
                     Invoke-Item -Path $Log
                     exit
                 }
@@ -158,11 +165,11 @@ process{
 
     }else{
         # dotnetがインストールされていた場合の処理
-        Log-Message "✅ .NET SDK はすでにインストールされています。"
+        Write-CommonLog -Message "✅ .NET SDK はすでにインストールされています。" -LogPath $Log -Level "INFO"
         & dotnet --list-sdks
         $DotnetSdks = & dotnet --list-sdks
-        Log-Message "dotnet --list-sdks"
-        Log-Message $DotnetSdks
+        Write-CommonLog -Message "dotnet --list-sdks" -LogPath $Log -Level "INFO"
+        Write-CommonLog -Message $DotnetSdks -LogPath $Log -Level "INFO"
     }
 
     # ILSpyCmdのインストール
@@ -172,37 +179,21 @@ process{
     #  dotnet tool install --global ilspycmd を実行
     try {
         # dotnet tool install --global ilspycmd
-
         $cmdCommand = 'dotnet tool install --global ilspycmd && echo ILSpyCmd のインストールが完了しました。Enter キーで終了します && pause'
         Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdCommand" -Wait -ErrorAction Stop
-
-        Log-Message "'dotnet tool install --global ilspycmd' executed successfully."
-        Log-Message "ILSpyCmd installation completed."
+        Write-CommonLog -Message "'dotnet tool install --global ilspycmd' executed successfully." -LogPath $Log -Level "INFO"
+        Write-CommonLog -Message "ILSpyCmd installation completed." -LogPath $Log -Level "INFO"
     } catch {
-        Log-Message "Failed to install ILSpyCmd: $_"
+        Write-CommonLog -Message "Failed to install ILSpyCmd: $_" -LogPath $Log -Level "ERROR"
         # $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("Failed to install ILSpyCmd: $_ `r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
         Invoke-Item -Path $Log
         exit
     }
-
 }
-
 end{
-    # # ILSpyCmdのインストール完了確認
-    # $ILSpyCmdInstalled = Get-Command "ilspycmd" -ErrorAction SilentlyContinue
-    # if ($ILSpyCmdInstalled) {
-    #     Log-Message "ilspycmd is already installed."
-    #     $obj.Popup("ILSpyCmdは無事インストールできました。",0,"情報",0x40) | Out-Null
-    # } else {
-    #     Log-Message "ILSpyCmd installation failed."
-    #     # $obj = New-Object -ComObject WScript.Shell
-    #     $obj.Popup("ILSpyCmdのインストールに失敗しました。`r`nプログラムを終了します。",0,"情報",0x40) | Out-Null
-    #     Invoke-Item -Path $Log
-    #     exit
-    # }
     # スクリプトの終了メッセージをログに出力
-    Log-Message "Script ended."
+    Write-CommonLog -Message "Script ended." -LogPath $Log -Level "INFO"
     # ログファイルを開く
     Invoke-Item -Path $Log
 }

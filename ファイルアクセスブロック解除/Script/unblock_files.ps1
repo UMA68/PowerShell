@@ -4,29 +4,27 @@ begin{
     $UpperPath = $scriptPath | Split-Path -Parent                       # スクリプトの親パスを取得
     $PowerShellDir = $UpperPath | Split-Path -Parent                    # スクリプトの親パスの親パスを取得
     $folderPath = $UpperPath + "\FileAccessBlock"                       # アクセスブロックされたファイルの格納パスを指定
+    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
 
+    # 共通スクリプトのインポート
+    try{
+        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop  
+    }catch{
+        # スクリプトファイルが読めない場合は警告を表示し終了
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        exit # 終了
+    }
     # ログの保存先を指定
     $logFilePath = Join-Path -Path $UpperPath -ChildPath ("unblock_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
-    
-    # Function to log messages with timestamp
-    function Log-Message {
-        param (
-            [string]$message
-        )
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $logMessage = "$timestamp - $message"
-        Write-Host $logMessage
-        Add-Content -Path $logFilePath -Value $logMessage
-    }
 }
-
 process{
     # Start logging
-    Log-Message "Script started."
+    Write-CommonLog -Message "Script started." -LogPath $logFilePath -Level "INFO"
 
     # Unblock-Fileコマンドレットが存在しなければ終了
     if (-not (Get-Command -Name Unblock-File -ErrorAction SilentlyContinue)) {
-        Log-Message "Unblock-File command not found. Please ensure you are running this script in a PowerShell environment that supports it."
+        Write-CommonLog -Message "Unblock-File command not found. Please ensure you are running this script in a PowerShell environment that supports it." -LogPath $logFilePath -Level "ERROR"
         Invoke-Item -Path $logFilePath
         exit # Exit if Unblock-File is not available
     }
@@ -41,23 +39,22 @@ process{
             if (Get-Item -Path $filePath -Stream "Zone.Identifier" -ErrorAction SilentlyContinue) {
                 try{
                     # Unblock-Fileコマンドレット実行
-                    Log-Message "Zone.Identifier found for file: $filePath. Unblocking file."
+                    Write-CommonLog -Message "Zone.Identifier found for file: $filePath. Unblocking file." -LogPath $logFilePath -Level "WARN"
                     Unblock-File -Path $filePath -ErrorAction Stop
-                    Log-Message "File unblocked: $filePath"
+                    Write-CommonLog -Message "File unblocked: $filePath" -LogPath $logFilePath -Level "WARN"
                 } catch {
                     # Unblockに失敗しました
-                    Log-Message "Failed to unblock file: $filePath"
-                    Log-Message "Error: $_"
+                    Write-CommonLog -Message "Failed to unblock file: $filePath" -LogPath $logFilePath -Level "ERROR"
+                    Write-CommonLog -Message "Error: $_" -LogPath $logFilePath -Level "ERROR"
                 }
 
             } else {
-                Log-Message "No Zone.Identifier found for file: $filePath"
+                Write-CommonLog -Message "No Zone.Identifier found for file: $filePath" -LogPath $logFilePath -Level "INFO"
             }
        }
 }
-
 end{
     # End logging
-    Log-Message "Script ended."
+    Write-CommonLog -Message "Script ended." -LogPath $logFilePath -Level "INFO"
     Invoke-Item -Path $logFilePath
 }

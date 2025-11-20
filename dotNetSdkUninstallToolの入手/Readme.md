@@ -5,7 +5,7 @@
 🔄 代替手段：GitHubからMSIを取得して手動インストール
 以下の手順で導入できます：
 
-`dotNetSdkUninstallTool`フォルダに`dotnet-core-uninstall.msi`が入っています。それを管**理者権限**でインストールしても良いです。
+`dotNetSdkUninstallTool`フォルダに`dotnet-core-uninstall.msi`が入っています。それを**管理者権限**でインストールしても良いです。
 
 ダウンロードするなら
 
