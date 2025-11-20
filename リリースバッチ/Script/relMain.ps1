@@ -26,8 +26,8 @@ begin{
 
     # .ps1ファイルの読み込み
     try{
-        . $PowerShellDir"\Common\FindModule.ps1"
-        . $PowerShellDir"\Common\NoDoubleActivation.ps1"
+        . $PowerShellDir"\Common\FindModule.ps1" -ErrorAction Stop
+        . $PowerShellDir"\Common\NoDoubleActivation.ps1" -ErrorAction Stop
         
         . $comPath"\Get-EncryptionKey.ps1" -ErrorAction Stop
         . $comPath"\Get-ScriptPaths.ps1" -ErrorAction Stop
@@ -73,7 +73,11 @@ begin{
 
     # ログの定義
     $global:glbLogPath = Join-Path -Path $yaml.LOG.PATH -ChildPath ($yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$yaml.LOG.EXTENSION) # ログの保存先
-
+    # ログファイルのディレクトリが存在しなければ作成
+    $logDir = Split-Path -Parent $global:glbLogPath
+    if (-not (Test-Path -Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir | Out-Null
+    }
 }
 process{
 
