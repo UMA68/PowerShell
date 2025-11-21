@@ -142,7 +142,7 @@ process{
             [int]$Button = $obj.Popup("Module '$ModuleName' is not installed. Do you want to install it?", 0, "Module Check", 4)
             switch($Button){
                 6 { break } # OK(Continue)
-                7 { Exit }  # Cancel(End)
+                7 { exit }  # Cancel(End)
                 default { 
                     # Write-Log "An unknown button was pressed."
                     Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
