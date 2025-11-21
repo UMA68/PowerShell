@@ -5,9 +5,7 @@
 # ===================================
 
 param(
-    # [Parameter(Mandatory = $true)]
     [string]$DecryptionKey = "Encryption.Key" , # オプション無しのデフォルト値
-    # [string]$EnvYaml = "Env.yaml"               # オプション無しのデフォルト値
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
@@ -28,12 +26,7 @@ begin{
     try{
         . $PowerShellDir"\Common\FindModule.ps1" -ErrorAction Stop
         . $PowerShellDir"\Common\NoDoubleActivation.ps1" -ErrorAction Stop
-        
-        . $comPath"\Get-EncryptionKey.ps1" -ErrorAction Stop
-        . $comPath"\Get-ScriptPaths.ps1" -ErrorAction Stop
-        . $comPath"\Import-YamlConfig.ps1" -ErrorAction Stop
         . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop
-
         . $scriptPath"\CopyItemCustom.ps1" -ErrorAction Stop
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
@@ -45,7 +38,7 @@ begin{
 
     # PowerShell-Yamlモジュールがインストールされていなければ、終了
     try {
-        if (-not (Find-Module -ModuleName "PowerShell-Yaml")) {
+        if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml")) {
             $obj = New-Object -ComObject WScript.Shell
             # $obj.Popup("モジュール 'PowerShell-Yaml' がインストールされていません。処理を終了します。", 0, "Module Check", 0x30) | Out-Null
             $obj.Popup("Module 'PowerShell-Yaml' is not installed. I'm ending the process.", 0, "Module Check", 0x30) | Out-Null
@@ -53,10 +46,9 @@ begin{
         }
     }
     catch {
-        # Find-Moduleを実行できない場合は警告を表示し終了
+        # Test-ModuleInstalledを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("'Find-Module'を実行できませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null 
-        $obj.Popup("I couldn't execute 'Find-Module'. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup("I couldn't execute 'Test-ModuleInstalled'. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
@@ -86,7 +78,7 @@ process{
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if(!($Yaml.PowerShell.Version -eq $PwsVerChk)){
+    if($Yaml.PowerShell.Version -ne $PwsVerChk){
         $obj = New-Object -ComObject WScript.Shell
         # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$Yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
         [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$Yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
@@ -135,7 +127,7 @@ process{
             continue # スキップ
         }
         # モジュールがインストールされているか確認
-        if (-not (Find-Module -ModuleName $ModuleName)) {
+        if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) {
             # モジュールがインストールされていない場合は、インストールを促す
             $obj = New-Object -ComObject WScript.Shell
             # [int]$Button = $obj.Popup("Module '$ModuleName' がインストールされていません. インストールを実施してください。", 0, "Module Check", 4)

@@ -35,7 +35,7 @@ function Test-EnvModule {
   # モジュールがインストール済みか確認
     $cnt = ((Get-Module -ListAvailable -Name $ModuleName).Name).Count
     $flg = $false   # yaml記述バージョンのモジュール存在フラグ
-    if(!($cnt -eq 0)){
+    if($cnt -ne 0){
         $getVer = (Get-Module -ListAvailable -Name $ModuleName).Version
         foreach($ver in $getVer){
             if($ver.ToString() -eq $ModuleVersion){

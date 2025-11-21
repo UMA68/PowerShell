@@ -37,7 +37,7 @@ function Copy-ItemCustom {
             # リリース先フォルダ
             $ReleaseDestination = $yaml.RELEASE.$ReleaseType.ReleaseTo
             # リリース先フォルダが存在しない場合は、エラーをログに記述
-            if (!(Test-Path -Path $ReleaseDestination)) {
+            if(-not (Test-Path -Path $ReleaseDestination)) {
                 Write-CommonLog -Message ("[ERROR] RELEASE TYPE '"+$ReleaseType+"' FOLDER NOT FOUND!.").ToString() -LogPath $global:glbLogPath -Level 'ERROR'
                 Write-CommonLog -Message ("[MESSAGE] "+$_.Exception.Message).ToString() -LogPath $global:glbLogPath -Level 'ERROR'
                 return

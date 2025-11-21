@@ -1,4 +1,4 @@
-function Find-Module{
+function Test-ModuleInstalled{
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]

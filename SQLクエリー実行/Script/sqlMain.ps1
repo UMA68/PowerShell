@@ -12,8 +12,6 @@ begin{
     $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path    # スクリプトのディレクトリ取得
     $UpperDir = Split-Path -Parent $ScriptDir                       # スクリプトの親ディレクトリ取得
     $PowerShellDir = Split-Path -Parent $UpperDir                   # PowerShellディレクトリ
-    # $SqlFolder = $ScriptDir+"\SQL"                                  # sqlフォルダの格納場所
-    # $log = $ScriptDir+"\LOG"                                        # ログファイルのパス
     $comPath = $PowerShellDir+"\Common"                             # 共通スクリプト格納ディレクトリ
     $Yaml = $UpperDir+"\YAML"                                       # yamlファイルの格納場所
     $KeyPath = Join-Path -Path $comPath -ChildPath $DecryptionKey   # 鍵ファイルのパス
@@ -58,7 +56,7 @@ begin{
     # PowerShellのバージョンチェック
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString() # 実行バージョン
     $pwsAssumVer = $YamlOBJ.PowerShell.Version          # 想定バージョン(yamlに記述)
-    if(!($pwsVerChk -eq $pwsAssumVer)){
+    if($pwsVerChk -ne $pwsAssumVer){
         # 想定のバージョンと違ったら警告表示
         $obj = New-Object -ComObject WScript.Shell
         [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`n必要なモジュールは PowerShell "+$pwsAssumVer+" を前提にインストールを行います。`r`n`r`n続行しますか？",0,"警告",0x30)   # はい=6 いいえ=7

@@ -23,12 +23,8 @@ begin{
     # .ps1ファイル読み込み
     try {
         . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop
-        . $comPath"\Get-EncryptionKey.ps1" -ErrorAction Stop
-        . $comPath"\Get-ScriptPaths.ps1" -ErrorAction Stop
-        . $comPath"\Import-YamlConfig.ps1" -ErrorAction Stop
         . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop
         . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop
-        . $scriptDir"\Log-Output.ps1" -ErrorAction Stop
         . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop
     } catch {
         $obj = New-Object -ComObject WScript.Shell
@@ -39,7 +35,7 @@ begin{
     # ログの定義
     $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
     # ログディレクトリがなければ作成
-    if(!(Test-Path -Path $LogDir)){
+    if(-not (Test-Path -Path $LogDir)){
         New-Item -Path $LogDir -ItemType Directory | Out-Null
     }
     
@@ -65,7 +61,7 @@ Process{
     # メインスクリプトの実行
     # powerShellバージョンチェック
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if(!($pwsVerChk -eq $yaml.PowerShell.Version)){
+    if($pwsVerChk -ne $yaml.PowerShell.Version){
         # yaml記述のバージョンと違ったら警告表示
         $obj = New-Object -ComObject WScript.Shell
         [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`nPowerShell "+$yaml.PowerShell.Version+" を前提にインストールを行います。続行しますか？",0,"警告",4)   # はい=6 いいえ=7
