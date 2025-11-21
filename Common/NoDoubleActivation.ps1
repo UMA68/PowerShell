@@ -3,15 +3,15 @@
     スクリプトの二重起動を禁止します。
 
 .DESCRIPTION
-    Check-NoDoubleActivation関数はスクリプトがすでに起動しているかどうかを確認します。
+    Test-NoDoubleActivation関数はスクリプトがすでに起動しているかどうかを確認します。
     もし起動していれば、OSへ戻ります。
     -Threadオプションで二重起動を禁止するスレッド名(拡張子なしファイル名)を指定します。
 
 .EXAMPLE
-    Check-NoDoubleActivation -Thread スレッド名
+    Test-NoDoubleActivation -Thread スレッド名
 
 .EXAMPLE
-    Check-NoDoubleActivation -Thread "InstMain"
+    Test-NoDoubleActivation -Thread "InstMain"
 
 .PARAMETER Thread
     チェック対象のスレッド名。
@@ -26,7 +26,7 @@
     Prerequisite   : PowerShell
     URL            :
 #>
-function Check-NoDoubleActivation{
+function Test-NoDoubleActivation{
     param( 
         # オプション必須
         [Parameter(Mandatory=$true)]

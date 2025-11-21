@@ -32,7 +32,7 @@ try{
 }
 
 # 二重起動の禁止
-Check-NoDoubleActivation -Thread "StringDecryption" # スレッド名は拡張子無しのスクリプトファイル名を指定
+Test-NoDoubleActivation -Thread "StringDecryption" # スレッド名は拡張子無しのスクリプトファイル名を指定
 
 # 暗号化の際に使用する鍵ファイルを読み込む
 # Encryption.keyの存在確認

@@ -3,15 +3,15 @@
     モジュールPowershell-Yamlがインストール済みか確認し、存在しない場合はインストールします。
 
 .DESCRIPTION
-    Chck-YamlModule関数はPowershell-Yaml 0.4.7が既にインストールされているかどうかを確認します。
+    Test-YamlModule関数はPowershell-Yaml 0.4.7が既にインストールされているかどうかを確認します。
     もし指定されたバージョンのモジュールが存在しない場合は、そのモジュールをインストールします。
     -Verオプションでバージョン指定が可能です。
 
 .EXAMPLE
-    Check-YamlModule
+    Test-YamlModule
 
 .EXAMPLE
-    Check-YamlModule -Ver '0.4.6'
+    Test-YamlModule -Ver '0.4.6'
 
 .PARAMETER Ver
    確認またはインストールするモジュールのバージョン。
@@ -20,16 +20,16 @@
     Powershell-Yamlモジュールの存在チェック
     なければインストールする(無指定だと0.4.7をインストールする)
     違うバージョンをインストールしたい場合は、以下のコメントアウトを参考にバージョン指定する
-    Check-YamlModule -Ver 'x.x.x
+    Test-YamlModule -Ver 'x.x.x
 
 .NOTES
-    File Name      : Chck-YamlModule.ps1
+    File Name      : Check-YamlModule.ps1
     Author         : UMA
     Prerequisite   : Powershell-Yaml(PowerShell Gallery)
     URL            : https://www.powershellgallery.com/packages/Powershell-Yaml 
 #>
 
-function Check-YamlModule {
+function Test-YamlModule {
     Param(
         [string]$Ver = '0.4.7'
     )

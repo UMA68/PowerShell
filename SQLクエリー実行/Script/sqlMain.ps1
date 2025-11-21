@@ -31,8 +31,8 @@ begin{
     }
     
     # 実行前のチェック。問題があったら終了
-    Check-NoDOubleActivation -Thread "sqlMain"  # 二重起動チェック
-    Check-Command -ComName "nkf32"              # nkf32の存在を確認(nkf32.exeと拡張子付も可)
+    Test-NoDoubleActivation -Thread "sqlMain"  # 二重起動チェック
+    Test-Command -ComName "nkf32"              # nkf32の存在を確認(nkf32.exeと拡張子付も可)
 
     # PowerShell-Yamlモジュールがインストールされていなけれは終了
     $YamlModule = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count

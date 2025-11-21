@@ -82,7 +82,7 @@ begin{
 process{
 
     # 二重起動の禁止
-    Check-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
+    Test-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()

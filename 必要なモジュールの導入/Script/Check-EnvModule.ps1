@@ -3,11 +3,11 @@
    モジュールがインストール済みか確認し、存在しない場合はインストールします。
 
 .DESCRIPTION
-   Check-EnvModule関数は指定されたモジュールが既にインストールされているかどうかを確認します。
+   Test-EnvModule関数は指定されたモジュールが既にインストールされているかどうかを確認します。
    もし指定されたバージョンのモジュールが存在しない場合は、そのモジュールをインストールします。
 
 .EXAMPLE
-    Check-EnvModule -ModuleName "モジュール名" -ModuleVersion "バージョン"
+    Test-EnvModule -ModuleName "モジュール名" -ModuleVersion "バージョン"
 
 .PARAMETER ModuleName
    確認またはインストールするモジュールの名前。
@@ -25,7 +25,7 @@
     Prerequisite   : PowerShell Gallery
     URL            : https://www.powershellgallery.com/
 #>
-function Check-EnvModule {
+function Test-EnvModule {
     param(
         [string]$ModuleName,
         [string]$ModuleVersion

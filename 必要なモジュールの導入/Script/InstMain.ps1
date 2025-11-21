@@ -46,8 +46,8 @@ begin{
     # Powershell-Yamlモジュールの存在チェック
     # なければインストールする(無指定だと0.4.7をインストールする)
     # 違うバージョンをインストールしたい場合は、以下のコメントアウトを参考にバージョン指定する
-    # Check-YamlModule -Ver 'x.x.x'
-    Check-YamlModule
+    # Test-YamlModule -Ver 'x.x.x'
+    Test-YamlModule
 
     # Yamlファイル読み込み
     try{
@@ -60,7 +60,7 @@ begin{
 }
 Process{
     # 二重起動の禁止
-    Check-NoDoubleActivation -Thread "InstMain" # スレッド名は拡張子無しのスクリプトファイル名
+    Test-NoDoubleActivation -Thread "InstMain" # スレッド名は拡張子無しのスクリプトファイル名
 
     # メインスクリプトの実行
     # powerShellバージョンチェック
@@ -89,7 +89,7 @@ Process{
 
     # モジュールのインストール
     foreach($module in $yaml.Module.Keys){
-        Check-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
+        Test-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
     }
 
     Write-CommonLog -Message ("[[[END]]]") -LogPath $Log -Level 'INFO'
