@@ -44,7 +44,7 @@ function Test-YamlModule {
         }
         catch {
             $obj.Popup("Powershell-Yamlのインストールに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30) | Out-Null
-            Exit    # おわり
+            exit    # おわり
         }
     } else {
         # Write-Log -Message "Powershell-Yaml is already installed." -LogPath $Log

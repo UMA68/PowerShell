@@ -34,7 +34,7 @@ begin{
         $obj = New-Object -ComObject WScript.Shell
         $scriptName = $_.InvocationInfo.MyCommand.Name
         $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
-        Exit    # おわり
+        exit    # おわり
     }
     # ログの定義
     $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
@@ -55,7 +55,7 @@ begin{
     }catch{
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
-        Exit    # おわり
+        exit    # おわり
     }
 }
 Process{

@@ -27,7 +27,9 @@
 #>
 function Test-EnvModule {
     param(
+        [Parameter(Mandatory=$true)]
         [string]$ModuleName,
+        [Parameter(Mandatory=$true)]
         [string]$ModuleVersion
     )
   # モジュールがインストール済みか確認

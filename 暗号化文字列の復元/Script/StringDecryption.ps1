@@ -28,7 +28,7 @@ try{
     Write-Host $_.Exception.Message -ForegroundColor Red
     $obj = New-Object -ComObject WScript.Shell
     $obj.popup($_.Exception.Message + "「"+$ScriptDir+"」に「InputGUI.ps1」が見つかりません。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
-    Exit
+    exit
 }
 
 # 二重起動の禁止
@@ -64,7 +64,7 @@ try{
 }catch{
     $obj = New-Object -ComObject WScript.Shell
     $obj.popup($_.Exception.Message + "`r`n`r`n文字列の復号に失敗しました。処理を終了します。", 0, "エラー", 0x10)  # 0x10:エラーアイコン    
-    Exit
+    exit
 }
 
 # 復号化した文字列を表示
