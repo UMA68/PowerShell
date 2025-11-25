@@ -158,11 +158,15 @@ process{
     }
 
     # リリースの実行
-    Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
-    Write-CommonLog -Message ("HOST: "+$glbHostName).ToString() -LogPath $global:glbLogPath -Level 'INFO'    # ホスト名をログに出力
-    Write-CommonLog -Message ("USER: "+$gblUser).ToString() -LogPath $global:glbLogPath -Level 'INFO'        # ユーザ名をログに出力
-    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk).ToString() -LogPath $global:glbLogPath -Level 'INFO' # PowerShellのバージョンをログに出力
-    Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
+    # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
+    $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length                                                       # PowerShellバージョンの長さを取得
+    $RunPwsVerLine = "+" * $RunPwsVerLength                                                                                     # PowerShellバージョンの長さと同じ長さの+を作成
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $global:glbLogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
+    Write-CommonLog -Message ("HOST: "+$glbHostName).ToString() -LogPath $global:glbLogPath -Level 'INFO'                       # ホスト名をログに出力
+    Write-CommonLog -Message ("USER: "+$gblUser).ToString() -LogPath $global:glbLogPath -Level 'INFO'                           # ユーザ名をログに出力
+    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk).ToString() -LogPath $global:glbLogPath -Level 'INFO'   # PowerShellのバージョンをログに出力
+    # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $global:glbLogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
     Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース開始時間をログに出力  
 
     # ここから時間計測
