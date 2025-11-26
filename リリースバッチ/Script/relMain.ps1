@@ -5,7 +5,9 @@
 # ===================================
 
 param(
+    [Parameter(Mandatory=$false)]
     [string]$DecryptionKey = "Encryption.Key" , # オプション無しのデフォルト値
+    [Parameter(Mandatory=$false)]
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
@@ -113,7 +115,6 @@ process{
     Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:LogPath -Level 'INFO'       # プロジェクト名をログに出力
     Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:LogPath -Level 'INFO'    # バージョンをログに出力
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
-    # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO'           # 改行をログに出力
     
     # モジュールのインポート
     foreach($ModuleType in $yaml.Module.Keys){
@@ -157,14 +158,12 @@ process{
     }
 
     # リリースの実行
-    # Write-CommonLog -Message ("`r").ToString() -LogPath $script:LogPath -Level 'INFO' # 改行をログに出力
     $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length                                                       # PowerShellバージョンの長さを取得
     $RunPwsVerLine = "+" * $RunPwsVerLength                                                                                     # PowerShellバージョンの長さと同じ長さの+を作成
     Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
     Write-CommonLog -Message ("HOST: "+$script:HostName) -LogPath $script:LogPath -Level 'INFO'                       # ホスト名をログに出力
     Write-CommonLog -Message ("USER: "+$script:User) -LogPath $script:LogPath -Level 'INFO'                           # ユーザ名をログに出力
     Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk) -LogPath $script:LogPath -Level 'INFO'   # PowerShellのバージョンをログに出力
-    # Write-CommonLog -Message ("`r").ToString() -LogPath $script:LogPath -Level 'INFO' # 改行をログに出力
     Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
     Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")) -LogPath $script:LogPath -Level 'INFO' # リリース開始時間をログに出力  
 
@@ -175,7 +174,7 @@ process{
     $AllTypeObj = $yaml.RELEASE.Keys # リリースタイプの取得
     foreach($ReleaseType in $AllTypeObj){
         # リリース処理を実行
-        Copy-ItemCustom -ReleaseType $ReleaseType -LogPath $script:LogPath
+        Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $yaml -LogPath $script:LogPath
     }    } # ここまで時間計測
 
 }

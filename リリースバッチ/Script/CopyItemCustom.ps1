@@ -3,12 +3,14 @@ function Copy-ItemCustom {
         [Parameter(Mandatory=$true)]
         [string]$ReleaseType,
         [Parameter(Mandatory=$true)]
+        [object]$Yaml,
+        [Parameter(Mandatory=$true)]
         [string]$LogPath
     )
     
     begin{
         # リリース元フォルダ
-        $ReleaseSource = $yaml.RELEASE.$ReleaseType.FolderBy
+        $ReleaseSource = $Yaml.RELEASE.$ReleaseType.FolderBy
     }
     process{
         # フォルダ内ファイルのカウント
@@ -36,7 +38,7 @@ function Copy-ItemCustom {
         Write-CommonLog -Message $StartMessageLine -LogPath $LogPath -Level 'INFO'
 
         # リリース先フォルダ
-        $ReleaseDestination = $yaml.RELEASE.$ReleaseType.ReleaseTo
+        $ReleaseDestination = $Yaml.RELEASE.$ReleaseType.ReleaseTo
         # リリース先フォルダが存在しない場合は、エラーをログに記述
         if(-not (Test-Path -Path $ReleaseDestination)) {
             Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR'
