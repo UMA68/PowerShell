@@ -5,11 +5,12 @@
 # 使い方
 # ----------------
 # 1. 鍵ファイル「Encryption.key」を「Common」フォルダに置く
-# 2. 「鍵ファイル作成.ps1 - ショートカット」をダブルクリックする
+# 2. 「鍵ファイル作成.ps1 - ショートカット」（または直接MakeEncryptedString.ps1）を実行する
 # 3. 暗号化する文字列を入力する
-# 4. 出力するファイルファイル名を入力する
+# 4. 出力するファイル名を入力する
 # ----------------
 param (
+    [Parameter(Mandatory=$false)]
     [string]$keyFileName = "Encryption.key" # オプションなしの場合は「Encryption.key」を使用する
 )
 
@@ -17,12 +18,12 @@ param (
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path    # スクリプトのディレクトリ
 $UpperDir = $ScriptDir | Split-Path -Parent                     # スクリプトの親ディレクトリ
 $PowerShellDir = $UpperDir | Split-Path -Parent                 # PowerShellディレクトリ
-$comPath = $PowerShellDir+"\Common"                             # 共通スクリプト格納ディレクトリ
-$keyPath = "$comPath\$keyFileName"                              # 鍵ファイルのパス
+$comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプト格納ディレクトリ
+$keyPath = Join-Path -Path $comPath -ChildPath $keyFileName     # 鍵ファイルのパス
 
 # .ps1ファイル読み込み
     try {
-        . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop
+        . (Join-Path -Path $comPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
     } catch {
         $obj = New-Object -ComObject WScript.Shell
         $scriptName = $_.InvocationInfo.MyCommand.Name
@@ -38,7 +39,7 @@ Test-NoDoubleActivation -Thread "MakeEncryptedString" # スレッド名は拡張
 try {
     if (Test-Path -Path $keyPath) {
         # 鍵ファイルを読み込む
-        [byte[]]$EncryptedKey =[System.IO.File]::ReadAllBytes($keyPath)
+        [byte[]]$EncryptionKey = [System.IO.File]::ReadAllBytes($keyPath)
         Write-Host "鍵ファイル「Encryption.key」を読み込みました。"
     } else {
         throw "鍵ファイル「Encryption.key」が見つかりません。"  # 例外を発生させる
@@ -53,14 +54,21 @@ try {
 # 暗号化する文字列を入力
 $InputString = Read-Host -Prompt "暗号化する文字列を入力してください"   # 暗号化する文字列を入力
 
-# 暗号化する文字列を表示
-Write-Host "暗号化する文字列: $InputString"
+# 入力文字列のバリデーション
+if ([string]::IsNullOrWhiteSpace($InputString)) {
+    $obj = New-Object -ComObject WScript.Shell
+    $obj.popup("暗号化する文字列が入力されていません。処理を終了します。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    exit
+}
+
+# 暗号化する文字列を表示（セキュリティのためコメントアウト）
+# Write-Host "暗号化する文字列: $InputString"
 
 # プレーンテキストをSecureStringに変換
 $SecureString = ConvertTo-SecureString -String $InputString -AsPlainText -Force
 
 # SecureStringを暗号化
-$EncryptedString = ConvertFrom-SecureString -SecureString $SecureString -Key $EncryptedKey
+$EncryptedString = ConvertFrom-SecureString -SecureString $SecureString -Key $EncryptionKey
 
 # 暗号化した文字列を表示
 Write-Host "暗号化した文字列: $EncryptedString"
@@ -69,12 +77,27 @@ Write-Host "暗号化した文字列: $EncryptedString"
 # ファイル名を入力する
 $FileName = Read-Host -Prompt "出力するファイル名を入力してください"   # ファイル名を入力する
 
-# ファイルに出力
-$EncryptedString | Out-File -FilePath "$UpperDir\$FileName" -Encoding utf8
+# ファイル名のバリデーション
+if ([string]::IsNullOrWhiteSpace($FileName)) {
+    $obj = New-Object -ComObject WScript.Shell
+    $obj.popup("ファイル名が入力されていません。処理を終了します。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    exit
+}
 
-# 暗号化した文字列をファイルに出力した旨を表示
-$obj = New-Object -ComObject WScript.Shell
-$obj.popup("暗号化した文字列をファイル「"+$FileName+"」に出力しました。", 0, "文字列暗号化", 0x40)  # 0x40:情報アイコン
+# ファイルに出力
+try {
+    $OutputPath = Join-Path -Path $UpperDir -ChildPath $FileName
+    $EncryptedString | Out-File -FilePath $OutputPath -Encoding utf8 -ErrorAction Stop
+    
+    # 暗号化した文字列をファイルに出力した旨を表示
+    $obj = New-Object -ComObject WScript.Shell
+    $obj.popup("暗号化した文字列をファイル「"+$FileName+"」に出力しました。", 0, "文字列暗号化", 0x40)  # 0x40:情報アイコン
+} catch {
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    $obj = New-Object -ComObject WScript.Shell
+    $obj.popup("ファイルへの書き込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    exit
+}
 
 # 変数の削除
-Remove-Variable -Name EncryptedKey, InputString, SecureString, EncryptedString, FileName, obj
+Remove-Variable -Name EncryptionKey, InputString, SecureString, EncryptedString, FileName, obj -ErrorAction SilentlyContinue
