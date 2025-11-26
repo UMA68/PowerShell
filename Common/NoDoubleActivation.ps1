@@ -68,9 +68,9 @@ function Test-NoDoubleActivation{
                 }
             }
 
-            # PowerShell エンジン終了時に実行されるハンドラを登録（PassThru でサブスクリプションを取得）
-            $eventSub = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction -PassThru
-            Set-Variable -Name "NoDoubleActivation_Event" -Value $eventSub -Scope Global -Force
+            # PowerShell エンジン終了時に実行されるハンドラを登録
+            $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction
+            Set-Variable -Name "NoDoubleActivation_Event" -Value $true -Scope Global -Force
         }
     }
 }
