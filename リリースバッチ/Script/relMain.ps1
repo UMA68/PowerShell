@@ -16,7 +16,7 @@ begin{
     $UpperPath = $scriptPath | Split-Path -Parent                       # スクリプトの親パスを取得
     $PowerShellDir = $UpperPath | Split-Path -Parent                    # スクリプトの親パスの親パスを取得
     $YamlPath = Join-Path -Path $UpperPath"\YAML" -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
-    $KeyPath = Join-Path -Path $PowerShellDir"\Common" -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得 
+    # $KeyPath = Join-Path -Path $PowerShellDir"\Common" -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得（将来使用予定）
     
     $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
 
@@ -33,8 +33,8 @@ begin{
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
-        $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        # $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
@@ -50,7 +50,7 @@ begin{
     catch {
         # Test-ModuleInstalledを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("I couldn't execute 'Test-ModuleInstalled'. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup("I couldn't execute 'Test-ModuleInstalled'. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
@@ -60,8 +60,8 @@ begin{
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("YAMLファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
-        $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        # $obj.Popup("YAMLファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         exit # 終了
     }
 
@@ -82,8 +82,8 @@ process{
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
     if($yaml.PowerShell.Version -ne $PwsVerChk){
         $obj = New-Object -ComObject WScript.Shell
-        # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$Yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
-        [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$Yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
+        # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
+        [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
         switch($Button){
             6 { break } # OK(Continue)
             7 { exit }  # Cancel(End)
@@ -109,20 +109,20 @@ process{
     }
 
     # タイトル表示
-    $ProjectLength = "Project name: $($yaml.Project)".Length   # プロジェクト名の長さを取得
+    $ProjectLength = "Project name: $($yaml.Project)".Length    # プロジェクト名の長さを取得
     $ProjectLine = "=" * $ProjectLength                         # プロジェクト名の長さと同じ長さの=を作成
-    Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                                      # プロジェクト名の長さと同じ長さの=をログに出力
-    Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:LogPath -Level 'INFO'       # プロジェクト名をログに出力
-    Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:LogPath -Level 'INFO'    # バージョンをログに出力
+    Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                            # プロジェクト名の長さと同じ長さの=をログに出力
+    Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:LogPath -Level 'INFO'        # プロジェクト名をログに出力
+    Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:LogPath -Level 'INFO'     # バージョンをログに出力
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
     
     # モジュールのインポート
     foreach($ModuleType in $yaml.Module.Keys){
-        $ModuleName = $yaml.Module.$ModuleType.Name # モジュール名
+        $ModuleName = $yaml.Module.$ModuleType.Name         # モジュール名
         $ModuleVersion = $yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
         
         # もし、モジュール名かバージョンが空であれば、スキップ
-        if ($ModuleName -eq "" -or $ModuleVersion -eq "") {
+        if ([string]::IsNullOrWhiteSpace($ModuleName) -or [string]::IsNullOrWhiteSpace($ModuleVersion)) {
             Write-CommonLog -Message "Module name or version is empty. Skipping module import." -LogPath $script:LogPath -Level 'WARN' # ログにエラーメッセージを出力
             continue # スキップ
         }
@@ -158,13 +158,13 @@ process{
     }
 
     # リリースの実行
-    $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length                                                       # PowerShellバージョンの長さを取得
-    $RunPwsVerLine = "+" * $RunPwsVerLength                                                                                     # PowerShellバージョンの長さと同じ長さの+を作成
-    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
-    Write-CommonLog -Message ("HOST: "+$script:HostName) -LogPath $script:LogPath -Level 'INFO'                       # ホスト名をログに出力
-    Write-CommonLog -Message ("USER: "+$script:User) -LogPath $script:LogPath -Level 'INFO'                           # ユーザ名をログに出力
-    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk) -LogPath $script:LogPath -Level 'INFO'   # PowerShellのバージョンをログに出力
-    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
+    $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length   # PowerShellバージョンの長さを取得
+    $RunPwsVerLine = "+" * $RunPwsVerLength                                 # PowerShellバージョンの長さと同じ長さの+を作成
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                              # PowerShellバージョンの長さと同じ長さの+をログに出力
+    Write-CommonLog -Message ("HOST: "+$script:HostName) -LogPath $script:LogPath -Level 'INFO'                 # ホスト名をログに出力
+    Write-CommonLog -Message ("USER: "+$script:User) -LogPath $script:LogPath -Level 'INFO'                     # ユーザ名をログに出力
+    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk) -LogPath $script:LogPath -Level 'INFO' # PowerShellのバージョンをログに出力
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                              # PowerShellバージョンの長さと同じ長さの+をログに出力
     Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")) -LogPath $script:LogPath -Level 'INFO' # リリース開始時間をログに出力  
 
     # ここから時間計測
