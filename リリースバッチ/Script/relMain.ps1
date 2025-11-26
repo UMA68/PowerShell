@@ -19,8 +19,8 @@ begin{
     $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
 
     # ユーザの特定
-    $global:gblUser = $env:USERNAME
-    $global:glbHostName = $env:COMPUTERNAME
+    $script:User = $env:USERNAME
+    $script:HostName = $env:COMPUTERNAME
 
     # .ps1ファイルの読み込み
     try{
@@ -64,9 +64,9 @@ begin{
     }
 
     # ログの定義
-    $global:glbLogPath = Join-Path -Path $yaml.LOG.PATH -ChildPath ($yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$yaml.LOG.EXTENSION) # ログの保存先
+    $script:LogPath = Join-Path -Path $yaml.LOG.PATH -ChildPath ($yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$yaml.LOG.EXTENSION) # ログの保存先
     # ログファイルのディレクトリが存在しなければ作成
-    $logDir = Split-Path -Parent $global:glbLogPath
+    $logDir = Split-Path -Parent $script:LogPath
     if (-not (Test-Path -Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir | Out-Null
     }
@@ -86,7 +86,7 @@ process{
             6 { break } # OK(Continue)
             7 { exit }  # Cancel(End)
             # default { Write-Log "不明なボタンが押されました。" } # Unknown
-            default { Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR' ; exit } # Unknown
+            default { Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR' ; exit } # Unknown
         }
     }
 
@@ -98,8 +98,8 @@ process{
         6 { break } # OK(Continue)
         7 { exit }  # Cancel(End)
         default { 
-            # Write-Log "An unknown button was pressed."
-            Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
+            # Write-CommonLog "An unknown button was pressed."
+            Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR'
             # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
             $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
             exit
@@ -107,12 +107,12 @@ process{
     }
 
     # タイトル表示
-    $ProjectLength = (("Project name: "+$yaml.Project).ToString()).Length   # プロジェクト名の長さを取得
+    $ProjectLength = "Project name: $($yaml.Project)".Length   # プロジェクト名の長さを取得
     $ProjectLine = "=" * $ProjectLength                         # プロジェクト名の長さと同じ長さの=を作成
-    Write-CommonLog -Message $ProjectLine -LogPath $global:glbLogPath -Level 'INFO'                                      # プロジェクト名の長さと同じ長さの=をログに出力
-    Write-CommonLog -Message ("Project name: "+$yaml.Project).ToString() -LogPath $global:glbLogPath -Level 'INFO'       # プロジェクト名をログに出力
-    Write-CommonLog -Message ("Project version: "+$yaml.Version).ToString() -LogPath $global:glbLogPath -Level 'INFO'    # バージョンをログに出力
-    Write-CommonLog -Message $ProjectLine -LogPath $global:glbLogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
+    Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                                      # プロジェクト名の長さと同じ長さの=をログに出力
+    Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:LogPath -Level 'INFO'       # プロジェクト名をログに出力
+    Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:LogPath -Level 'INFO'    # バージョンをログに出力
+    Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
     # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO'           # 改行をログに出力
     
     # モジュールのインポート
@@ -122,8 +122,7 @@ process{
         
         # もし、モジュール名かバージョンが空であれば、スキップ
         if ($ModuleName -eq "" -or $ModuleVersion -eq "") {
-            # Write-Log ("モジュール名かバージョンが空でした。 処理をスキップします。").ToString() # ログにエラーメッセージを出力
-            Write-CommonLog -Message "Module name or version is empty. Skipping module import." -LogPath $global:glbLogPath -Level 'WARN' # ログにエラーメッセージを出力
+            Write-CommonLog -Message "Module name or version is empty. Skipping module import." -LogPath $script:LogPath -Level 'WARN' # ログにエラーメッセージを出力
             continue # スキップ
         }
         # モジュールがインストールされているか確認
@@ -137,7 +136,7 @@ process{
                 7 { exit }  # Cancel(End)
                 default { 
                     # Write-Log "An unknown button was pressed."
-                    Write-CommonLog -Message "An unknown button was pressed." -LogPath $global:glbLogPath -Level 'ERROR'
+                    Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR'
                     # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
                     $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
                     exit
@@ -148,7 +147,7 @@ process{
         try{
             # モジュールのインポート
             Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop # モジュールのインポート
-            Write-CommonLog -Message "The import of module '$ModuleName($ModuleVersion)' was successful." -LogPath $global:glbLogPath -Level 'INFO' # モジュールのインポート成功メッセージ
+            Write-CommonLog -Message "The import of module '$ModuleName($ModuleVersion)' was successful." -LogPath $script:LogPath -Level 'INFO' # モジュールのインポート成功メッセージ
         }catch{
             # モジュールのインポートに失敗した場合は警告を表示し終了
             $obj = New-Object -ComObject WScript.Shell
@@ -158,36 +157,34 @@ process{
     }
 
     # リリースの実行
-    # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
+    # Write-CommonLog -Message ("`r").ToString() -LogPath $script:LogPath -Level 'INFO' # 改行をログに出力
     $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length                                                       # PowerShellバージョンの長さを取得
     $RunPwsVerLine = "+" * $RunPwsVerLength                                                                                     # PowerShellバージョンの長さと同じ長さの+を作成
-    Write-CommonLog -Message $RunPwsVerLine -LogPath $global:glbLogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
-    Write-CommonLog -Message ("HOST: "+$glbHostName).ToString() -LogPath $global:glbLogPath -Level 'INFO'                       # ホスト名をログに出力
-    Write-CommonLog -Message ("USER: "+$gblUser).ToString() -LogPath $global:glbLogPath -Level 'INFO'                           # ユーザ名をログに出力
-    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk).ToString() -LogPath $global:glbLogPath -Level 'INFO'   # PowerShellのバージョンをログに出力
-    # Write-CommonLog -Message ("`r").ToString() -LogPath $global:glbLogPath -Level 'INFO' # 改行をログに出力
-    Write-CommonLog -Message $RunPwsVerLine -LogPath $global:glbLogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
-    Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース開始時間をログに出力  
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
+    Write-CommonLog -Message ("HOST: "+$script:HostName) -LogPath $script:LogPath -Level 'INFO'                       # ホスト名をログに出力
+    Write-CommonLog -Message ("USER: "+$script:User) -LogPath $script:LogPath -Level 'INFO'                           # ユーザ名をログに出力
+    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk) -LogPath $script:LogPath -Level 'INFO'   # PowerShellのバージョンをログに出力
+    # Write-CommonLog -Message ("`r").ToString() -LogPath $script:LogPath -Level 'INFO' # 改行をログに出力
+    Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                                           # PowerShellバージョンの長さと同じ長さの+をログに出力
+    Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")) -LogPath $script:LogPath -Level 'INFO' # リリース開始時間をログに出力  
 
     # ここから時間計測
     $TimeLap = Measure-Command{ # 開始時間を取得
 
     # リリース処理
     $AllTypeObj = $yaml.RELEASE.Keys # リリースタイプの取得
-    foreach($ReleaseType in $AllTypeObj){        
+    foreach($ReleaseType in $AllTypeObj){
         # リリース処理を実行
-        Copy-ItemCustom -ReleaseType $ReleaseType
-    }
-    
-    } # ここまで時間計測
+        Copy-ItemCustom -ReleaseType $ReleaseType -LogPath $script:LogPath
+    }    } # ここまで時間計測
 
 }
 end{
     # Measure-Commandの結果をログに出力
-    Write-CommonLog -Message ("Elapsed time for release: "+$TimeLap.TotalSeconds+" seconds").ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース処理の経過時間をログに出力
-    Write-CommonLog -Message ("Elapsed time for release: "+$TimeLap.Minutes.ToString("00")+":Min "+$TimeLap.Seconds.ToString("00")+":Sec") -LogPath $global:glbLogPath -Level 'INFO' # リリース処理の経過時間をログに出力
-    Write-CommonLog -Message ("Release end time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")).ToString() -LogPath $global:glbLogPath -Level 'INFO' # リリース終了時間をログに出力
+    Write-CommonLog -Message "Elapsed time for release: $($TimeLap.TotalSeconds) seconds" -LogPath $script:LogPath -Level 'INFO'    # リリース処理の経過時間をログに出力
+    Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO' # リリース処理の経過時間をログに出力
+    Write-CommonLog -Message "Release end time: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" -LogPath $script:LogPath -Level 'INFO'   # リリース終了時間をログに出力
     
-    Invoke-Item -Path $glbLogPath # ログファイルを開く
+    Invoke-Item -Path $script:LogPath   # ログファイルを開く
 }
 

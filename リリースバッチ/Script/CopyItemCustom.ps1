@@ -1,6 +1,9 @@
 function Copy-ItemCustom {
     param (
-        $ReleaseType
+        [Parameter(Mandatory=$true)]
+        [string]$ReleaseType,
+        [Parameter(Mandatory=$true)]
+        [string]$LogPath
     )
     
     begin{
@@ -13,47 +16,46 @@ function Copy-ItemCustom {
             $FileCount = (Get-ChildItem -Path $ReleaseSource -Recurse | Measure-Object).Count
         }catch{
             # フォルダ内ファイルのカウントに失敗した場合は、エラーメッセージを表示
-            Write-CommonLog -Message ("[ERROR] RELEASE TYPE '"+$ReleaseSource+"' FOLDER NOT FOUND!.").ToString() -LogPath $global:glbLogPath -Level 'ERROR'
-            Write-CommonLog -Message ("[MESSAGE] "+$_.Exception.Message).ToString() -LogPath $global:glbLogPath -Level 'ERROR'
+            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseSource' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR'
+            Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR'
             return # YAML記述が間違っている場合は、Functionを抜ける
         }
         # フォルダ内ファイルのカウントが0の場合は、Functionを抜ける
         if ($FileCount -eq 0) {
-            Write-CommonLog -Message ("[SKIP] RELEASE TYPE '"+$ReleaseSource+"' FOLDER EMPTY!.").ToString() -LogPath $global:glbLogPath -Level 'WARN'
+            Write-CommonLog -Message "[SKIP] RELEASE TYPE '$ReleaseSource' FOLDER EMPTY!." -LogPath $LogPath -Level 'WARN'
             return
         }
         # リリース開始メッセージ
-        [string]$StartMessage = ("[MESSAGE] RELEASE TYPE '"+$ReleaseType+"' FOLDER COPY STARTED.").ToString()
+        [string]$StartMessage = "[MESSAGE] RELEASE TYPE '$ReleaseType' FOLDER COPY STARTED."
         # $messageと同じ長さの'-'を作成
         $StartMessageLineCount = $StartMessage.Length
         $StartMessageLine = "-" * $StartMessageLineCount
 
-        Write-CommonLog -Message $StartMessageLine -LogPath $global:glbLogPath -Level 'INFO'
-        Write-CommonLog -Message ($StartMessage) -LogPath $global:glbLogPath -Level 'INFO'
-        Write-CommonLog -Message $StartMessageLine -LogPath $global:glbLogPath -Level 'INFO'
+        Write-CommonLog -Message $StartMessageLine -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message $StartMessage -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message $StartMessageLine -LogPath $LogPath -Level 'INFO'
+
+        # リリース先フォルダ
+        $ReleaseDestination = $yaml.RELEASE.$ReleaseType.ReleaseTo
+        # リリース先フォルダが存在しない場合は、エラーをログに記述
+        if(-not (Test-Path -Path $ReleaseDestination)) {
+            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR'
+            return
+        }
 
         # リリース実行
         foreach ($File in (Get-ChildItem -Path $ReleaseSource -Recurse)) {
-            # リリース先フォルダ
-            $ReleaseDestination = $yaml.RELEASE.$ReleaseType.ReleaseTo
-            # リリース先フォルダが存在しない場合は、エラーをログに記述
-            if(-not (Test-Path -Path $ReleaseDestination)) {
-                Write-CommonLog -Message ("[ERROR] RELEASE TYPE '"+$ReleaseType+"' FOLDER NOT FOUND!.").ToString() -LogPath $global:glbLogPath -Level 'ERROR'
-                Write-CommonLog -Message ("[MESSAGE] "+$_.Exception.Message).ToString() -LogPath $global:glbLogPath -Level 'ERROR'
-                return
-            }else{
-                # リリースルールに従い実行
-                Invoke-ReleaseRules -ReleaseTypeName $ReleaseType
-            }
+            # リリースルールに従い実行
+            Invoke-ReleaseRules -ReleaseTypeName $ReleaseType -FileObject $File -ReleaseDestination $ReleaseDestination -LogPath $LogPath
         }
         # リリース完了メッセージ
-        [string]$EndMessage = ("[MESSAGE] RELEASE TYPE '"+$ReleaseType+"' FOLDER COPY COMPLETED.").ToString()
+        [string]$EndMessage = "[MESSAGE] RELEASE TYPE '$ReleaseType' FOLDER COPY COMPLETED."
         # $Messageと同じ長さの'-'を作成
         $EndMessageCount = $EndMessage.Length
         $EndMessageLine = "-" * $EndMessageCount
-        Write-CommonLog -Message ($EndMessageLine) -LogPath $global:glbLogPath -Level 'INFO'
-        Write-CommonLog -Message ($EndMessage) -LogPath $global:glbLogPath -Level 'INFO'
-        Write-CommonLog -Message ($EndMessageLine) -LogPath $global:glbLogPath -Level 'INFO'
+        Write-CommonLog -Message $EndMessageLine -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message $EndMessage -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message $EndMessageLine -LogPath $LogPath -Level 'INFO'
     }
     end{
     }
@@ -61,12 +63,19 @@ function Copy-ItemCustom {
 # リリースルールのスクリプト化
 function Invoke-ReleaseRules{
     param (
-        $ReleaseTypeName
+        [Parameter(Mandatory=$true)]
+        [string]$ReleaseTypeName,
+        [Parameter(Mandatory=$true)]
+        [System.IO.FileSystemInfo]$FileObject,
+        [Parameter(Mandatory=$true)]
+        [string]$ReleaseDestination,
+        [Parameter(Mandatory=$true)]
+        [string]$LogPath
     )
     # リリース先の既存リネームファイルを削除する
-    $FileBaseName = $File.BaseName      # ファイル名
-    $FileExtension = $File.Extension    # 拡張子
-    $FilePath = $File.DirectoryName     # ファイルパス
+    $FileBaseName = $FileObject.BaseName      # ファイル名
+    $FileExtension = $FileObject.Extension    # 拡張子
+    $FilePath = $FileObject.DirectoryName     # ファイルパス
     $FileNameWithDatePattern = $FileBaseName + "_????????-??????"+$FileExtension    # リネームファイルの検索パターン
     # リネームファイルの検索
     $FileNameWithDate = Get-ChildItem -Path $ReleaseDestination -Filter $FileNameWithDatePattern -ErrorAction SilentlyContinue
@@ -76,13 +85,13 @@ function Invoke-ReleaseRules{
         try{
             Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop
             # 削除結果をログに記述
-            Write-CommonLog -Message ("[DELETE] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE STARTED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-            Write-CommonLog -Message ("[DELETE] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE TO '"+$FileNameWithDate.FullName+"'.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-            Write-CommonLog -Message ("[DELETE] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE COMPLETED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
+            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FOLDER DELETE STARTED." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FOLDER DELETE TO '$($FileNameWithDate.FullName)'." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FOLDER DELETE COMPLETED." -LogPath $LogPath -Level 'INFO'
         }catch{
             # 削除に失敗した場合は、エラーメッセージをログに記述
-            Write-CommonLog -Message ("[ERROR] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER DELETE FAILED!.").ToString() -LogPath $global:glbLogPath -Level 'ERROR'
-            Write-CommonLog -Message ("[MESSAGE] "+$_.Exception.Message).ToString() -LogPath $global:glbLogPath -Level 'ERROR'
+            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FOLDER DELETE FAILED!." -LogPath $LogPath -Level 'ERROR'
+            Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR'
         }
     }
 
@@ -90,28 +99,28 @@ function Invoke-ReleaseRules{
     foreach($ReleaseDir in $ReleaseDestination){
         try{
             # もし、同一のフィルがあれば、yyyyMMdd-HHmmss形式でリネームを実施
-            $ReleaseToFileName = Join-Path -Path $ReleaseDir -ChildPath $File.Name  
+            $ReleaseToFileName = Join-Path -Path $ReleaseDir -ChildPath $FileObject.Name  
             $FileNameWithDate = $FileBaseName + "_" + (Get-Date -Format "yyyyMMdd-HHmmss")+$FileExtension
             $FileNameWithDatePath = Join-Path -Path $ReleaseDir -ChildPath $FileNameWithDate
-            $FileExist = Get-ChildItem -Path $ReleaseDir -Filter $File.Name -ErrorAction SilentlyContinue
+            $FileExist = Get-ChildItem -Path $ReleaseDir -Filter $FileObject.Name -ErrorAction SilentlyContinue
             if ($FileExist) {
                 # リネーム処理
                 Rename-Item -Path $ReleaseToFileName -NewName $FileNameWithDate -Force -ErrorAction Stop
                 # リネーム結果をログに記述
-                Write-CommonLog -Message ("[RENAME] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER RENAME STARTED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-                Write-CommonLog -Message ("[RENAME] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER RENAME TO '"+$FileNameWithDatePath+"'.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-                Write-CommonLog -Message ("[RENAME] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER RENAME COMPLETED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
+                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME STARTED." -LogPath $LogPath -Level 'INFO'
+                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME TO '$FileNameWithDatePath'." -LogPath $LogPath -Level 'INFO'
+                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME COMPLETED." -LogPath $LogPath -Level 'INFO'
             }
             # コピー処理
-            Copy-Item -Path $File.FullName -Destination $ReleaseDir -Force -ErrorAction Stop
+            Copy-Item -Path $FileObject.FullName -Destination $ReleaseDir -Force -ErrorAction Stop
             # コピー結果をログに記述
-            Write-CommonLog -Message ("[COPY] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER COPY STARTED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-            Write-CommonLog -Message ("[COPY] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER COPY TO "+$File.Name+".").ToString() -LogPath $global:glbLogPath -Level 'INFO'
-            Write-CommonLog -Message ("[COPY] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER COPY COMPLETED.").ToString() -LogPath $global:glbLogPath -Level 'INFO'
+            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY STARTED." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name)." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY COMPLETED." -LogPath $LogPath -Level 'INFO'
         }catch{
             # コピーに失敗した場合は、エラーメッセージをログに記述
-            Write-CommonLog -Message ("[ERROR] RELEASE TYPE '"+$ReleaseTypeName+"' FOLDER COPY TO "+$File.Name+" FAILED!.").ToString() -LogPath $global:glbLogPath -Level 'ERROR'
-            Write-CommonLog -Message ("[MESSAGE] "+$_.Exception.Message).ToString() -LogPath $global:glbLogPath -Level 'ERROR'
+            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name) FAILED!." -LogPath $LogPath -Level 'ERROR'
+            Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR'
         
         }
     }
