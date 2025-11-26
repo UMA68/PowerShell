@@ -80,7 +80,7 @@ process{
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if($Yaml.PowerShell.Version -ne $PwsVerChk){
+    if($yaml.PowerShell.Version -ne $PwsVerChk){
         $obj = New-Object -ComObject WScript.Shell
         # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$Yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
         [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$Yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)

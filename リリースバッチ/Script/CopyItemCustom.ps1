@@ -77,7 +77,6 @@ function Invoke-ReleaseRules{
     # リリース先の既存リネームファイルを削除する
     $FileBaseName = $FileObject.BaseName      # ファイル名
     $FileExtension = $FileObject.Extension    # 拡張子
-    $FilePath = $FileObject.DirectoryName     # ファイルパス
     $FileNameWithDatePattern = $FileBaseName + "_????????-??????"+$FileExtension    # リネームファイルの検索パターン
     # リネームファイルの検索
     $FileNameWithDate = Get-ChildItem -Path $ReleaseDestination -Filter $FileNameWithDatePattern -ErrorAction SilentlyContinue
@@ -98,32 +97,29 @@ function Invoke-ReleaseRules{
     }
 
     # ファイルのコピー
-    foreach($ReleaseDir in $ReleaseDestination){
-        try{
-            # もし、同一のフィルがあれば、yyyyMMdd-HHmmss形式でリネームを実施
-            $ReleaseToFileName = Join-Path -Path $ReleaseDir -ChildPath $FileObject.Name  
-            $FileNameWithDate = $FileBaseName + "_" + (Get-Date -Format "yyyyMMdd-HHmmss")+$FileExtension
-            $FileNameWithDatePath = Join-Path -Path $ReleaseDir -ChildPath $FileNameWithDate
-            $FileExist = Get-ChildItem -Path $ReleaseDir -Filter $FileObject.Name -ErrorAction SilentlyContinue
-            if ($FileExist) {
-                # リネーム処理
-                Rename-Item -Path $ReleaseToFileName -NewName $FileNameWithDate -Force -ErrorAction Stop
-                # リネーム結果をログに記述
-                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME STARTED." -LogPath $LogPath -Level 'INFO'
-                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME TO '$FileNameWithDatePath'." -LogPath $LogPath -Level 'INFO'
-                Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME COMPLETED." -LogPath $LogPath -Level 'INFO'
-            }
-            # コピー処理
-            Copy-Item -Path $FileObject.FullName -Destination $ReleaseDir -Force -ErrorAction Stop
-            # コピー結果をログに記述
-            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY STARTED." -LogPath $LogPath -Level 'INFO'
-            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name)." -LogPath $LogPath -Level 'INFO'
-            Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY COMPLETED." -LogPath $LogPath -Level 'INFO'
-        }catch{
-            # コピーに失敗した場合は、エラーメッセージをログに記述
-            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name) FAILED!." -LogPath $LogPath -Level 'ERROR'
-            Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR'
-        
+    try{
+        # もし、同一のファイルがあれば、yyyyMMdd-HHmmss形式でリネームを実施
+        $ReleaseToFileName = Join-Path -Path $ReleaseDestination -ChildPath $FileObject.Name  
+        $FileNameWithDate = $FileBaseName + "_" + (Get-Date -Format "yyyyMMdd-HHmmss")+$FileExtension
+        $FileNameWithDatePath = Join-Path -Path $ReleaseDestination -ChildPath $FileNameWithDate
+        $FileExist = Get-ChildItem -Path $ReleaseDestination -Filter $FileObject.Name -ErrorAction SilentlyContinue
+        if ($FileExist) {
+            # リネーム処理
+            Rename-Item -Path $ReleaseToFileName -NewName $FileNameWithDate -Force -ErrorAction Stop
+            # リネーム結果をログに記述
+            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME STARTED." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME TO '$FileNameWithDatePath'." -LogPath $LogPath -Level 'INFO'
+            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FOLDER RENAME COMPLETED." -LogPath $LogPath -Level 'INFO'
         }
+        # コピー処理
+        Copy-Item -Path $FileObject.FullName -Destination $ReleaseDestination -Force -ErrorAction Stop
+        # コピー結果をログに記述
+        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY STARTED." -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name)." -LogPath $LogPath -Level 'INFO'
+        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY COMPLETED." -LogPath $LogPath -Level 'INFO'
+    }catch{
+        # コピーに失敗した場合は、エラーメッセージをログに記述
+        Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FOLDER COPY TO $($FileObject.Name) FAILED!." -LogPath $LogPath -Level 'ERROR'
+        Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR'
     }
 }
