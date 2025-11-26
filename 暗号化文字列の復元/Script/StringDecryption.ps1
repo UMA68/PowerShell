@@ -58,9 +58,9 @@ $InputString = $textBox.Text    # 入力された文字列取得
 # 復号処理
 try{
     # 暗号化した文字列を復号
-    $DecryptedString = $InputString | ConvertTo-SecureString -Key $EncryptedKey -ErrorAction Stop
-    # 復号した文字列を平文に変換
-    $DecryptedString = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($DecryptedString))
+    $SecureDecryptedString = $InputString | ConvertTo-SecureString -Key $EncryptedKey -ErrorAction Stop
+    # 復号した文字列を平文に変換（より安全な方法）
+    $DecryptedString = [System.Net.NetworkCredential]::new('', $SecureDecryptedString).Password
 }catch{
     $obj = New-Object -ComObject WScript.Shell
     $obj.popup($_.Exception.Message + "`r`n`r`n文字列の復号に失敗しました。処理を終了します。", 0, "エラー", 0x10)  # 0x10:エラーアイコン    
@@ -70,7 +70,7 @@ try{
 # 復号化した文字列を表示
 Write-Host "復号結果文字列: $DecryptedString"
 $obj = New-Object -ComObject WScript.Shell
-$obj.popup($_.Exception.Message + "復号に成功しました。 `r`n「"+$DecryptedString+"`」`r`n です。", 0, "情報", 0x40)  # 0x40:情報アイコン
+$obj.popup("復号に成功しました。 `r`n「"+$DecryptedString+"`」`r`n です。", 0, "情報", 0x40)  # 0x40:情報アイコン
 
 # 変数の削除
 Remove-Variable -Name EncryptedKey, InputString, obj, DecryptedString, UpperDir
