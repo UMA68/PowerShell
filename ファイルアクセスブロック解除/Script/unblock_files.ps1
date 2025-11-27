@@ -18,6 +18,9 @@
 .PARAMETER ExcludeFolderPattern
     除外するフォルダパターン（正規表現）。デフォルトは '\\Script\\' です。
 
+.PARAMETER VerboseLogging
+    詳細ログ出力を有効にします。すべてのファイルの処理状況をログに記録します。
+
 .EXAMPLE
     .\unblock_files.ps1
     デフォルト設定でFileAccessBlockフォルダ内のファイルのブロックを解除します。
@@ -39,7 +42,9 @@ param(
     [Parameter(Mandatory=$false)]
     [string[]]$ExcludeExtensions = @('.log', '.xlsx'),  # 除外する拡張子
     [Parameter(Mandatory=$false)]
-    [string]$ExcludeFolderPattern = '\\Script\\'      # 除外するフォルダパターン（正規表現）
+    [string]$ExcludeFolderPattern = '\\Script\\',      # 除外するフォルダパターン（正規表現）
+    [Parameter(Mandatory=$false)]
+    [switch]$VerboseLogging = $false                    # 詳細ログ出力フラグ
 )
 
 begin{
@@ -90,6 +95,7 @@ begin{
     $script:unblockedFiles = 0
     $script:failedFiles = 0
     $script:alreadyUnblockedFiles = 0
+    $script:skippedFiles = 0  # アクセスエラーなどでスキップされたファイル
     $script:earlyExit = $false  # 早期終了フラグ
     $script:startTime = Get-Date  # 処理開始時刻
 }
@@ -128,8 +134,22 @@ process{
             }
             
             $filePath = $_.FullName
-            # Zone.Identifierストリームの存在確認
-            if (Get-Item -Path $filePath -Stream "Zone.Identifier" -ErrorAction SilentlyContinue) {
+            # Zone.Identifierストリームの存在確認（エラーハンドリング付き）
+            try {
+                $hasZoneId = Get-Item -Path $filePath -Stream "Zone.Identifier" -ErrorAction Stop
+            } catch [System.Management.Automation.ItemNotFoundException] {
+                # Zone.Identifierが存在しない（正常）
+                $hasZoneId = $null
+            } catch {
+                # アクセスエラーなど
+                Write-CommonLog -Message "Cannot access file stream: $filePath" -LogPath $logFilePath -Level "WARN"
+                Write-CommonLog -Message "Error Type: $($_.Exception.GetType().FullName)" -LogPath $logFilePath -Level "WARN"
+                Write-CommonLog -Message "Error: $($_.Exception.Message)" -LogPath $logFilePath -Level "WARN"
+                $script:skippedFiles++
+                return
+            }
+            # Zone.Identifierストリームが存在する場合、Unblock-Fileを実行
+            if ($hasZoneId) {
                 try{
                     # Unblock-Fileコマンドレット実行
                     Write-CommonLog -Message "Zone.Identifier found for file: $filePath. Unblocking file." -LogPath $logFilePath -Level "WARN"
@@ -143,9 +163,11 @@ process{
                     Write-CommonLog -Message "Error: $($_.Exception.Message)" -LogPath $logFilePath -Level "ERROR"
                     $script:failedFiles++
                 }
-
+            # Zone.Identifierストリームが存在しない場合
             } else {
-                Write-CommonLog -Message "No Zone.Identifier found for file: $filePath" -LogPath $logFilePath -Level "INFO"
+                if ($VerboseLogging) {
+                    Write-CommonLog -Message "No Zone.Identifier found for file: $filePath" -LogPath $logFilePath -Level "INFO"
+                }
                 $script:alreadyUnblockedFiles++
             }
        }
@@ -170,7 +192,16 @@ end{
     Write-CommonLog -Message "Total files processed: $script:totalFiles" -LogPath $logFilePath -Level "INFO"
     Write-CommonLog -Message "Files unblocked: $script:unblockedFiles" -LogPath $logFilePath -Level "INFO"
     Write-CommonLog -Message "Files already unblocked: $script:alreadyUnblockedFiles" -LogPath $logFilePath -Level "INFO"
+    Write-CommonLog -Message "Files skipped (access error): $script:skippedFiles" -LogPath $logFilePath -Level "INFO"
     Write-CommonLog -Message "Files failed to unblock: $script:failedFiles" -LogPath $logFilePath -Level "INFO"
+    
+    # 成功率の計算と出力
+    if ($script:totalFiles -gt 0) {
+        $successCount = $script:unblockedFiles + $script:alreadyUnblockedFiles
+        $successRate = [math]::Round(($successCount / $script:totalFiles) * 100, 2)
+        Write-CommonLog -Message "Success rate: $successRate%" -LogPath $logFilePath -Level "INFO"
+    }
+    
     Write-CommonLog -Message ("Processing time: {0:D2}:Min {1:D2}:Sec" -f $script:elapsedTime.Minutes, $script:elapsedTime.Seconds) -LogPath $logFilePath -Level "INFO"
     Write-CommonLog -Message "==============================" -LogPath $logFilePath -Level "INFO"
     
