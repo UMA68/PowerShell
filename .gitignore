@@ -23,3 +23,6 @@ DecompileDLL/Dlls/New/*
 DecompileDLL/Dlls/Old/*
 # DecompileDLL/Dlls/Reports
 DecompileDLL/LOG/*
+
+# DotnetSdk削除
+DotnetSdk削除/LOG/*
