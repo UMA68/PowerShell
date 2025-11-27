@@ -80,18 +80,18 @@
 #>
 param (
     [Parameter(Mandatory=$false)]
-    [string]$EnvYaml = "getILSpyCmd.yaml"
+    [string]$EnvYaml = "getILSpyCmd.yaml"   # デフォルトのYAMLファイル名
 )
 
 begin{
     # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $UpperPath = Split-Path -Parent $scriptPath
-    $PowerShellDir = Split-Path -Parent $UpperPath
-    $YamlDir = Join-Path -Path $UpperPath -ChildPath "YAML"
-    $YamlPath = Join-Path -Path $YamlDir -ChildPath $EnvYaml
-    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"
-    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
+    $UpperPath = Split-Path -Parent $scriptPath                     # スクリプトの親パスを取得
+    $PowerShellDir = Split-Path -Parent $UpperPath                  # スクリプトの親パスの親パスを取得
+    $YamlDir = Join-Path -Path $UpperPath -ChildPath "YAML"         # YAMLフォルダのパスを取得
+    $YamlPath = Join-Path -Path $YamlDir -ChildPath $EnvYaml        # YAMLファイルのパスを取得
+    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
+    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
     
     # COMオブジェクトの作成（スクリプト全体で使用）
     $script:comObject = $null
@@ -152,12 +152,14 @@ begin{
         @{Path="DotnetSdk.Version"; Name="SDKバージョン"}
     )
     
+    # Yamlファイルの必須フィールドチェック
     $missingFields = @()
     foreach ($field in $requiredFields) {
         $pathParts = $field.Path -split '\.'
         $value = $yaml
         $found = $true
         
+        # フィールドの存在確認
         foreach ($part in $pathParts) {
             if ($null -eq $value) {
                 $found = $false
@@ -191,11 +193,13 @@ begin{
             }
         }
         
+        # 不足フィールドの収集
         if (-not $found -or [string]::IsNullOrWhiteSpace($value)) {
             $missingFields += "  - $($field.Name) ($($field.Path))"
         }
     }
     
+    # 不足フィールドがあればエラーメッセージを表示して終了
     if ($missingFields.Count -gt 0) {
         $errorMsg = "YAMLファイルに必須フィールドが不足しています。`r`n`r`n不足フィールド:`r`n" + ($missingFields -join "`r`n")
         $script:comObject.Popup($errorMsg,0,"YAML検証エラー",0x10) | Out-Null
@@ -215,8 +219,8 @@ begin{
     }
     
     # ユーザーとホスト情報の取得
-    $script:gblUser = $env:USERNAME
-    $script:glbHostName = $env:COMPUTERNAME
+    $script:User = $env:USERNAME
+    $script:HostName = $env:COMPUTERNAME
 
     # YAMLファイルから必要な情報を取得
     $LogFileName = $yaml.LOG.FILENAME
@@ -234,8 +238,8 @@ begin{
 }
 process{
     # タイトル表示
-    Write-CommonLog -Message "HOST: $script:glbHostName" -LogPath $script:Log -Level "INFO"
-    Write-CommonLog -Message "USER: $script:gblUser" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "HOST: $script:HostName" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "USER: $script:User" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "Running as Administrator: $script:isAdmin" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "Running PowerShell Version: $($PSVersionTable.PSVersion)" -LogPath $script:Log -Level "INFO"
     $ProjectLength = ("Project name: " + $yaml.Project).Length
@@ -264,7 +268,7 @@ process{
         if ($yaml.ILSpyCmd -and $yaml.ILSpyCmd.ExpectedVersion) {
             $expectedVersion = $yaml.ILSpyCmd.ExpectedVersion
             Write-CommonLog -Message "Expected version (from YAML): $expectedVersion" -LogPath $script:Log -Level "INFO"
-            
+            # バージョン比較
             if ($installedVersion.ToString() -ne $expectedVersion) {
                 Write-CommonLog -Message "Version mismatch detected. Installed: $installedVersion, Expected: $expectedVersion" -LogPath $script:Log -Level "WARN"
                 $script:comObject.Popup("ILSpyCmdはインストール済みですが、バージョンが異なります。`r`n`r`nインストール済み: $installedVersion`r`n期待バージョン: $expectedVersion`r`n`r`nプログラムを終了します。",0,"バージョン不一致",0x30) | Out-Null
@@ -275,7 +279,8 @@ process{
         } else {
             $script:comObject.Popup("ILSpyCmdはすでにインストールされています。`r`n`r`nバージョン: $installedVersion`r`n`r`nプログラムを終了します。",0,"確認完了",0x40) | Out-Null
         }
-        
+
+        # ログファイルを開いて終了
         Invoke-Item -Path $script:Log
         exit 0
     } else {
@@ -300,6 +305,7 @@ process{
             exit 3
         }
         
+        # ユーザーにSDKインストールの確認
         [int]$retButton = $script:comObject.Popup("dotnet(sdk)がインストールされていません。`r`n`r`n.NET SDK をインストールしますか？`r`n`r`n※インストールには数分かかる場合があります。",0,"SDK未検出",36)
         switch($retButton){
             # はい(.NET SDKをインストール)
@@ -328,6 +334,7 @@ process{
                     if ($installerFile.Length -lt 10MB) {
                         Write-CommonLog -Message "Warning: Installer file size is unusually small ($installerSizeMB MB). File may be corrupted." -LogPath $script:Log -Level "WARN"
                         [int]$continueButton = $script:comObject.Popup("警告：インストーラーのファイルサイズが異常に小さいです ($installerSizeMB MB)。`r`n`r`nファイルが破損している可能性があります。`r`n`r`n続行しますか？",0,"ファイル検証警告",52)
+                        # ユーザーが「いいえ」を選択した場合は終了
                         if ($continueButton -eq 7) {
                             Write-CommonLog -Message "User chose not to continue with potentially corrupted installer." -LogPath $script:Log -Level "INFO"
                             Write-CommonLog -Message "Exit Code 5: Installer validation warning - User declined to continue" -LogPath $script:Log -Level "WARN"
@@ -365,6 +372,7 @@ process{
                     $timeoutSeconds = 600
                     $waitResult = $installProcess.WaitForExit($timeoutSeconds * 1000)
                     
+                    # タイムアウト発生時の処理
                     if (-not $waitResult) {
                         # タイムアウト発生
                         Write-CommonLog -Message "Installation process timed out after $timeoutSeconds seconds." -LogPath $script:Log -Level "ERROR"
@@ -380,6 +388,7 @@ process{
                         exit 6
                     }
                     
+                    # インストール完了後の処理
                     if ($installProcess.ExitCode -eq 0) {
                         Write-CommonLog -Message ".NET SDK installation completed successfully (Exit Code: 0)." -LogPath $script:Log -Level "INFO"
                         
@@ -403,14 +412,14 @@ process{
                         
                         # インストール後の状態確認
                         $postSdks = if (Get-Command "dotnet" -ErrorAction SilentlyContinue) { & dotnet --list-sdks 2>$null } else { @() }
-                        if ($postSdks.Count -gt $preSdks.Count) {
+                        if ($postSdks.Count -gt $preSdks.Count) {   # インストールが部分的に成功した場合
                             Write-CommonLog -Message "Partial installation detected. Attempting rollback..." -LogPath $script:Log -Level "WARN"
                             [int]$rollbackButton = $script:comObject.Popup("SDKのインストールに失敗しましたが、一部がインストールされた可能性があります。`r`n`r`nロールバック（削除）を試みますか？",0,"ロールバック確認",36)
-                            if ($rollbackButton -eq 6) {
+                            if ($rollbackButton -eq 6) {    # ユーザーがロールバックを選択
                                 try {
                                     Write-CommonLog -Message "User chose to rollback. Executing uninstaller..." -LogPath $script:Log -Level "INFO"
-                                    $uninstallProcess = Start-Process -FilePath $installerPath -ArgumentList "/uninstall /passive /norestart" -Wait -PassThru
-                                    if ($uninstallProcess.ExitCode -eq 0) {
+                                    $uninstallProcess = Start-Process -FilePath $installerPath -ArgumentList "/uninstall /passive /norestart" -Wait -PassThru   # ロールバック実行
+                                    if ($uninstallProcess.ExitCode -eq 0) { # ロールバック成功
                                         Write-CommonLog -Message "Rollback completed successfully." -LogPath $script:Log -Level "INFO"
                                     } else {
                                         Write-CommonLog -Message "Rollback failed (Exit Code: $($uninstallProcess.ExitCode))." -LogPath $script:Log -Level "ERROR"
@@ -422,7 +431,7 @@ process{
                         }
                         
                         $script:comObject.Popup("dotnet SDKのインストールに失敗しました。`r`n`r`n終了コード: $($installProcess.ExitCode)`r`n`r`nプログラムを終了します。",0,"インストールエラー",0x10) | Out-Null
-                        Invoke-Item -Path $script:Log
+                        Invoke-Item -Path $script:Log   # ログを開く
                         exit 1
                     }
             
@@ -447,6 +456,7 @@ process{
         Write-CommonLog -Message "✅ .NET SDK is already installed." -LogPath $script:Log -Level "INFO"
         $DotnetSdks = & dotnet --list-sdks 2>$null
         Write-CommonLog -Message "Installed SDKs:" -LogPath $script:Log -Level "INFO"
+        # インストールされているSDKの一覧をログに出力
         foreach ($sdk in $DotnetSdks) {
             Write-CommonLog -Message "  $sdk" -LogPath $script:Log -Level "INFO"
         }
@@ -458,7 +468,9 @@ process{
     # ネットワーク接続の確認（NuGet.orgへの接続テスト）
     Write-CommonLog -Message "Checking network connectivity to NuGet.org..." -LogPath $script:Log -Level "INFO"
     try {
+        # ICMPでの接続テスト
         $testConnection = Test-Connection -ComputerName "nuget.org" -Count 2 -Quiet -ErrorAction SilentlyContinue
+        # 代替手段としてHTTP接続も試みる
         if (-not $testConnection) {
             # Test-Connectionが失敗した場合、HTTP接続で再試行
             try {
@@ -475,6 +487,7 @@ process{
             Write-CommonLog -Message "Network connectivity confirmed via ICMP." -LogPath $script:Log -Level "INFO"
         }
         
+        # ネットワーク接続が確認できない場合の処理
         if (-not $testConnection) {
             Write-CommonLog -Message "Network connectivity check failed. Cannot reach NuGet.org." -LogPath $script:Log -Level "ERROR"
             Write-CommonLog -Message "Exit Code 4: Network connectivity error - Unable to reach NuGet.org" -LogPath $script:Log -Level "ERROR"
@@ -494,6 +507,7 @@ process{
         $cmdCommand = 'dotnet tool install --global ilspycmd && echo. && echo ILSpyCmd のインストールが完了しました。 && echo Enterキーを押して終了してください。 && pause'
         $installProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdCommand" -Wait -PassThru -ErrorAction Stop
         
+        # インストール結果の確認
         if ($installProcess.ExitCode -eq 0) {
             Write-CommonLog -Message "'dotnet tool install --global ilspycmd' executed successfully (Exit Code: 0)." -LogPath $script:Log -Level "INFO"
             
