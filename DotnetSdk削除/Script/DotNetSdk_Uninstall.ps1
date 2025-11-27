@@ -27,6 +27,10 @@
     削除する.NET SDKのバージョン番号（例: 9.0.301）。
     省略した場合は、対話的に入力を求められます。
 
+.PARAMETER SkipAdminCheck
+    管理者権限チェックをスキップします。デバッグ用途のみで使用してください。
+    本番環境では使用しないでください。
+
 .EXAMPLE
     .\DotNetSdk_Uninstall.ps1
     
@@ -36,6 +40,11 @@
     .\DotNetSdk_Uninstall.ps1 -SdkVersion "9.0.301"
     
     指定したバージョン9.0.301の.NET SDKを削除します。
+
+.EXAMPLE
+    .\DotNetSdk_Uninstall.ps1 -SkipAdminCheck
+    
+    管理者権限チェックをスキップしてデバッグ実行します（デバッグ用途のみ）。
 
 .NOTES
     File Name      : DotNetSdk_Uninstall.ps1
@@ -67,7 +76,10 @@
 #>
 param (
     [Parameter(Mandatory=$false)]
-    [string]$SdkVersion
+    [string]$SdkVersion,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipAdminCheck
 )
 
 begin {
@@ -122,12 +134,18 @@ begin {
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     $script:isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     
-    if (-not $script:isAdmin) {
+    # 管理者権限がない場合、かつスキップフラグが立っていない場合はエラー終了
+    if (-not $script:isAdmin -and -not $SkipAdminCheck) {
         Write-CommonLog -Message "Administrator privileges required for SDK uninstallation." -LogPath $script:Log -Level "ERROR"
         $script:comObject.Popup(".NET SDKのアンインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。", 0, "管理者権限が必要", 0x30) | Out-Null
         Write-Error "Exit Code 3: Insufficient privileges - Administrator rights required"
         Invoke-Item -Path $script:Log
         exit 3
+    }
+
+    # デバッグモードで権限チェックをスキップした場合の警告ログ
+    if ($SkipAdminCheck) {
+        Write-CommonLog -Message "⚠️ WARNING: Admin check skipped (Debug mode)" -LogPath $script:Log -Level "WARN"
     }
 }
 
