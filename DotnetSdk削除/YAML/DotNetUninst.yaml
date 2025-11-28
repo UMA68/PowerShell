@@ -1,0 +1,29 @@
+# ==========================
+Project: Uninstall .NET SDK
+Version: 0.9.0
+# ==========================
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell: 
+ Version: 7.5.4
+
+# 実行に必要なモジュール
+Module:
+ Powershell-Yaml:
+  Name: powershell-yaml
+  Version: 0.4.7
+
+# -----------------
+# ログ設定
+# -----------------
+# ログのクリーンアップ設定
+LogCleanup:
+ Enabled: true      # ログクリーンアップを有効にするかどうか
+ RetentionDays: 30  # 保持するログファイルの日数
+
+# ログ設定
+LOG:
+ FILENAME: DotNetSdk_Uninstall  # ログファイル名
+ EXTENSION: .log                # ログファイル拡張子
