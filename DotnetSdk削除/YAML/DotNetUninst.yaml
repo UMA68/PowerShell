@@ -1,7 +1,9 @@
 # ==========================
-Project: Uninstall .NET SDK
-Version: 0.9.0
+# プロジェクト情報
 # ==========================
+Project:
+ Name: "Uninstall .NET SDK"
+ ScriptVersion: "1.1.0"
 
 # -----------------
 # 実行環境
@@ -27,3 +29,34 @@ LogCleanup:
 LOG:
  FILENAME: DotNetSdk_Uninstall  # ログファイル名
  EXTENSION: .log                # ログファイル拡張子
+
+# -----------------
+# タイムアウト設定
+# -----------------
+Timeout:
+ UninstallSeconds: 300  # SDK削除のタイムアウト時間（秒）
+
+# -----------------
+# Popupダイアログアイコン
+# -----------------
+PopupIcon:
+ Error: 0x10        # 停止アイコン（エラー）
+ Warning: 0x30      # 警告アイコン
+ Information: 0x40  # 情報アイコン
+
+# -----------------
+# バージョン検証
+# -----------------
+Validation:
+ VersionPattern: '^\d+\.\d+\.\d+(\.\d+)?$'  # バージョン形式の正規表現（x.y.z または x.y.z.w）
+
+# -----------------
+# 終了コード
+# -----------------
+ExitCode:
+ Success: 0                 # 正常終了
+ GeneralError: 1            # 一般エラー
+ UserCancelled: 2           # ユーザーキャンセル
+ InsufficientPrivileges: 3  # 管理者権限不足
+ VersionError: 4            # バージョン検証エラー
+ UninstallFailed: 5         # アンインストール失敗

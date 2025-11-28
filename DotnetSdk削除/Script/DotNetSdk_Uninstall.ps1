@@ -7,15 +7,22 @@
     dotnet-core-uninstallツールを使用してSDKを削除します。
     
     主な機能:
+    - YAML設定ファイルによる一元管理（タイムアウト、終了コード、アイコン等）
     - 管理者権限の確認と要求
     - インストール済みSDKの一覧表示
     - dotnetコマンドとdotnet-core-uninstallツールの存在確認
-    - バージョン番号の形式検証
+    - バージョン番号の形式検証（正規表現パターンはYAML設定）
+    - 複数バージョンの一括削除対応
+    - グローバルツールの依存関係チェック
+    - 削除前のJSON形式バックアップ作成
     - 削除前の確認ダイアログ
+    - タイムアウト付きアンインストール処理（YAML設定可能）
     - 削除後の検証
-    - 詳細なログ出力（INFO、WARN、ERROR）
+    - ログファイルの自動ローテーション（30日以上経過したログを削除）
+    - 詳細なログ出力（INFO、WARN、ERROR、DEBUG）
+    - 環境変数PATH更新の提案
     
-    終了コード:
+    終了コード（YAML設定ファイルで定義）:
     - 0: 正常終了
     - 1: 一般エラー（必要なコマンド未検出など）
     - 2: ユーザーキャンセル
@@ -75,30 +82,45 @@
 .NOTES
     File Name      : DotNetSdk_Uninstall.ps1
     Author         : UMA
-    Prerequisite   : PowerShell 7.x, dotnet-core-uninstall tool
+    Prerequisite   : PowerShell 7.x, dotnet-core-uninstall tool, powershell-yaml module
     Version        : 1.1.0
     
     前提条件:
     - PowerShell 7.x 以上
+    - powershell-yamlモジュール（YAML設定ファイル読み込み用）
     - dotnet-core-uninstallツールがインストールされていること
     - .NET SDKがインストールされていること
-    - 管理者権限での実行
+    - 管理者権限での実行（-SkipAdminCheckでスキップ可能）
     - Write-CommonLog.ps1が Common フォルダに存在すること
+    - DotNetUninst.yaml が YAML フォルダに存在すること
+    
+    設定ファイル:
+    - YAML\DotNetUninst.yaml: 各種設定値を一元管理
+      * タイムアウト設定（UninstallSeconds）
+      * ログ保持期間（RetentionDays）
+      * Popupアイコンコード（Error, Warning, Information）
+      * バージョン検証パターン（正規表現）
+      * 終了コード定義
+      * プロジェクト情報（名前、バージョン）
     
     動作詳細:
-    1. 管理者権限の確認
-    2. 必要なコマンド（dotnet、dotnet-core-uninstall）の存在確認
-    3. 古いログファイルのクリーンアップ（30日以上経過）
-    4. インストール済みSDKの一覧表示
-    5. 削除対象バージョンの入力または検証
-    6. バージョン形式の検証（x.y.z または x.y.z.w形式）
-    7. 指定バージョンがインストールされているか確認
-    8. 現状のバックアップ（SDK情報、グローバルツールリスト）
-    9. ユーザー確認ダイアログ
-    10. dotnet-core-uninstallコマンドでアンインストール実行（5分タイムアウト）
-    11. 削除後の検証（SDKリストから削除されているか確認）
-    12. 環境変数PATH更新の提案
-    13. ログファイルを開いて結果を表示
+    1. YAML設定ファイルの読み込みと検証
+    2. 管理者権限の確認（-SkipAdminCheckでスキップ可能）
+    3. 必要なコマンド（dotnet、dotnet-core-uninstall）の存在確認
+    4. 古いログファイルのクリーンアップ（YAML設定の保持期間に基づく）
+    5. インストール済みSDKの一覧表示
+    6. 削除対象バージョンの入力または検証（複数バージョン対応）
+    7. バージョン形式の検証（YAML設定の正規表現パターンを使用）
+    8. 指定バージョンがインストールされているか確認
+    9. グローバルツールの依存関係チェックと表示
+    10. 現状のJSON形式バックアップ作成（SDK情報、グローバルツール、削除対象）
+    11. WhatIfモード時は削除対象の表示のみで終了
+    12. ユーザー確認ダイアログ
+    13. dotnet-core-uninstallコマンドでアンインストール実行（YAML設定のタイムアウト）
+    14. 削除後の検証（SDKリストから削除されているか確認）
+    15. 環境変数PATH更新の提案（削除成功時）
+    16. 結果サマリーの表示（成功数、失敗数）
+    17. ログファイルを開いて結果を表示
     
     多言語対応:
     現在は日本語のみをサポートしています。
@@ -126,6 +148,30 @@ begin {
     $PowerShellDir = Split-Path -Parent $UpperPath                  # スクリプトの親パスの親パスを取得
     $LogDir = Join-Path -Path $UpperPath -ChildPath "LOG"           # ログディレクトリのパスを指定
     $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
+    $yamlPath = Join-Path -Path $UpperPath -ChildPath "YAML\DotNetUninst.yaml"  # YAML設定ファイルのパス
+    
+    # YAML設定ファイルの読み込み
+    try {
+        # powershell-yamlモジュールの確認
+        if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+            Write-Error "powershell-yamlモジュールがインストールされていません。"
+            exit 1
+        }
+        Import-Module powershell-yaml -ErrorAction Stop
+        
+        # YAML読み込み
+        $yamlContent = Get-Content -Path $yamlPath -Raw -Encoding UTF8
+        $script:config = ConvertFrom-Yaml -Yaml $yamlContent
+        
+        # 設定値の検証
+        if (-not $script:config) {
+            Write-Error "YAML設定ファイルの読み込みに失敗しました。"
+            exit 1
+        }
+    } catch {
+        Write-Error "YAML設定ファイルの処理中にエラーが発生しました: $($_.Exception.Message)"
+        exit 1
+    }
     
     # COMオブジェクトの作成（スクリプト全体で使用）
     $script:comObject = $null
@@ -149,9 +195,10 @@ begin {
     try {
         . $commonLogPath -ErrorAction Stop
     } catch {
-        $script:comObject.Popup("共通スクリプト (Write-CommonLog.ps1) を読み込めませんでした。処理を終了します。`r`n`r`nエラー: $($_.Exception.Message)", 0, "スクリプトエラー", 0x10) | Out-Null
-        Write-Error "Exit Code 1: Common script import failed - $($_.Exception.Message)"
-        exit 1
+        $iconError = [int]$script:config.PopupIcon.Error
+        $script:comObject.Popup("共通スクリプト (Write-CommonLog.ps1) を読み込めませんでした。処理を終了します。`r`n`r`nエラー: $($_.Exception.Message)", 0, "スクリプトエラー", $iconError) | Out-Null
+        Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Common script import failed - $($_.Exception.Message)"
+        exit $script:config.ExitCode.GeneralError
     }
 
     # ログディレクトリが作成されていなければ作成
@@ -159,17 +206,20 @@ begin {
         try {
             New-Item -Path $LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
         } catch {
-            $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)", 0, "ディレクトリエラー", 0x10) | Out-Null
-            Write-Error "Exit Code 1: Log directory creation failed - $LogDir"
-            exit 1
+            $iconError = [int]$script:config.PopupIcon.Error
+            $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)", 0, "ディレクトリエラー", $iconError) | Out-Null
+            Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Log directory creation failed - $LogDir"
+            exit $script:config.ExitCode.GeneralError
         }
     }
     
-    # 古いログファイルのクリーンアップ（30日以上経過したログを削除）
+    # 古いログファイルのクリーンアップ（YAML設定に基づいて削除）
     try {
-        $logRetentionDays = 30
+        $logRetentionDays = $script:config.LogCleanup.RetentionDays
         $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)
-        $oldLogs = Get-ChildItem -Path $LogDir -Filter "DotNetSdk_Uninstall_*.log" -ErrorAction SilentlyContinue | 
+        $logFileName = $script:config.LOG.FILENAME
+        $logExtension = $script:config.LOG.EXTENSION
+        $oldLogs = Get-ChildItem -Path $LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
                    Where-Object { $_.LastWriteTime -lt $cutoffDate }
         
         if ($oldLogs -and $oldLogs.Count -gt 0) {
@@ -193,7 +243,9 @@ begin {
     # ログファイルパスの定義（ミリ秒を含めて重複を回避）
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $milliseconds = (Get-Date).Millisecond.ToString("000")
-    $script:Log = Join-Path -Path $LogDir -ChildPath ("DotNetSdk_Uninstall_" + $timestamp + "-" + $milliseconds + ".log")
+    $logFileName = $script:config.LOG.FILENAME
+    $logExtension = $script:config.LOG.EXTENSION
+    $script:Log = Join-Path -Path $LogDir -ChildPath ("${logFileName}_" + $timestamp + "-" + $milliseconds + $logExtension)
     
     # 管理者権限の確認
     $script:isAdmin = $false
@@ -202,11 +254,13 @@ begin {
     
     # 管理者権限がない場合、かつスキップフラグが立っていない場合はエラー終了
     if (-not $script:isAdmin -and -not $SkipAdminCheck) {
-        Write-CommonLog -Message "Administrator privileges required for .NET SDK uninstallation." -LogPath $script:Log -Level "ERROR"
-        $script:comObject.Popup(".NET SDKのアンインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。", 0, "管理者権限が必要", 0x30) | Out-Null
-        Write-Error "Exit Code 3: Insufficient privileges - Administrator rights required"
+        Write-CommonLog -Message "Administrator privileges required for SDK uninstallation." -LogPath $script:Log -Level "ERROR"
+        $iconWarning = [int]$script:config.PopupIcon.Warning
+        $exitCodePriv = $script:config.ExitCode.InsufficientPrivileges
+        $script:comObject.Popup(".NET SDKのアンインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。", 0, "管理者権限が必要", $iconWarning) | Out-Null
+        Write-Error "Exit Code ${exitCodePriv}: Insufficient privileges - Administrator rights required"
         Invoke-Item -Path $script:Log
-        exit 3
+        exit $exitCodePriv
     }
 
     # デバッグモードで権限チェックをスキップした場合の警告ログ
@@ -237,17 +291,15 @@ process {
         Write-CommonLog -Message "Verbose mode enabled" -LogPath $script:Log -Level "INFO"
         Write-Verbose "=== Verbose Mode Enabled ==="
         Write-Verbose "Log file: $script:Log"
-        Write-Verbose "Script version: 1.1.0"
+        Write-Verbose "Script version: $($script:config.Project.ScriptVersion)"
     }
     
     $ProjectLine = "=" * 50
     Write-CommonLog -Message $ProjectLine -LogPath $script:Log -Level "INFO"
-    Write-CommonLog -Message "Project name: Uninstall .NET SDK" -LogPath $script:Log -Level "INFO"
-    Write-CommonLog -Message "Script version: 1.0.0" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "Project name: $($script:config.Project.Name)" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "Script version: $($script:config.Project.ScriptVersion)" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message $ProjectLine -LogPath $script:Log -Level "INFO"
-    
-    # 改行をログに出力
-    "`r`n" | Tee-Object -FilePath $script:Log -Append | Out-Null
+    "" | Out-File -FilePath $script:Log -Append # 空行追加
 
     # dotnetコマンドの存在確認
     Write-CommonLog -Message "Checking for dotnet command..." -LogPath $script:Log -Level "INFO"
@@ -283,22 +335,26 @@ process {
     Write-CommonLog -Message "Checking installed .NET SDKs..." -LogPath $script:Log -Level "INFO"
     try {
         $installedSdks = & dotnet --list-sdks 2>&1
-        if (-not $installedSdks -or $installedSdks.Count -eq 0) {  # インストールされている .NET SDKが見つからない場合
+        if (-not $installedSdks -or $installedSdks.Count -eq 0) {
             Write-CommonLog -Message "No installed .NET SDKs found." -LogPath $script:Log -Level "WARN"
-            $script:comObject.Popup("インストールされている .NET SDKが見つかりません。`r`n`r`nプログラムを終了します。", 0, ".NET SDK未検出", 0x30) | Out-Null
-            Write-Error "Exit Code 1: No installed .NET SDKs found"
+            $iconWarning = [int]$script:config.PopupIcon.Warning
+            $exitCodeError = $script:config.ExitCode.GeneralError
+            $script:comObject.Popup("インストールされている .NET SDKが見つかりません。`r`n`r`nプログラムを終了します。", 0, ".NET SDK未検出", $iconWarning) | Out-Null
+            Write-Error "Exit Code ${exitCodeError}: No installed .NET SDKs found"
             Invoke-Item -Path $script:Log
-            exit 1
+            exit $exitCodeError
         }
         
         Write-CommonLog -Message "Found $($installedSdks.Count) installed .NET SDK(s):" -LogPath $script:Log -Level "INFO"
         $installedSdks | ForEach-Object { Write-CommonLog -Message "  - $_" -LogPath $script:Log -Level "INFO" }
     } catch {
         Write-CommonLog -Message "Failed to list .NET SDKs: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
-        $script:comObject.Popup(".NET SDKの一覧取得に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。", 0, "エラー", 0x10) | Out-Null
-        Write-Error "Exit Code 1: Failed to list .NET SDKs"
+        $iconError = [int]$script:config.PopupIcon.Error
+        $exitCodeError = $script:config.ExitCode.GeneralError
+        $script:comObject.Popup(".NET SDKの一覧取得に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。", 0, "エラー", $iconError) | Out-Null
+        Write-Error "Exit Code ${exitCodeError}: Failed to list .NET SDKs"
         Invoke-Item -Path $script:Log
-        exit 1
+        exit $exitCodeError
     }
 
     # バージョン指定がない場合は入力を求める
@@ -319,10 +375,12 @@ process {
         # キャンセルまたは空入力の処理
         if ([string]::IsNullOrWhiteSpace($SdkVersion)) {
             Write-CommonLog -Message "No version entered. User cancelled." -LogPath $script:Log -Level "INFO"
-            $script:comObject.Popup("バージョンが入力されませんでした。`r`n`r`nプログラムを終了します。", 0, "入力キャンセル", 0x30) | Out-Null
-            Write-Error "Exit Code 2: No version entered"
+            $iconWarning = [int]$script:config.PopupIcon.Warning
+            $exitCodeCancel = $script:config.ExitCode.UserCancelled
+            $script:comObject.Popup("バージョンが入力されませんでした。`r`n`r`nプログラムを終了します。", 0, "入力キャンセル", $iconWarning) | Out-Null
+            Write-Error "Exit Code ${exitCodeCancel}: No version entered"
             Invoke-Item -Path $script:Log
-            exit 2
+            exit $exitCodeCancel
         }
     }
     
@@ -340,9 +398,10 @@ process {
     $notInstalledVersions = @()
     
     # バージョンごとに検証
+    $versionPattern = $script:config.Validation.VersionPattern
     foreach ($version in $versionsToRemove) {
-        # バージョン形式の検証（x.y.z または x.y.z.w 形式をサポート）
-        if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+        # バージョン形式の検証（YAML設定のパターンを使用）
+        if ($version -notmatch $versionPattern) {
             Write-CommonLog -Message "Invalid version format: $version (Expected format: x.y.z or x.y.z.w)" -LogPath $script:Log -Level "ERROR"
             $invalidVersions += $version
             continue
@@ -364,10 +423,12 @@ process {
     # エラーチェック
     if ($invalidVersions.Count -gt 0) {
         $errorMsg = "バージョン番号の形式が不正です。`r`n`r`n不正なバージョン:`r`n  - " + ($invalidVersions -join "`r`n  - ") + "`r`n`r`n期待形式: x.y.z または x.y.z.w (例: 9.0.301)"
-        $script:comObject.Popup($errorMsg, 0, "形式エラー", 0x10) | Out-Null
-        Write-Error "Exit Code 4: Invalid version format"
+        $iconError = [int]$script:config.PopupIcon.Error
+        $exitCodeVer = $script:config.ExitCode.VersionError
+        $script:comObject.Popup($errorMsg, 0, "形式エラー", $iconError) | Out-Null
+        Write-Error "Exit Code ${exitCodeVer}: Invalid version format"
         Invoke-Item -Path $script:Log
-        exit 4
+        exit $exitCodeVer
     }
     
     # 指定されたバージョンがインストールされていない場合のエラー
@@ -378,10 +439,12 @@ process {
         }
         $installedList = ($installedSdks | ForEach-Object { "  - $_" }) -join "`r`n"
         $errorMsg += "`r`n`r`nインストール済み .NET SDK:`r`n$installedList"
-        $script:comObject.Popup($errorMsg, 0, "バージョン未検出", 0x30) | Out-Null
-        Write-Error "Exit Code 4: No valid versions to uninstall"
+        $iconWarning = [int]$script:config.PopupIcon.Warning
+        $exitCodeVer = $script:config.ExitCode.VersionError
+        $script:comObject.Popup($errorMsg, 0, "バージョン未検出", $iconWarning) | Out-Null
+        Write-Error "Exit Code ${exitCodeVer}: No valid versions to uninstall"
         Invoke-Item -Path $script:Log
-        exit 4
+        exit $exitCodeVer
     }
     
     # インストールされていないバージョンの警告ログ
@@ -457,9 +520,11 @@ process {
         $whatIfMsg += "`r`n`r`nインストール済みグローバルツール:`r`n$toolsList"
         $whatIfMsg += "`r`n`r`n実際には削除されません（-WhatIfモード）。"
         Write-CommonLog -Message "[WhatIf] Would remove versions: $($validVersions -join ', ')" -LogPath $script:Log -Level "INFO"
-        $script:comObject.Popup($whatIfMsg, 0, "WhatIf: 削除対象確認", 0x40) | Out-Null
+        $iconInfo = [int]$script:config.PopupIcon.Information
+        $exitCodeSuccess = $script:config.ExitCode.Success
+        $script:comObject.Popup($whatIfMsg, 0, "WhatIf: 削除対象確認", $iconInfo) | Out-Null
         Invoke-Item -Path $script:Log
-        exit 0
+        exit $exitCodeSuccess
     }
     
     # 削除確認
@@ -468,16 +533,18 @@ process {
     [int]$confirmation = $script:comObject.Popup($confirmMsg, 0, "削除確認", 52)
     if ($confirmation -eq 7) {  # No
         Write-CommonLog -Message "User cancelled the uninstallation." -LogPath $script:Log -Level "INFO"
-        $script:comObject.Popup("削除をキャンセルしました。`r`n`r`nプログラムを終了します。", 0, "キャンセル", 0x40) | Out-Null
-        Write-Error "Exit Code 2: User cancelled"
+        $iconInfo = [int]$script:config.PopupIcon.Information
+        $exitCodeCancel = $script:config.ExitCode.UserCancelled
+        $script:comObject.Popup("削除をキャンセルしました。`r`n`r`nプログラムを終了します。", 0, "キャンセル", $iconInfo) | Out-Null
+        Write-Error "Exit Code ${exitCodeCancel}: User cancelled"
         Invoke-Item -Path $script:Log
-        exit 2
+        exit $exitCodeCancel
     }
 
     # アンインストール実行（複数バージョン対応）
     $successVersions = @()
     $failedVersions = @()
-    $timeoutSeconds = 300  # 5分タイムアウト
+    $timeoutSeconds = $script:config.Timeout.UninstallSeconds  # YAMLからタイムアウト値を取得
     
     # 各バージョンの削除ループ
     foreach ($version in $validVersions) {
@@ -572,15 +639,19 @@ process {
         }
         $pathRefreshMsg += "`r`n`r`n💡 重要: 環境変数の変更を反映するため、`r`n以下のいずれかを実行してください:`r`n`r`n1. PowerShellセッションを再起動する`r`n2. 以下のコマンドを実行:`r`n   `$env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"
         
-        $popupIcon = if ($failedVersions.Count -gt 0) { 0x30 } else { 0x40 }
+        $iconWarning = [int]$script:config.PopupIcon.Warning
+        $iconInfo = [int]$script:config.PopupIcon.Information
+        $popupIcon = if ($failedVersions.Count -gt 0) { $iconWarning } else { $iconInfo }
         $script:comObject.Popup($pathRefreshMsg, 0, "削除完了", $popupIcon) | Out-Null
     } else {
         # すべての削除が失敗した場合のエラーメッセージ
         $errorMsg = "すべての.NET SDKの削除に失敗しました。`r`n`r`n失敗:`r`n  - " + ($failedVersions -join "`r`n  - ") + "`r`n`r`nログを確認してください。"
-        $script:comObject.Popup($errorMsg, 0, "エラー", 0x10) | Out-Null
-        Write-Error "Exit Code 5: All uninstallations failed"
+        $iconError = [int]$script:config.PopupIcon.Error
+        $exitCodeFailed = $script:config.ExitCode.UninstallFailed
+        $script:comObject.Popup($errorMsg, 0, "エラー", $iconError) | Out-Null
+        Write-Error "Exit Code ${exitCodeFailed}: All uninstallations failed"
         Invoke-Item -Path $script:Log
-        exit 5
+        exit $exitCodeFailed
     }
 
     Write-CommonLog -Message "Script completed successfully." -LogPath $script:Log -Level "INFO"
