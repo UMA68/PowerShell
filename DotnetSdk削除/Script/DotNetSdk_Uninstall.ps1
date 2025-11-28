@@ -202,7 +202,7 @@ begin {
     
     # 管理者権限がない場合、かつスキップフラグが立っていない場合はエラー終了
     if (-not $script:isAdmin -and -not $SkipAdminCheck) {
-        Write-CommonLog -Message "Administrator privileges required for SDK uninstallation." -LogPath $script:Log -Level "ERROR"
+        Write-CommonLog -Message "Administrator privileges required for .NET SDK uninstallation." -LogPath $script:Log -Level "ERROR"
         $script:comObject.Popup(".NET SDKのアンインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。", 0, "管理者権限が必要", 0x30) | Out-Null
         Write-Error "Exit Code 3: Insufficient privileges - Administrator rights required"
         Invoke-Item -Path $script:Log
@@ -225,7 +225,7 @@ process {
     # ログクリーンアップ結果を記録
     if ($script:CleanedLogCount -gt 0) {
         Write-CommonLog -Message "Log rotation: Cleaned up $script:CleanedLogCount old log file(s) (older than 30 days)" -LogPath $script:Log -Level "INFO"
-        if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+        if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
             Write-Verbose "Cleaned up $script:CleanedLogCount old log files"
         }
     } elseif ($script:CleanedLogCount -eq -1) {
@@ -251,11 +251,11 @@ process {
 
     # dotnetコマンドの存在確認
     Write-CommonLog -Message "Checking for dotnet command..." -LogPath $script:Log -Level "INFO"
-    if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+    if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
         Write-Verbose "Checking for dotnet command..."
     }
     $dotnetCommand = Get-Command "dotnet" -ErrorAction SilentlyContinue
-    if (-not $dotnetCommand) {
+    if (-not $dotnetCommand) {  # dotnetコマンドが見つからない場合
         Write-CommonLog -Message "dotnet command not found. .NET SDK may not be installed." -LogPath $script:Log -Level "ERROR"
         $script:comObject.Popup("dotnetコマンドが見つかりません。`r`n`r`n.NET SDKがインストールされていない可能性があります。`r`n`r`nプログラムを終了します。", 0, "コマンドエラー", 0x10) | Out-Null
         Write-Error "Exit Code 1: dotnet command not found"
@@ -270,7 +270,7 @@ process {
     # dotnet-core-uninstallコマンドの存在確認
     Write-CommonLog -Message "Checking for dotnet-core-uninstall tool..." -LogPath $script:Log -Level "INFO"
     $uninstallCommand = Get-Command "dotnet-core-uninstall" -ErrorAction SilentlyContinue
-    if (-not $uninstallCommand) {
+    if (-not $uninstallCommand) {   # dotnet-core-uninstallコマンドが見つからない場合
         Write-CommonLog -Message "dotnet-core-uninstall tool not found." -LogPath $script:Log -Level "ERROR"
         $script:comObject.Popup("dotnet-core-uninstallツールが見つかりません。`r`n`r`n先にツールをインストールしてください。`r`n`r`nプログラムを終了します。", 0, "ツールエラー", 0x10) | Out-Null
         Write-Error "Exit Code 1: dotnet-core-uninstall tool not found"
@@ -283,7 +283,7 @@ process {
     Write-CommonLog -Message "Checking installed .NET SDKs..." -LogPath $script:Log -Level "INFO"
     try {
         $installedSdks = & dotnet --list-sdks 2>&1
-        if (-not $installedSdks -or $installedSdks.Count -eq 0) {
+        if (-not $installedSdks -or $installedSdks.Count -eq 0) {  # インストールされている .NET SDKが見つからない場合
             Write-CommonLog -Message "No installed .NET SDKs found." -LogPath $script:Log -Level "WARN"
             $script:comObject.Popup("インストールされている .NET SDKが見つかりません。`r`n`r`nプログラムを終了します。", 0, ".NET SDK未検出", 0x30) | Out-Null
             Write-Error "Exit Code 1: No installed .NET SDKs found"
@@ -316,6 +316,7 @@ process {
             $SdkVersion = Read-Host "`n削除したい .NET SDKのバージョンを入力してください (例: 9.0.301 または 9.0.301,8.0.100)"
         }
         
+        # キャンセルまたは空入力の処理
         if ([string]::IsNullOrWhiteSpace($SdkVersion)) {
             Write-CommonLog -Message "No version entered. User cancelled." -LogPath $script:Log -Level "INFO"
             $script:comObject.Popup("バージョンが入力されませんでした。`r`n`r`nプログラムを終了します。", 0, "入力キャンセル", 0x30) | Out-Null
@@ -338,6 +339,7 @@ process {
     $invalidVersions = @()
     $notInstalledVersions = @()
     
+    # バージョンごとに検証
     foreach ($version in $versionsToRemove) {
         # バージョン形式の検証（x.y.z または x.y.z.w 形式をサポート）
         if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
@@ -368,6 +370,7 @@ process {
         exit 4
     }
     
+    # 指定されたバージョンがインストールされていない場合のエラー
     if ($validVersions.Count -eq 0) {
         $errorMsg = "指定された .NET SDKバージョンがインストールされていません。"
         if ($notInstalledVersions.Count -gt 0) {
@@ -381,6 +384,7 @@ process {
         exit 4
     }
     
+    # インストールされていないバージョンの警告ログ
     if ($notInstalledVersions.Count -gt 0) {
         Write-CommonLog -Message "Warning: Some versions are not installed and will be skipped: $($notInstalledVersions -join ', ')" -LogPath $script:Log -Level "WARN"
     }
@@ -389,24 +393,26 @@ process {
 
     # グローバルツールの依存関係チェック
     Write-CommonLog -Message "Checking for installed global tools..." -LogPath $script:Log -Level "INFO"
+    #   Verboseモードの通知
     if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
         Write-Verbose "Checking for installed global tools..."
     }
     try {
+        # グローバルツールの一覧取得
         $globalTools = & dotnet tool list --global 2>&1 | Select-Object -Skip 2
         if ($globalTools -and $globalTools.Count -gt 0) {
             Write-CommonLog -Message "Found $($globalTools.Count) global tool(s) installed:" -LogPath $script:Log -Level "INFO"
             $globalTools | ForEach-Object { Write-CommonLog -Message "  - $_" -LogPath $script:Log -Level "INFO" }
             $toolsList = ($globalTools | ForEach-Object { "  - $_" }) -join "`r`n"
             Write-CommonLog -Message "Warning: Removing .NET SDK may affect global tools" -LogPath $script:Log -Level "WARN"
-            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
                 Write-Verbose "Found $($globalTools.Count) global tools:"
                 $globalTools | ForEach-Object { Write-Verbose "  $_" }
             }
         } else {
             Write-CommonLog -Message "No global tools found." -LogPath $script:Log -Level "INFO"
             $toolsList = "  (なし)"
-            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
                 Write-Verbose "No global tools installed"
             }
         }
@@ -432,13 +438,13 @@ process {
             $backupData | ConvertTo-Json -Depth 10 | Out-File -FilePath $backupPath -Encoding UTF8
             
             Write-CommonLog -Message "Backup created: $backupPath" -LogPath $script:Log -Level "INFO"
-            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
                 Write-Verbose "Backup file created at: $backupPath"
                 Write-Verbose "Backup contains: .NET SDK list, global tools, target versions"
             }
         } catch {
             Write-CommonLog -Message "Warning: Failed to create backup: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
-            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示#
                 Write-Verbose "Backup creation failed: $($_.Exception.Message)"
             }
         }
@@ -458,7 +464,7 @@ process {
     
     # 削除確認
     $versionsList = ($validVersions | ForEach-Object { "  - $_" }) -join "`r`n"
-    $confirmMsg = "以下の.NET SDKバージョンを削除します:`r`n`r`n$versionsList`r`n`r`nインストール済みグローバルツール:`r`n$toolsList`r`n`r`nよろしいですか？`r`n`r`n※この操作は取り消せません。"
+    $confirmMsg = "以下の .NET SDKバージョンを削除します:`r`n`r`n$versionsList`r`n`r`nインストール済みグローバルツール:`r`n$toolsList`r`n`r`nよろしいですか？`r`n`r`n※この操作は取り消せません。"
     [int]$confirmation = $script:comObject.Popup($confirmMsg, 0, "削除確認", 52)
     if ($confirmation -eq 7) {  # No
         Write-CommonLog -Message "User cancelled the uninstallation." -LogPath $script:Log -Level "INFO"
@@ -473,9 +479,10 @@ process {
     $failedVersions = @()
     $timeoutSeconds = 300  # 5分タイムアウト
     
+    # 各バージョンの削除ループ
     foreach ($version in $validVersions) {
         Write-CommonLog -Message "Starting uninstallation of .NET SDK $version..." -LogPath $script:Log -Level "INFO"
-        if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
+        if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # Verboseモードで詳細表示
             Write-Verbose "=== Starting uninstallation of .NET SDK $version ==="
             Write-Verbose "Timeout: $timeoutSeconds seconds"
         }
@@ -498,6 +505,7 @@ process {
             
             $completed = $process.WaitForExit($timeoutSeconds * 1000)
             
+            # タイムアウトチェック
             if (-not $completed) {
                 # タイムアウト発生
                 Write-CommonLog -Message "Uninstallation of $version timed out after $timeoutSeconds seconds." -LogPath $script:Log -Level "ERROR"
@@ -515,6 +523,7 @@ process {
             $stderr = $process.StandardError.ReadToEnd()
             $exitCode = $process.ExitCode
             
+            # 結果のログ出力
             if ($exitCode -ne 0) {
                 Write-CommonLog -Message "Uninstall command exited with code $exitCode" -LogPath $script:Log -Level "ERROR"
                 Write-CommonLog -Message "STDOUT: $stdout" -LogPath $script:Log -Level "ERROR"
@@ -523,6 +532,7 @@ process {
                 continue
             }
             
+            # 成功時のログ出力
             Write-CommonLog -Message "Uninstall command executed successfully for $version" -LogPath $script:Log -Level "INFO"
             if (-not [string]::IsNullOrWhiteSpace($stdout)) {
                 Write-CommonLog -Message "Command output: $stdout" -LogPath $script:Log -Level "INFO"
@@ -533,6 +543,7 @@ process {
             $postSdks = & dotnet --list-sdks 2>&1
             $stillExists = $postSdks | Where-Object { $_ -like "*$version*" }
             
+            # 検証結果のログ出力
             if ($stillExists) {
                 Write-CommonLog -Message "Warning: .NET SDK version $version still appears in the list after uninstallation." -LogPath $script:Log -Level "WARN"
                 $failedVersions += $version
@@ -555,6 +566,7 @@ process {
     if ($successVersions.Count -gt 0) {
         Write-CommonLog -Message "Suggesting environment variable PATH refresh..." -LogPath $script:Log -Level "INFO"
         $pathRefreshMsg = "SDKの削除が完了しました。`r`n`r`n削除済み:`r`n  - " + ($successVersions -join "`r`n  - ")
+        # 失敗したバージョンがあれば追記
         if ($failedVersions.Count -gt 0) {
             $pathRefreshMsg += "`r`n`r`n削除失敗:`r`n  - " + ($failedVersions -join "`r`n  - ")
         }
@@ -563,6 +575,7 @@ process {
         $popupIcon = if ($failedVersions.Count -gt 0) { 0x30 } else { 0x40 }
         $script:comObject.Popup($pathRefreshMsg, 0, "削除完了", $popupIcon) | Out-Null
     } else {
+        # すべての削除が失敗した場合のエラーメッセージ
         $errorMsg = "すべての.NET SDKの削除に失敗しました。`r`n`r`n失敗:`r`n  - " + ($failedVersions -join "`r`n  - ") + "`r`n`r`nログを確認してください。"
         $script:comObject.Popup($errorMsg, 0, "エラー", 0x10) | Out-Null
         Write-Error "Exit Code 5: All uninstallations failed"

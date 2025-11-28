@@ -4,13 +4,33 @@
     // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
-            "name": "PowerShell: Launch Script",
+            "name": "PowerShell: 通常実行",
             "type": "PowerShell",
             "request": "launch",
             "script": "${file}",
-            "args": ["-SkipAdminCheck"]
+            "args": []
+        },
+        {
+            "name": "PowerShell: WhatIfモード",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-WhatIf"]
+        },
+        {
+            "name": "PowerShell: WhatIf + Verbose",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-WhatIf", "-Verbose"]
+        },
+        {
+            "name": "PowerShell: SkipAdminCheck (Debug)",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-SkipAdminCheck", "-WhatIf"]
         }
     ]
 }
