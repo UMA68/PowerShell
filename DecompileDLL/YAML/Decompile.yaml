@@ -1,6 +1,6 @@
 # ===============================
 Project: Report(Decompiled DLL)
-Version: 0.9.0
+Version: 1.0.0
 # ===============================
 
 # -----------------
@@ -12,14 +12,48 @@ PowerShell:
 # -----------------
 # ログ設定
 # -----------------
-LOG:
+LOG:                    # ログ設定
 #  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
  FILENAME: Report(dll)  # ログファイル名
  EXTENSION: .log        # ログファイル拡張子
 
+# -----------------
+# フォルダー名設定
+# -----------------
+Folders:                # フォルダー名設定
+ Old: old               # 古いDLL逆コンパイル出力フォルダー名
+ New: new               # 新しいDLL逆コンパイル出力フォルダー名
+
+# -----------------
+# OS判定設定
+# -----------------
+OSDetection:            # OS判定設定
+ Win11MinBuild: 22000   # Windows 11の最小ビルド番号
+ Win10MinBuild: 10240   # Windows 10の最小ビルド番号
+
+# -----------------
+# 終了コード
+# -----------------
+ExitCodes:              # 終了コード設定
+ Success: 0             # 成功
+ GeneralError: 1        # 一般エラー
+ UserCancelled: 2       # ユーザーキャンセル
+ OSNotSupported: 3      # OS非対応
+ FileNotFound: 4        # ファイル/フォルダーが見つからない
+ DecompileFailed: 5     # 逆コンパイル失敗
+
+# -----------------
+# 表示色設定
+# -----------------
+Colors:
+ Info: Cyan             # 情報メッセージ
+ Success: Green         # 成功メッセージ
+ Warning: Yellow        # 警告メッセージ
+ Error: Red             # エラーメッセージ
+
 # ----------------------------------------
 # OSの違いによるWinMergeのインストール先指定
 # ----------------------------------------
-InstWinMerge:
- Win10: C:\Program Files\WinMerge
- Win11: $HOME\AppData\Local\Programs\WinMerge
+InstWinMerge:                                 # WinMergeインストール先設定
+ Win10: C:\Program Files\WinMerge             # Windows 10のWinMergeインストール先
+ Win11: $HOME\AppData\Local\Programs\WinMerge # Windows 11のWinMergeインストール先

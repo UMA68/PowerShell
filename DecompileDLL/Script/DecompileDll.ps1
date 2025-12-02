@@ -100,6 +100,7 @@ begin{
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $transcriptPath = Join-Path $LogDir "DecompileDll_$timestamp.log"
     Start-Transcript -Path $transcriptPath -Force
+    # 色設定はYAML読み込み後に取得するため、ここではデフォルト値を使用
     Write-Host "トランスクリプトログ: $transcriptPath" -ForegroundColor Cyan
     
     # 処理時間計測開始
@@ -128,17 +129,17 @@ begin{
     Write-Verbose "YAML設定ファイル: $YamlPath"
     Write-Verbose "出力フォルダー: $outputFolder"
     
-    # powershell-yamlモジュールの確認
+    # powershell-yamlモジュールの確認(終了コードは固定値)
     if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
         Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
-        exit 4
+        exit 4  # YAML読み込み前なので固定値
     }
     Import-Module powershell-yaml -ErrorAction Stop
 
-    # YAMLファイルの存在チェック
-    if (-not (Test-Path -Path $YamlPath)) {
-        Show-ErrorPopup "YAMLファイルが存在しません。`r`n`r`n$YamlPath`r`nを確認してください。"
-        exit 4
+    # YAMLファイルの存在チェック(終了コードは固定値)
+    if (-not (Test-Path $YamlPath)) {
+        Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
+        exit 4  # YAML読み込み前なので固定値
     }
     
     # YAMLファイルの読み込み
@@ -150,10 +151,27 @@ begin{
         exit 1
     }
     
+    # YAML設定値の取得(デフォルト値あり) - スクリプトスコープで定義
+    $script:folderOld = if ($config.Folders.Old) { $config.Folders.Old } else { "old" }
+    $script:folderNew = if ($config.Folders.New) { $config.Folders.New } else { "new" }
+    $script:win11MinBuild = if ($config.OSDetection.Win11MinBuild) { $config.OSDetection.Win11MinBuild } else { 22000 }
+    $script:win10MinBuild = if ($config.OSDetection.Win10MinBuild) { $config.OSDetection.Win10MinBuild } else { 10240 }
+    $script:exitSuccess = if ($config.ExitCodes.Success -ne $null) { $config.ExitCodes.Success } else { 0 }
+    $script:exitGeneralError = if ($config.ExitCodes.GeneralError) { $config.ExitCodes.GeneralError } else { 1 }
+    $script:exitOSNotSupported = if ($config.ExitCodes.OSNotSupported) { $config.ExitCodes.OSNotSupported } else { 3 }
+    $script:exitFileNotFound = if ($config.ExitCodes.FileNotFound) { $config.ExitCodes.FileNotFound } else { 4 }
+    $script:exitDecompileFailed = if ($config.ExitCodes.DecompileFailed) { $config.ExitCodes.DecompileFailed } else { 5 }
+    $script:colorInfo = if ($config.Colors.Info) { $config.Colors.Info } else { "Cyan" }
+    $script:colorSuccess = if ($config.Colors.Success) { $config.Colors.Success } else { "Green" }
+    $script:colorWarning = if ($config.Colors.Warning) { $config.Colors.Warning } else { "Yellow" }
+    $script:colorError = if ($config.Colors.Error) { $config.Colors.Error } else { "Red" }
+    
+    Write-Verbose "YAML設定値を読み込みました: Folders(Old=$folderOld, New=$folderNew), Colors(Info=$colorInfo, Success=$colorSuccess)"
+    
     # YAML構造の検証
     if (-not $config.InstWinMerge) {
         Show-ErrorPopup "YAMLに'InstWinMerge'セクションがありません。`r`n設定ファイルを確認してください。"
-        exit 1
+        exit $exitGeneralError
     }
 
     # OSバージョンの判定（BuildNumberベース - ローカライズに依存しない）
@@ -162,17 +180,17 @@ begin{
     
     Write-Verbose "OS: $($osInfo.Caption) (Build: $osBuild)"
     
-    if ($osBuild -ge 22000) {
-        # Windows 11 (Build 22000以降)
+    if ($osBuild -ge $win11MinBuild) {
+        # Windows 11 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win11 -replace '\$HOME', $HOME
-        Write-Verbose "Windows 11を検出しました"
-    } elseif ($osBuild -ge 10240) {
-        # Windows 10 (Build 10240以降)
+        Write-Verbose "Windows 11を検出しました (Build: $osBuild >= $win11MinBuild)"
+    } elseif ($osBuild -ge $win10MinBuild) {
+        # Windows 10 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win10
-        Write-Verbose "Windows 10を検出しました"
+        Write-Verbose "Windows 10を検出しました (Build: $osBuild >= $win10MinBuild)"
     } else {
-        Show-ErrorPopup "このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n現在のビルド: $osBuild`r`n異なるバージョンで使用する場合はスクリプトとYAMLを調整してください。"
-        exit 3
+        Show-ErrorPopup "このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n現在のビルド: $osBuild (Win10最小: $win10MinBuild)`r`n異なるバージョンで使用する場合はYAMLのOSDetection設定を調整してください。"
+        exit $exitOSNotSupported
     }
     
     Write-Verbose "WinMergeパス: $winMergePath"
@@ -181,19 +199,19 @@ begin{
     $ilspyCmd = Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue
     if (-not $ilspyCmd) {
         Show-ErrorPopup "「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n`r`n「ILSpyCmdインストール」スクリプトを実行してインストールすることもできます。"
-        exit 4
+        exit $exitFileNotFound
     }
     Write-Verbose "ILSpyCmd場所: $($ilspyCmd.Source)"
     
     # 必要なフォルダーの存在確認
     if (-not (Test-Path $oldDllFolder)) {
         Show-ErrorPopup "Oldフォルダーが存在しません。`r`n`r`n$oldDllFolder`r`nを作成してDLLファイルを配置してください。"
-        exit 4
+        exit $exitFileNotFound
     }
     
     if (-not (Test-Path $newDllFolder)) {
         Show-ErrorPopup "Newフォルダーが存在しません。`r`n`r`n$newDllFolder`r`nを作成してDLLファイルを配置してください。"
-        exit 4
+        exit $exitFileNotFound
     }
     
     # 出力フォルダーの作成(存在しない場合)
@@ -203,33 +221,33 @@ begin{
             Write-Verbose "出力フォルダーを作成しました: $outputFolder"
         } catch {
             Show-ErrorPopup "出力フォルダーの作成に失敗しました。`r`n`r`n$($_.Exception.Message)"
-            exit 1
+            exit $exitGeneralError
         }
     }
     
     # CleanOutput オプション: 出力フォルダーのクリーンアップ
     if ($CleanOutput) {
-        $oldOutputPath = Join-Path $outputFolder "old"
-        $newOutputPath = Join-Path $outputFolder "new"
+        $oldOutputPath = Join-Path $outputFolder $folderOld
+        $newOutputPath = Join-Path $outputFolder $folderNew
         
-        if ($PSCmdlet.ShouldProcess($oldOutputPath, "出力フォルダー(old)の削除")) {
+        if ($PSCmdlet.ShouldProcess($oldOutputPath, "出力フォルダー($folderOld)の削除")) {
             if (Test-Path $oldOutputPath) {
                 try {
                     Remove-Item -Path $oldOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー(old)をクリアしました: $oldOutputPath" -ForegroundColor Green
+                    Write-Host "出力フォルダー($folderOld)をクリアしました: $oldOutputPath" -ForegroundColor $colorSuccess
                 } catch {
-                    Write-Warning "出力フォルダー(old)のクリアに失敗しました: $($_.Exception.Message)"
+                    Write-Warning "出力フォルダー($folderOld)のクリアに失敗しました: $($_.Exception.Message)"
                 }
             }
         }
         
-        if ($PSCmdlet.ShouldProcess($newOutputPath, "出力フォルダー(new)の削除")) {
+        if ($PSCmdlet.ShouldProcess($newOutputPath, "出力フォルダー($folderNew)の削除")) {
             if (Test-Path $newOutputPath) {
                 try {
                     Remove-Item -Path $newOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー(new)をクリアしました: $newOutputPath" -ForegroundColor Green
+                    Write-Host "出力フォルダー($folderNew)をクリアしました: $newOutputPath" -ForegroundColor $colorSuccess
                 } catch {
-                    Write-Warning "出力フォルダー(new)のクリアに失敗しました: $($_.Exception.Message)"
+                    Write-Warning "出力フォルダー($folderNew)のクリアに失敗しました: $($_.Exception.Message)"
                 }
             }
         }
@@ -242,7 +260,7 @@ process{
     
     if (-not $oldDlls) {
         Show-ErrorPopup "古いDLLファイルが見つかりません。`r`n`r`n$oldDllFolder`r`nにDLLファイルを配置してください。"
-        exit 4
+        exit $exitFileNotFound
     }
     
     $totalCount = $oldDlls.Count
@@ -252,7 +270,7 @@ process{
     $skipCount = 0
     $errorList = @()  # エラー詳細のリスト
     
-    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor Cyan
+    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $colorInfo
 
     foreach ($oldDll in $oldDlls) {
         $baseName = $oldDll.BaseName
@@ -275,7 +293,7 @@ process{
         # 逆コンパイル
         if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) {
             # 古いDLLの逆コンパイル
-            $oldOutput = Join-Path $outputFolder "old\$baseName"
+            $oldOutput = Join-Path $outputFolder "$folderOld\$baseName"
             $oldDecompileSuccess = $false
             try {
                 $ilspyArgsOld = @(
@@ -312,7 +330,7 @@ process{
             }
             
             # 新しいDLLの逆コンパイル
-            $newOutput = Join-Path $outputFolder "new\$baseName"
+            $newOutput = Join-Path $outputFolder "$folderNew\$baseName"
             $newDecompileSuccess = $false
             try {
                 $ilspyArgsNew = @(
@@ -362,44 +380,44 @@ end{
     Write-Progress -Activity "逆コンパイル中" -Completed
     
     # 処理統計の表示
-    Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "           処理サマリー" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "`n========================================" -ForegroundColor $colorInfo
+    Write-Host "           処理サマリー" -ForegroundColor $colorInfo
+    Write-Host "========================================" -ForegroundColor $colorInfo
     Write-Host "処理DLL数:      $totalCount"
     Write-Host "成功:           " -NoNewline
-    Write-Host "$successCount" -ForegroundColor Green
+    Write-Host "$successCount" -ForegroundColor $colorSuccess
     Write-Host "失敗:           " -NoNewline
     if ($failCount -gt 0) {
-        Write-Host "$failCount" -ForegroundColor Red
+        Write-Host "$failCount" -ForegroundColor $colorError
     } else {
         Write-Host "$failCount"
     }
     Write-Host "スキップ:       " -NoNewline
     if ($skipCount -gt 0) {
-        Write-Host "$skipCount" -ForegroundColor Yellow
+        Write-Host "$skipCount" -ForegroundColor $colorWarning
     } else {
         Write-Host "$skipCount"
     }
-    Write-Host "========================================`n" -ForegroundColor Cyan
+    Write-Host "========================================`n" -ForegroundColor $colorInfo
     
     # エラーレポートの表示(エラーがある場合)
     if ($errorList.Count -gt 0) {
-        Write-Host "========================================" -ForegroundColor Red
-        Write-Host "         エラー詳細" -ForegroundColor Red
-        Write-Host "========================================" -ForegroundColor Red
+        Write-Host "========================================" -ForegroundColor $colorError
+        Write-Host "         エラー詳細" -ForegroundColor $colorError
+        Write-Host "========================================" -ForegroundColor $colorError
         foreach ($error in $errorList) {
             Write-Host "DLL: " -NoNewline
-            Write-Host "$($error.DllName)" -ForegroundColor Yellow -NoNewline
+            Write-Host "$($error.DllName)" -ForegroundColor $colorWarning -NoNewline
             Write-Host " [$($error.Type)]"
             Write-Host "  エラー: $($error.Error)" -ForegroundColor Gray
         }
-        Write-Host "========================================`n" -ForegroundColor Red
+        Write-Host "========================================`n" -ForegroundColor $colorError
         
         # エラーレポートをファイルに保存
         $errorReportPath = Join-Path $LogDir "DecompileErrors_$timestamp.txt"
         $errorList | Format-Table -AutoSize | Out-File -FilePath $errorReportPath -Encoding UTF8
         Write-Host "エラーレポートを保存しました: " -NoNewline
-        Write-Host "$errorReportPath" -ForegroundColor Yellow
+        Write-Host "$errorReportPath" -ForegroundColor $colorWarning
         Write-Host ""
     }
     
@@ -407,34 +425,34 @@ end{
     $endTime = Get-Date
     $elapsedTime = $endTime - $startTime
     Write-Host "処理時間: " -NoNewline
-    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor Cyan
+    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor $colorInfo
     Write-Host ""
     
     # WinMergeの実行準備
-    $oldFile = Join-Path $outputFolder "old"
-    $newFile = Join-Path $outputFolder "new"
+    $oldFile = Join-Path $outputFolder $folderOld
+    $newFile = Join-Path $outputFolder $folderNew
     
     Write-Verbose "比較元: $oldFile"
     Write-Verbose "比較先: $newFile"
     
     # 差分ツールの選択と起動
     if ($DiffTool -eq "VSCode") {
-        Write-Host "`nVSCodeを起動しています..." -ForegroundColor Cyan
+        Write-Host "`nVSCodeを起動しています..." -ForegroundColor $colorInfo
         if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) {
             try {
                 Start-Process -FilePath "code" -ArgumentList "--diff","`"$oldFile`"","`"$newFile`"" -ErrorAction Stop
-                Write-Host "VSCodeを起動しました。" -ForegroundColor Green
+                Write-Host "VSCodeを起動しました。" -ForegroundColor $colorSuccess
             } catch {
                 Write-Warning "VSCodeの起動に失敗しました: $($_.Exception.Message)"
-                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor Yellow
+                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor $colorWarning
             }
         }
     } elseif ($DiffTool -eq "Custom") {
-        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor Cyan
+        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor $colorInfo
         Write-Host "Old: " -NoNewline
-        Write-Host "$oldFile" -ForegroundColor Yellow
+        Write-Host "$oldFile" -ForegroundColor $colorWarning
         Write-Host "New: " -NoNewline
-        Write-Host "$newFile" -ForegroundColor Yellow
+        Write-Host "$newFile" -ForegroundColor $colorWarning
     } else {
         # WinMerge (デフォルト)
         # WinMergeの実行パスの確認
@@ -443,13 +461,13 @@ end{
         $ExecWinMerge = Join-Path -Path $winMergePath -ChildPath "WinMergeU.exe"
         if (-not (Test-Path -Path $ExecWinMerge)) {
             Show-ErrorPopup "WinMergeが見つかりませんでした。`r`n`r`n$ExecWinMerge`r`nを確認してください。"
-            exit 4
+            exit $exitFileNotFound
         }
         
         Write-Verbose "WinMerge実行ファイル: $ExecWinMerge"
     
         # WinMergeの実行
-        Write-Host "`nWinMergeを起動しています..." -ForegroundColor Cyan
+        Write-Host "`nWinMergeを起動しています..." -ForegroundColor $colorInfo
         if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) {
             try {
                 $winMergeArgs = @(
@@ -462,19 +480,19 @@ end{
                 )
                 
                 Start-Process -FilePath $ExecWinMerge -ArgumentList $winMergeArgs -ErrorAction Stop
-                Write-Host "WinMergeを起動しました。" -ForegroundColor Green
+                Write-Host "WinMergeを起動しました。" -ForegroundColor $colorSuccess
             } catch {
                 Show-ErrorPopup "WinMergeの実行に失敗しました。`r`n`r`n$($_.Exception.Message)"
-                exit 1
+                exit $exitGeneralError
             }
         }
     }
     
     # 処理の完了メッセージ
-    Write-Host "`n処理が完了しました。" -ForegroundColor Green
+    Write-Host "`n処理が完了しました。" -ForegroundColor $colorSuccess
     if (-not $WhatIfPreference) {
         if ($DiffTool -ne "Custom") {
-            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor Cyan
+            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor $colorInfo
         }
     }
     
@@ -484,7 +502,7 @@ end{
     # 失敗があった場合は適切な終了コードを返す
     if ($failCount -gt 0) {
         Write-Warning "一部のDLL処理に失敗しました。詳細はログを確認してください。"
-        exit 5
+        exit $exitDecompileFailed
     }
 }
 
