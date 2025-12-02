@@ -1,130 +1,490 @@
-# 新旧DLLファイルを逆コンパイルし、差分を比較するPowerShellスクリプト
-param (
-    [string]$EnvYaml = "Decompile.yaml" # オプションなしの場合は「Decompile.yaml」を使用する
-)
-begin{
-    # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
-    $UpperPath = $scriptPath | Split-Path -Parent                       # スクリプトの親パスを取得
-    $PowerShellDir = $UpperPath | Split-Path -Parent                    # スクリプトの親パスの親パスを取得
-    $YamlPath = Join-Path -Path $UpperPath"\YAML" -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
-    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"               # ログファイルの格納ディレクトリを取得
+<#
+.SYNOPSIS
+    新旧DLLファイルを逆コンパイルし、WinMergeで差分を比較します。
 
-    $oldDllFolder = Join-Path -Path $UpperPath -ChildPath "\Dlls\Old"   # 古いDLLファイルの格納ディレクトリを取得
-    $newDllFolder = Join-Path -Path $UpperPath -ChildPath "\Dlls\New"   # 新しいDLLファイルの格納ディレクトリを取得
-    $outputFolder = Join-Path -Path $UpperPath -ChildPath "\Dlls\Decompiled"    #  逆コンパイルされたDLLファイルの格納ディレクトリを取得
+.DESCRIPTION
+    指定されたフォルダ内の新旧DLLファイルをILSpyCmdで逆コンパイルし、
+    WinMergeを使用して差分を視覚的に比較するスクリプトです。
+    
+    主な機能:
+    - 複数DLLの一括逆コンパイル
+    - 進捗状況の表示
+    - OS自動判定によるWinMergeパス解決
+    - YAML設定による柔軟な設定管理
+
+.PARAMETER EnvYaml
+    使用するYAML設定ファイル名。デフォルトは"Decompile.yaml"。
+    YAMLフォルダー内に配置する必要があります。
+
+.PARAMETER CleanOutput
+    実行前に出力フォルダーの内容をクリアします。前回の逆コンパイル結果を削除したい場合に使用します。
+
+.PARAMETER ShowConfig
+    YAML設定ファイルの内容を表示して終了します。設定確認用です。
+
+.PARAMETER DiffTool
+    使用する差分比較ツールを指定します。選択能: WinMerge(デフォルト), VSCode, Custom。
+
+.PARAMETER WhatIf
+    実際には処理を実行せず、実行される内容を表示します。
+
+.EXAMPLE
+    .\DecompileDll.ps1
+    デフォルト設定で実行します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -EnvYaml "CustomConfig.yaml"
+    カスタム設定ファイルを使用して実行します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -Verbose
+    詳細ログを表示しながら実行します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -CleanOutput
+    出力フォルダーをクリアしてから逆コンパイルを実行します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -WhatIf
+    実際には実行せず、処理内容を確認します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -ShowConfig
+    YAML設定内容を表示して終了します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -DiffTool VSCode
+    VSCodeを使用して差分を表示します。
+
+.NOTES
+    File Name      : DecompileDll.ps1
+    Author         : UMA
+    Prerequisite   : PowerShell 7.x, ILSpyCmd, WinMerge, powershell-yaml module
+    
+    前提条件:
+    - ILSpyCmdがインストールされていること
+    - WinMergeがインストールされていること
+    - powershell-yamlモジュールがインストールされていること
+    - Dlls\OldとDlls\Newフォルダーに比較対象のDLLが配置されていること
+
+.LINK
+    https://github.com/UMA68/PowerShell
+#>
+
+[CmdletBinding(SupportsShouldProcess=$true)]
+param (
+    [Parameter(Mandatory=$false)]
+    [string]$EnvYaml = "Decompile.yaml",
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$CleanOutput,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$ShowConfig,
+    
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("WinMerge", "VSCode", "Custom")]
+    [string]$DiffTool = "WinMerge"
+)
+
+begin{
+    # トランスクリプトログ開始と処理時間計測
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $UpperPath = Split-Path -Parent $scriptPath
+    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"
+    
+    if (-not (Test-Path $LogDir)) {
+        New-Item -Path $LogDir -ItemType Directory -Force | Out-Null
+    }
+    
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $transcriptPath = Join-Path $LogDir "DecompileDll_$timestamp.log"
+    Start-Transcript -Path $transcriptPath -Force
+    Write-Host "トランスクリプトログ: $transcriptPath" -ForegroundColor Cyan
+    
+    # 処理時間計測開始
+    $startTime = Get-Date
+    
+    # エラー表示用ヘルパー関数
+    function Show-ErrorPopup {
+        param([string]$Message)
+        $shell = New-Object -ComObject WScript.Shell
+        $shell.Popup($Message, 0, "エラー", 0x30) | Out-Null
+        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+    }
+
+    # スクリプトの実行環境を取得
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $UpperPath = Split-Path -Parent $scriptPath
+    $PowerShellDir = Split-Path -Parent $UpperPath
+    $YamlPath = Join-Path -Path $UpperPath -ChildPath "YAML\$EnvYaml"
+    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"
+
+    $oldDllFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Old"
+    $newDllFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\New"
+    $outputFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Decompiled"
+    
+    Write-Verbose "スクリプトパス: $scriptPath"
+    Write-Verbose "YAML設定ファイル: $YamlPath"
+    Write-Verbose "出力フォルダー: $outputFolder"
+    
+    # powershell-yamlモジュールの確認
+    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+        Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
+        exit 4
+    }
+    Import-Module powershell-yaml -ErrorAction Stop
 
     # YAMLファイルの存在チェック
     if (-not (Test-Path -Path $YamlPath)) {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("YAMLファイルが存在しません。`r`n`r`n"+$YamlPath+"を確認してください。",0,"エラー",0x30)
-        exit
+        Show-ErrorPopup "YAMLファイルが存在しません。`r`n`r`n$YamlPath`r`nを確認してください。"
+        exit 4
     }
+    
     # YAMLファイルの読み込み
     try {
-        $yaml = Get-Content -Path $YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered
+        $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
+        Write-Verbose "YAML設定を読み込みました"
     } catch {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("YAMLファイルの読み込みに失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
-        exit
+        Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
+        exit 1
+    }
+    
+    # YAML構造の検証
+    if (-not $config.InstWinMerge) {
+        Show-ErrorPopup "YAMLに'InstWinMerge'セクションがありません。`r`n設定ファイルを確認してください。"
+        exit 1
     }
 
-    # OSのバージョンでWinMergeのインストールパスを予想
-    [String]$WinVer = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
-    if ($WinVer -like "*Windows 10*") {
-        $winMergePath = $yaml.InstWinMerge.Win10
-    } elseif ($WinVer -like "*Windows 11*") {
-        # Windows 11の場合は$HOMEを展開するためひと手間かける
-        $winMergePath = $yaml.InstWinMerge.Win11 -replace '\$HOME', $HOME
+    # OSバージョンの判定（BuildNumberベース - ローカライズに依存しない）
+    $osInfo = Get-CimInstance -ClassName Win32_OperatingSystem
+    $osBuild = [int]$osInfo.BuildNumber
+    
+    Write-Verbose "OS: $($osInfo.Caption) (Build: $osBuild)"
+    
+    if ($osBuild -ge 22000) {
+        # Windows 11 (Build 22000以降)
+        $winMergePath = $config.InstWinMerge.Win11 -replace '\$HOME', $HOME
+        Write-Verbose "Windows 11を検出しました"
+    } elseif ($osBuild -ge 10240) {
+        # Windows 10 (Build 10240以降)
+        $winMergePath = $config.InstWinMerge.Win10
+        Write-Verbose "Windows 10を検出しました"
     } else {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n異なるバージョンで使用する場合はスクリプトとyamlを調整してください。",0,"エラー",0x30)
-        exit
+        Show-ErrorPopup "このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n現在のビルド: $osBuild`r`n異なるバージョンで使用する場合はスクリプトとYAMLを調整してください。"
+        exit 3
     }
+    
+    Write-Verbose "WinMergeパス: $winMergePath"
 
     # ILSpyCmd(逆コンパイルコマンド)の存在チェック
-    if (-not (Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue)) {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n"+"「ILSpyCmdインストール」を実行してインストールするのも手です。",0,"エラー",0x30)
-        exit
+    $ilspyCmd = Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue
+    if (-not $ilspyCmd) {
+        Show-ErrorPopup "「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n`r`n「ILSpyCmdインストール」スクリプトを実行してインストールすることもできます。"
+        exit 4
     }
-    # 2025/07/04 DEL 徳永 BEGIN
-    # Linuxのdiffコマンドを使わなくなったので削除
-    # # WsLのLinuxパスに変換する関数
-    # function Convert-ToWSLPath($winPath) {
-    #     $drive = $winPath.Substring(0,1).ToLower()
-    #     $rest = $winPath.Substring(2) -replace '\\', '/'
-    #     return "/mnt/$drive/$rest"
-    # }
-    # 2025/07/04 DEL 徳永 END
+    Write-Verbose "ILSpyCmd場所: $($ilspyCmd.Source)"
+    
+    # 必要なフォルダーの存在確認
+    if (-not (Test-Path $oldDllFolder)) {
+        Show-ErrorPopup "Oldフォルダーが存在しません。`r`n`r`n$oldDllFolder`r`nを作成してDLLファイルを配置してください。"
+        exit 4
+    }
+    
+    if (-not (Test-Path $newDllFolder)) {
+        Show-ErrorPopup "Newフォルダーが存在しません。`r`n`r`n$newDllFolder`r`nを作成してDLLファイルを配置してください。"
+        exit 4
+    }
+    
+    # 出力フォルダーの作成(存在しない場合)
+    if (-not (Test-Path $outputFolder)) {
+        try {
+            New-Item -Path $outputFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            Write-Verbose "出力フォルダーを作成しました: $outputFolder"
+        } catch {
+            Show-ErrorPopup "出力フォルダーの作成に失敗しました。`r`n`r`n$($_.Exception.Message)"
+            exit 1
+        }
+    }
+    
+    # CleanOutput オプション: 出力フォルダーのクリーンアップ
+    if ($CleanOutput) {
+        $oldOutputPath = Join-Path $outputFolder "old"
+        $newOutputPath = Join-Path $outputFolder "new"
+        
+        if ($PSCmdlet.ShouldProcess($oldOutputPath, "出力フォルダー(old)の削除")) {
+            if (Test-Path $oldOutputPath) {
+                try {
+                    Remove-Item -Path $oldOutputPath -Recurse -Force -ErrorAction Stop
+                    Write-Host "出力フォルダー(old)をクリアしました: $oldOutputPath" -ForegroundColor Green
+                } catch {
+                    Write-Warning "出力フォルダー(old)のクリアに失敗しました: $($_.Exception.Message)"
+                }
+            }
+        }
+        
+        if ($PSCmdlet.ShouldProcess($newOutputPath, "出力フォルダー(new)の削除")) {
+            if (Test-Path $newOutputPath) {
+                try {
+                    Remove-Item -Path $newOutputPath -Recurse -Force -ErrorAction Stop
+                    Write-Host "出力フォルダー(new)をクリアしました: $newOutputPath" -ForegroundColor Green
+                } catch {
+                    Write-Warning "出力フォルダー(new)のクリアに失敗しました: $($_.Exception.Message)"
+                }
+            }
+        }
+    }
 }
 process{
     # 一括逆コンパイル
-    $oldDlls = Get-ChildItem $oldDllFolder -Filter *.dll    # 古いDLLファイルの取得
-    $totalCount = $oldDlls.Count                            # 逆コンパイル予定数の取得
-    $currentCount = 0                                       # 進捗カウンタの初期化
+    Write-Verbose "古いDLLフォルダーをスキャン: $oldDllFolder"
+    $oldDlls = Get-ChildItem $oldDllFolder -Filter *.dll -ErrorAction SilentlyContinue
+    
+    if (-not $oldDlls) {
+        Show-ErrorPopup "古いDLLファイルが見つかりません。`r`n`r`n$oldDllFolder`r`nにDLLファイルを配置してください。"
+        exit 4
+    }
+    
+    $totalCount = $oldDlls.Count
+    $currentCount = 0
+    $successCount = 0
+    $failCount = 0
+    $skipCount = 0
+    $errorList = @()  # エラー詳細のリスト
+    
+    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor Cyan
 
     foreach ($oldDll in $oldDlls) {
         $baseName = $oldDll.BaseName
-        $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" | Sort-Object LastWriteTime | Select-Object -Last 1
-
-        # oldDllの逆コンパイル予定数と現在の進捗を表示
-        $currentCount = $currentCount + 1
-        Write-Host "進捗: $currentCount/$totalCount"
-        $progress = (($currentCount / $totalCount) * 100)
-        $roundedProgress = [Math]::Round($progress, 2)
-        Write-Progress -Activity "逆コンパイル中" -Status "$currentCount/$totalCount" -PercentComplete $roundedProgress
-
-        # 逆コンパイル
-        if ($newDll) {
-            # 古いdllの逆コンパイル
-            if (Test-Path $oldDll.FullName) {
-                # & ILSpyCmd -o "$outputFolder\$baseName\old" "$($oldDll.FullName)"
-                # & ILSpyCmd --nested-directories -p -o "$outputFolder\$baseName\old\$baseName" "$($oldDll.FullName)"
-                & ILSpyCmd --nested-directories -p -o "$outputFolder\old\$baseName" "$($oldDll.FullName)"
-                Write-Host "$($oldDll.Name)(Old)の逆コンパイルに成功しました"
-            } else {
-                Write-Error "File '$($oldDll.FullName)' does not exist!"
-            }
-            # 新しいdllの逆コンパイル
-            if (Test-Path $newDll.FullName) {
-                # & ILSpyCmd -o "$outputFolder\$baseName\new" "$($newDll.FullName)"
-                # & ILSpyCmd --nested-directories -p -o  "$outputFolder\$baseName\new\$baseName" "$($newDll.FullName)"
-                & ILSpyCmd --nested-directories -p -o  "$outputFolder\new\$baseName" "$($newDll.FullName)"
-                Write-Host "$($newDll.Name))(New)の逆コンパイルに成功しました"
-            } else {
-                Write-Error "File '$($newDll.FullName)' does not exist!"
+        $newDll = Get-ChildItem $newDllFolder -Filter "$baseName.dll" -ErrorAction SilentlyContinue
+        
+        # 厳密マッチでない場合はワイルドカード検索
+        if (-not $newDll) {
+            $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" -ErrorAction SilentlyContinue | 
+                      Sort-Object LastWriteTime | Select-Object -Last 1
+            if ($newDll) {
+                Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
             }
         }
-        else {
-            # DLLが見つからない場合のエラーメッセージ
-            Write-Error "No matching DLL found for '$($oldDll.Name)'"
+
+        $currentCount++
+        $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)
+        Write-Progress -Activity "逆コンパイル中" -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress
+        Write-Verbose "処理中: $baseName"
+
+        # 逆コンパイル
+        if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) {
+            # 古いDLLの逆コンパイル
+            $oldOutput = Join-Path $outputFolder "old\$baseName"
+            $oldDecompileSuccess = $false
+            try {
+                $ilspyArgsOld = @(
+                    "--nested-directories"
+                    "-p"
+                    "-o", $oldOutput
+                    $oldDll.FullName
+                )
+                
+                $oldProcess = Start-Process -FilePath "ILSpyCmd" `
+                    -ArgumentList $ilspyArgsOld `
+                    -NoNewWindow -Wait -PassThru -ErrorAction Stop
+                
+                if ($oldProcess.ExitCode -eq 0) {
+                    Write-Verbose "✓ $($oldDll.Name) (Old) 逆コンパイル成功"
+                    $oldDecompileSuccess = $true
+                } else {
+                    Write-Warning "ILSpyCmd終了コード: $($oldProcess.ExitCode) - $($oldDll.Name) (Old)"
+                    $failCount++
+                    $errorList += [PSCustomObject]@{
+                        DllName = $oldDll.Name
+                        Type = "Old"
+                        Error = "ILSpyCmd終了コード: $($oldProcess.ExitCode)"
+                    }
+                }
+            } catch {
+                Write-Error "$($oldDll.Name) (Old)の逆コンパイルに失敗: $($_.Exception.Message)"
+                $failCount++
+                $errorList += [PSCustomObject]@{
+                    DllName = $oldDll.Name
+                    Type = "Old"
+                    Error = $_.Exception.Message
+                }
+            }
+            
+            # 新しいDLLの逆コンパイル
+            $newOutput = Join-Path $outputFolder "new\$baseName"
+            $newDecompileSuccess = $false
+            try {
+                $ilspyArgsNew = @(
+                    "--nested-directories"
+                    "-p"
+                    "-o", $newOutput
+                    $newDll.FullName
+                )
+                
+                $newProcess = Start-Process -FilePath "ILSpyCmd" `
+                    -ArgumentList $ilspyArgsNew `
+                    -NoNewWindow -Wait -PassThru -ErrorAction Stop
+                
+                if ($newProcess.ExitCode -eq 0) {
+                    Write-Verbose "✓ $($newDll.Name) (New) 逆コンパイル成功"
+                    $newDecompileSuccess = $true
+                } else {
+                    Write-Warning "ILSpyCmd終了コード: $($newProcess.ExitCode) - $($newDll.Name) (New)"
+                    $failCount++
+                    $errorList += [PSCustomObject]@{
+                        DllName = $newDll.Name
+                        Type = "New"
+                        Error = "ILSpyCmd終了コード: $($newProcess.ExitCode)"
+                    }
+                }
+            } catch {
+                Write-Error "$($newDll.Name) (New)の逆コンパイルに失敗: $($_.Exception.Message)"
+                $failCount++
+                $errorList += [PSCustomObject]@{
+                    DllName = $newDll.Name
+                    Type = "New"
+                    Error = $_.Exception.Message
+                }
+            }
+            
+            # 両方成功した場合のみ成功カウント
+            if ($oldDecompileSuccess -and $newDecompileSuccess) {
+                $successCount++
+            }
+        } else {
+            Write-Warning "'$($oldDll.Name)'に対応する新しいDLLが見つかりません - スキップ"
+            $skipCount++
         }
     }
 }
 end{
-    # WinMergeの実行準備
-    $oldFile = "$outputFolder\old"  # 逆コンパイルされた古いDLLファイルの格納ディレクトリ
-    $newFile = "$outputFolder\new"  # 逆コンパイルされた新しいDLLファイルの格納ディレクトリ
+    Write-Progress -Activity "逆コンパイル中" -Completed
     
-    # WinMergeの実行パスの確認
-    $ExecWinMerge = Join-Path -Path $winMergePath -ChildPath "WinMergeU.exe"
-    if (-not (Test-Path -Path $ExecWinMerge)) {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("WinMergeが見つかりませんでした。`r`n`r`n"+$ExecWinMerge+"を確認してください。",0,"エラー",0x30)
-        exit
+    # 処理統計の表示
+    Write-Host "`n========================================" -ForegroundColor Cyan
+    Write-Host "           処理サマリー" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "処理DLL数:      $totalCount"
+    Write-Host "成功:           " -NoNewline
+    Write-Host "$successCount" -ForegroundColor Green
+    Write-Host "失敗:           " -NoNewline
+    if ($failCount -gt 0) {
+        Write-Host "$failCount" -ForegroundColor Red
+    } else {
+        Write-Host "$failCount"
     }
- 
-    # WinMergeの実行
-    try{
-        & $ExecWinMerge /r /u /dl Old /dr New "$oldFile" "$newFile"
-    } catch {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("WinMergeの実行に失敗しました。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
-        exit
+    Write-Host "スキップ:       " -NoNewline
+    if ($skipCount -gt 0) {
+        Write-Host "$skipCount" -ForegroundColor Yellow
+    } else {
+        Write-Host "$skipCount"
     }
- 
+    Write-Host "========================================`n" -ForegroundColor Cyan
+    
+    # エラーレポートの表示(エラーがある場合)
+    if ($errorList.Count -gt 0) {
+        Write-Host "========================================" -ForegroundColor Red
+        Write-Host "         エラー詳細" -ForegroundColor Red
+        Write-Host "========================================" -ForegroundColor Red
+        foreach ($error in $errorList) {
+            Write-Host "DLL: " -NoNewline
+            Write-Host "$($error.DllName)" -ForegroundColor Yellow -NoNewline
+            Write-Host " [$($error.Type)]"
+            Write-Host "  エラー: $($error.Error)" -ForegroundColor Gray
+        }
+        Write-Host "========================================`n" -ForegroundColor Red
+        
+        # エラーレポートをファイルに保存
+        $errorReportPath = Join-Path $LogDir "DecompileErrors_$timestamp.txt"
+        $errorList | Format-Table -AutoSize | Out-File -FilePath $errorReportPath -Encoding UTF8
+        Write-Host "エラーレポートを保存しました: " -NoNewline
+        Write-Host "$errorReportPath" -ForegroundColor Yellow
+        Write-Host ""
+    }
+    
+    # 処理時間の計算と表示
+    $endTime = Get-Date
+    $elapsedTime = $endTime - $startTime
+    Write-Host "処理時間: " -NoNewline
+    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # WinMergeの実行準備
+    $oldFile = Join-Path $outputFolder "old"
+    $newFile = Join-Path $outputFolder "new"
+    
+    Write-Verbose "比較元: $oldFile"
+    Write-Verbose "比較先: $newFile"
+    
+    # 差分ツールの選択と起動
+    if ($DiffTool -eq "VSCode") {
+        Write-Host "`nVSCodeを起動しています..." -ForegroundColor Cyan
+        if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) {
+            try {
+                Start-Process -FilePath "code" -ArgumentList "--diff","`"$oldFile`"","`"$newFile`"" -ErrorAction Stop
+                Write-Host "VSCodeを起動しました。" -ForegroundColor Green
+            } catch {
+                Write-Warning "VSCodeの起動に失敗しました: $($_.Exception.Message)"
+                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor Yellow
+            }
+        }
+    } elseif ($DiffTool -eq "Custom") {
+        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor Cyan
+        Write-Host "Old: " -NoNewline
+        Write-Host "$oldFile" -ForegroundColor Yellow
+        Write-Host "New: " -NoNewline
+        Write-Host "$newFile" -ForegroundColor Yellow
+    } else {
+        # WinMerge (デフォルト)
+        # WinMergeの実行パスの確認
+        # WinMerge (デフォルト)
+        # WinMergeの実行パスの確認
+        $ExecWinMerge = Join-Path -Path $winMergePath -ChildPath "WinMergeU.exe"
+        if (-not (Test-Path -Path $ExecWinMerge)) {
+            Show-ErrorPopup "WinMergeが見つかりませんでした。`r`n`r`n$ExecWinMerge`r`nを確認してください。"
+            exit 4
+        }
+        
+        Write-Verbose "WinMerge実行ファイル: $ExecWinMerge"
+    
+        # WinMergeの実行
+        Write-Host "`nWinMergeを起動しています..." -ForegroundColor Cyan
+        if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) {
+            try {
+                $winMergeArgs = @(
+                    "/r",
+                    "/u",
+                    "/dl", "Old",
+                    "/dr", "New",
+                    "`"$oldFile`"",
+                    "`"$newFile`""
+                )
+                
+                Start-Process -FilePath $ExecWinMerge -ArgumentList $winMergeArgs -ErrorAction Stop
+                Write-Host "WinMergeを起動しました。" -ForegroundColor Green
+            } catch {
+                Show-ErrorPopup "WinMergeの実行に失敗しました。`r`n`r`n$($_.Exception.Message)"
+                exit 1
+            }
+        }
+    }
+    
     # 処理の完了メッセージ
-    Read-Host -Prompt "処理が完了しました。Enterキーを押して終了します"
+    Write-Host "`n処理が完了しました。" -ForegroundColor Green
+    if (-not $WhatIfPreference) {
+        if ($DiffTool -ne "Custom") {
+            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor Cyan
+        }
+    }
+    
+    # トランスクリプトログの停止
+    Stop-Transcript
+    
+    # 失敗があった場合は適切な終了コードを返す
+    if ($failCount -gt 0) {
+        Write-Warning "一部のDLL処理に失敗しました。詳細はログを確認してください。"
+        exit 5
+    }
 }
 
