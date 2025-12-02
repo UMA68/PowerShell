@@ -1,71 +1,71 @@
 # ==========================
 # プロジェクト情報
 # ==========================
-Project:
- Name: ".NET Uninstall Tool Management"
- ScriptVersion: "1.1.0"
+Project:                                # プロジェクト情報
+ Name: ".NET Uninstall Tool Management" # プロジェクト名
+ ScriptVersion: "1.1.0"                 # スクリプトバージョン
 
 # -----------------
 # 実行環境
 # -----------------
-PowerShell: 
- Version: 7.5.4
+PowerShell:     # PowerShell情報
+ Version: 7.5.4 # PowerShellのバージョン
 
 # 実行に必要なモジュール
 Module:
- Powershell-Yaml:
-  Name: powershell-yaml
-  Version: 0.4.7
+ Powershell-Yaml:       # モジュール情報
+  Name: powershell-yaml # モジュール名
+  Version: 0.4.7        # モジュールバージョン
 
 # -----------------
 # MSIファイル設定
 # -----------------
-MSI:
- FileName: "dotnet-core-uninstall.msi"
- ProductName: "*Uninstall Tool*"  # レジストリ検索用のパターン
+MSI:                                    # MSIファイル情報     
+ FileName: "dotnet-core-uninstall.msi"  # MSIファイル名
+ ProductName: "*Uninstall Tool*"        # レジストリ検索用のパターン
 
 # -----------------
 # インストールパス設定
 # -----------------
-Installation:
- DefaultPath: "C:\\Program Files (x86)\\dotnet-core-uninstall"
- CommandName: "dotnet-core-uninstall"
+Installation:                                                   # インストール設定
+ DefaultPath: "C:\\Program Files (x86)\\dotnet-core-uninstall"  # デフォルトのインストールパス
+ CommandName: "dotnet-core-uninstall"                           # コマンド名
 
 # -----------------
 # ログ設定
 # -----------------
-LogCleanup:
- Enabled: true
- RetentionDays: 30
+LogCleanup:         # ログのクリーンアップ設定
+ Enabled: true      # ログクリーンアップを有効にするかどうか
+ RetentionDays: 30  # 保持するログファイルの日数
 
-LOG:
- FILENAME: DotNetUninstallTool
- EXTENSION: .log
+LOG:                            # ログ設定    
+ FILENAME: DotNetUninstallTool  # ログファイル名
+ EXTENSION: .log                # ログファイル拡張子
 
 # -----------------
 # タイムアウト設定
 # -----------------
-Timeout:
- InstallSeconds: 300
- UninstallSeconds: 300
- SleepAfterOperation: 5
+Timeout:                  # タイムアウト設定
+ InstallSeconds: 300      # インストールのタイムアウト時間（秒）
+ UninstallSeconds: 300    # アンインストールのタイムアウト時間（秒）
+ SleepAfterOperation: 5   # 操作後の待機時間（秒）
 
 # -----------------
 # Popupダイアログアイコン
 # -----------------
-PopupIcon:
- Error: 0x10
- Warning: 0x30
- Information: 0x40
+PopupIcon:          # Popupダイアログアイコン設定
+ Error: 0x10        # 停止アイコン（エラー）
+ Warning: 0x30      # 警告アイコン
+ Information: 0x40  # 情報アイコン
 
 # -----------------
 # 終了コード
 # -----------------
-ExitCode:
- Success: 0
- GeneralError: 1
- UserCancelled: 2
- InsufficientPrivileges: 3
- FileNotFound: 4
- InstallFailed: 5
- UninstallFailed: 6
+ExitCode:                 # 終了コード設定
+ Success: 0               # 正常終了
+ GeneralError: 1          # 一般エラー
+ UserCancelled: 2         # ユーザーによるキャンセル
+ InsufficientPrivileges: 3  # 権限不足
+ FileNotFound: 4          # ファイルが見つからない
+ InstallFailed: 5         # インストール失敗
+ UninstallFailed: 6       # アンインストール失敗
