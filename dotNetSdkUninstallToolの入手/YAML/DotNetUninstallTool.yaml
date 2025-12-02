@@ -3,7 +3,7 @@
 # ==========================
 Project:
  Name: ".NET Uninstall Tool Management"
- ScriptVersion: "1.0.0"
+ ScriptVersion: "1.1.0"
 
 # -----------------
 # 実行環境

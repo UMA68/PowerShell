@@ -1,97 +1,99 @@
 <#
 .SYNOPSIS
-    .NET Uninstall Toolのインストール/アンインストールを管理します。
+        .NET Uninstall Tool のインストール/アンインストールを安全に管理します。
 
 .DESCRIPTION
-    このスクリプトは、.NET Uninstall Toolのインストールとアンインストールを
-    対話的なメニューで管理します。
-    
-    主な機能:
-    - YAML設定ファイルによる一元管理
-    - 管理者権限の確認と要求
-    - MSIファイルの存在確認とブロック解除
-    - タイムアウト付きインストール/アンインストール処理
-    - インストール後の検証
-    - レジストリからのインストールパス取得
-    - ログファイルの自動ローテーション
-    - 詳細なログ出力（INFO、WARN、ERROR）
-    - 二重起動防止（Mutex）
-    
-    終了コード（YAML設定ファイルで定義）:
-    - 0: 正常終了
-    - 1: 一般エラー
-    - 2: ユーザーキャンセル
-    - 3: 権限不足（管理者権限が必要）
-    - 4: ファイル未検出
-    - 5: インストール失敗
-    - 6: アンインストール失敗
+        .NET Uninstall Tool を対話式メニューでインストール/アンインストールします。
+        設定は YAML で一元管理し、ログ出力・権限確認・二重起動防止・ドライラン（-WhatIf）に対応します。
+
+        主な機能:
+        - YAML 設定ファイルで全設定を管理（MSI、タイムアウト、ログ、終了コード 等）
+        - 管理者権限チェック（-SkipAdminCheck でデバッグ時のみスキップ可能）
+        - MSI の存在確認と Unblock（ブロック解除）
+        - msiexec によるインストール/アンインストール（タイムアウト付き）
+        - レジストリからの製品コード/インストール場所の自動検出
+        - インストール/アンインストール後の検証
+        - ログ生成と自動ローテーション、終了時のログ自動オープン
+        - 二重起動防止（Mutex）
+        - ドライラン（-WhatIf）対応：実行計画のみログに記録、変更は行いません
+
+        -WhatIf の挙動（重要）:
+        - ShouldProcess で保護された操作（Unblock-File / msiexec / フォルダ削除）は実行せず、
+            「何を実行するか」を [WhatIf] でログ出力します。
+        - ログ作成/追記とログファイルを開く処理は -WhatIf の影響を受けません（常に実行）。
 
 .PARAMETER SkipAdminCheck
-    管理者権限チェックをスキップします。デバッグ用途のみで使用してください。
+        管理者権限チェックをスキップします（デバッグ用途のみ）。
+        本番運用では使用しないでください。
 
 .EXAMPLE
-    .\DotNetUninstallTool.ps1
-    
-    対話的メニューでインストール/アンインストールを選択します。
+        .\DotNetUninstallTool.ps1
+        対話的メニューでインストール/アンインストールを選択します。
 
 .EXAMPLE
-    .\DotNetUninstallTool.ps1 -SkipAdminCheck
-    
-    管理者権限チェックをスキップしてデバッグ実行します（デバッグ用途のみ）。
+        .\DotNetUninstallTool.ps1 -Verbose
+        詳細モードで実行し、各ステップの詳細を表示します。
 
 .EXAMPLE
-    .\DotNetUninstallTool.ps1 -Verbose
-    
-    詳細モードで実行し、各処理ステップの詳細情報を表示します。
+        .\DotNetUninstallTool.ps1 -WhatIf
+        ドライランモードで実行し、実際の変更は行わず計画のみをログに記録します。
 
 .EXAMPLE
-    .\DotNetUninstallTool.ps1 -WhatIf
-    
-    ドライランモードで実行し、実際の処理は行わずに何が実行されるかをログに記録します。
+        .\DotNetUninstallTool.ps1 -WhatIf -Verbose
+        ドライラン＋詳細モード。実行計画を詳細に確認できます。
 
 .NOTES
-    File Name      : DotNetUninstallTool.ps1
-    Author         : UMA
-    Prerequisite   : PowerShell 7.x, powershell-yaml module
-    Version        : 1.0.0
-    
-    前提条件:
-    - PowerShell 7.x 以上
-    - powershell-yamlモジュール（YAML設定ファイル読み込み用）
-    - 管理者権限での実行（-SkipAdminCheckでスキップ可能）
-    - Write-CommonLog.ps1が Common フォルダに存在すること
-    - DotNetUninstallTool.yaml が YAML フォルダに存在すること
-    - dotnet-core-uninstall.msi が dotNetSdkUninstallTool フォルダに存在すること
-    
-    設定ファイル:
-    - YAML\DotNetUninstallTool.yaml: 各種設定値を一元管理
-      * MSIファイル名
-      * インストールパス
-      * タイムアウト設定
-      * ログ保持期間
-      * Popupアイコンコード
-      * 終了コード定義
-      * プロジェクト情報
-    
-    動作詳細:
-    1. YAML設定ファイルの読み込みと検証
-    2. 管理者権限の確認（-SkipAdminCheckでスキップ可能）
-    3. 二重起動防止（Mutex）
-    4. 古いログファイルのクリーンアップ
-    5. 対話的メニューの表示
-    6. インストール処理:
-       - MSIファイルの存在確認
-       - ファイルのブロック解除
-       - タイムアウト付きインストール実行
-       - インストール後の検証（コマンド確認、バージョン表示）
-    7. アンインストール処理:
-       - レジストリからインストール情報取得
-       - タイムアウト付きアンインストール実行
-       - 残存フォルダの削除
-       - アンインストール後の検証
+        File Name   : DotNetUninstallTool.ps1
+        Author      : UMA
+        PowerShell  : 7.x 以上
+        Modules     : powershell-yaml（YAML読み込み）
+        Version     : YAML の Project.ScriptVersion を参照
+
+        前提条件:
+        - 管理者権限での実行（-SkipAdminCheck はデバッグ専用）
+        - `Common\Write-CommonLog.ps1` が存在すること
+        - `YAML\DotNetUninstallTool.yaml` が存在すること
+        - `dotNetSdkUninstallTool\dotnet-core-uninstall.msi` が存在すること
+
+        設定ファイル（YAML\DotNetUninstallTool.yaml）主要項目:
+        - Project:
+            * Name, ScriptVersion
+        - MSI:
+            * FileName: MSI ファイル名（例: dotnet-core-uninstall.msi）
+            * ProductName: レジストリの DisplayName 検索パターン（例: *dotnet-core-uninstall*）
+        - Installation:
+            * DefaultPath: 既定インストールパス（例: C:\Program Files (x86)\dotnet-core-uninstall）
+            * CommandName: コマンド名（例: dotnet-core-uninstall）
+        - LOG:
+            * FILENAME, EXTENSION（例: DotNetUninstallTool, .log）
+        - LogCleanup:
+            * RetentionDays: ログ保持日数（例: 30）
+        - Timeout:
+            * InstallSeconds, UninstallSeconds, SleepAfterOperation（秒）
+        - PopupIcon:
+            * Error/Warning/Information: WScript.Shell.Popup 用の数値（0x10/0x30/0x40 など）
+        - ExitCode:
+            * Success, GeneralError, UserCancelled, InsufficientPrivileges,
+                FileNotFound, InstallFailed, UninstallFailed
+
+        動作フロー（概要）:
+        1. YAML 読み込み → ログ初期化 → 権限確認 → Mutex 取得 → ログローテーション
+        2. メニュー表示 → ユーザー選択
+        3. インストール: MSI 存在確認 → Unblock → msiexec /i → 検証
+        4. アンインストール: レジストリ検索 → msiexec /x → 残存フォルダ削除 → 検証
+        5. 終了時にログを自動オープン（常に実行）
+
+        終了コード（YAMLの ExitCode に準拠）:
+        - 0: Success（正常終了）
+        - 1: GeneralError（一般エラー）
+        - 2: UserCancelled（ユーザーキャンセル）
+        - 3: InsufficientPrivileges（権限不足）
+        - 4: FileNotFound（MSI 不在など）
+        - 5: InstallFailed（インストール失敗/タイムアウト含む）
+        - 6: UninstallFailed（アンインストール失敗/タイムアウト含む）
 
 .LINK
-    https://github.com/UMA68/PowerShell
+        https://github.com/UMA68/PowerShell
 #>
 
 [CmdletBinding(SupportsShouldProcess=$true)]
