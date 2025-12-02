@@ -88,7 +88,7 @@ param (
 )
 
 begin{
-    # トランスクリプトログ開始と処理時間計測
+    # カスタムログ初期化
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
     $UpperPath = Split-Path -Parent $scriptPath
     $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"
@@ -98,13 +98,28 @@ begin{
     }
     
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $transcriptPath = Join-Path $LogDir "DecompileDll_$timestamp.log"
-    Start-Transcript -Path $transcriptPath -Force
-    # 色設定はYAML読み込み後に取得するため、ここではデフォルト値を使用
-    Write-Host "トランスクリプトログ: $transcriptPath" -ForegroundColor Cyan
+    $script:logPath = Join-Path $LogDir "DecompileDll_$timestamp.log"
+    
+    # ログヘルパー関数
+    function Write-Log {
+        param(
+            [string]$Message,
+            [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]
+            [string]$Level = "INFO"
+        )
+        $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $logMessage = "[$timeStamp] [$Level] $Message"
+        Add-Content -Path $script:logPath -Value $logMessage -Encoding UTF8
+    }
+    
+    # ログ開始
+    Write-Log "────────────────────────────────────────" "INFO"
+    Write-Log "DLL逆コンパイルスクリプトを開始" "INFO"
+    Write-Log "YAML設定ファイル: $EnvYaml" "INFO"
+    Write-Host "ログファイル: $script:logPath" -ForegroundColor Cyan
     
     # 処理時間計測開始
-    $startTime = Get-Date
+    $script:startTime = Get-Date
     
     # エラー表示用ヘルパー関数
     function Show-ErrorPopup {
@@ -146,7 +161,10 @@ begin{
     try {
         $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
         Write-Verbose "YAML設定を読み込みました"
+        Write-Log "YAML設定を読み込みました: $YamlPath" "SUCCESS"
     } catch {
+        $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
+        Write-Log $errorMsg "ERROR"
         Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
         exit 1
     }
@@ -161,12 +179,21 @@ begin{
     $script:exitOSNotSupported = if ($config.ExitCodes.OSNotSupported) { $config.ExitCodes.OSNotSupported } else { 3 }
     $script:exitFileNotFound = if ($config.ExitCodes.FileNotFound) { $config.ExitCodes.FileNotFound } else { 4 }
     $script:exitDecompileFailed = if ($config.ExitCodes.DecompileFailed) { $config.ExitCodes.DecompileFailed } else { 5 }
-    $script:colorInfo = if ($config.Colors.Info) { $config.Colors.Info } else { "Cyan" }
-    $script:colorSuccess = if ($config.Colors.Success) { $config.Colors.Success } else { "Green" }
-    $script:colorWarning = if ($config.Colors.Warning) { $config.Colors.Warning } else { "Yellow" }
-    $script:colorError = if ($config.Colors.Error) { $config.Colors.Error } else { "Red" }
     
-    Write-Verbose "YAML設定値を読み込みました: Folders(Old=$folderOld, New=$folderNew), Colors(Info=$colorInfo, Success=$colorSuccess)"
+    # 色設定の読み込み（nullチェックを強化）
+    $script:colorInfo = "Cyan"
+    $script:colorSuccess = "Green"
+    $script:colorWarning = "Yellow"
+    $script:colorError = "Red"
+    
+    if ($config.Colors) {
+        if ($config.Colors.Info) { $script:colorInfo = $config.Colors.Info }
+        if ($config.Colors.Success) { $script:colorSuccess = $config.Colors.Success }
+        if ($config.Colors.Warning) { $script:colorWarning = $config.Colors.Warning }
+        if ($config.Colors.Error) { $script:colorError = $config.Colors.Error }
+    }
+    
+    Write-Verbose "YAML設定値を読み込みました: Folders(Old=$script:folderOld, New=$script:folderNew), Colors(Info=$script:colorInfo, Success=$script:colorSuccess)"
     
     # YAML構造の検証
     if (-not $config.InstWinMerge) {
@@ -260,7 +287,7 @@ process{
     
     if (-not $oldDlls) {
         Show-ErrorPopup "古いDLLファイルが見つかりません。`r`n`r`n$oldDllFolder`r`nにDLLファイルを配置してください。"
-        exit $exitFileNotFound
+        exit $script:exitFileNotFound
     }
     
     $totalCount = $oldDlls.Count
@@ -268,9 +295,10 @@ process{
     $successCount = 0
     $failCount = 0
     $skipCount = 0
-    $errorList = @()  # エラー詳細のリスト
+    $script:errorList = @()  # エラー詳細のリスト
     
-    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $colorInfo
+    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $script:colorInfo
+    Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル" "INFO"
 
     foreach ($oldDll in $oldDlls) {
         $baseName = $oldDll.BaseName
@@ -313,16 +341,19 @@ process{
                 } else {
                     Write-Warning "ILSpyCmd終了コード: $($oldProcess.ExitCode) - $($oldDll.Name) (Old)"
                     $failCount++
-                    $errorList += [PSCustomObject]@{
+                    $errorMsg = "ILSpyCmd終了コード: $($oldProcess.ExitCode)"
+                    Write-Log "[$($oldDll.Name)] Old逆コンパイル失敗: $errorMsg" "ERROR"
+                    $script:errorList += [PSCustomObject]@{
                         DllName = $oldDll.Name
                         Type = "Old"
-                        Error = "ILSpyCmd終了コード: $($oldProcess.ExitCode)"
+                        Error = $errorMsg
                     }
                 }
             } catch {
                 Write-Error "$($oldDll.Name) (Old)の逆コンパイルに失敗: $($_.Exception.Message)"
                 $failCount++
-                $errorList += [PSCustomObject]@{
+                Write-Log "[$($oldDll.Name)] Old逆コンパイル例外: $($_.Exception.Message)" "ERROR"
+                $script:errorList += [PSCustomObject]@{
                     DllName = $oldDll.Name
                     Type = "Old"
                     Error = $_.Exception.Message
@@ -350,16 +381,19 @@ process{
                 } else {
                     Write-Warning "ILSpyCmd終了コード: $($newProcess.ExitCode) - $($newDll.Name) (New)"
                     $failCount++
-                    $errorList += [PSCustomObject]@{
+                    $errorMsg = "ILSpyCmd終了コード: $($newProcess.ExitCode)"
+                    Write-Log "[$($newDll.Name)] New逆コンパイル失敗: $errorMsg" "ERROR"
+                    $script:errorList += [PSCustomObject]@{
                         DllName = $newDll.Name
                         Type = "New"
-                        Error = "ILSpyCmd終了コード: $($newProcess.ExitCode)"
+                        Error = $errorMsg
                     }
                 }
             } catch {
                 Write-Error "$($newDll.Name) (New)の逆コンパイルに失敗: $($_.Exception.Message)"
                 $failCount++
-                $errorList += [PSCustomObject]@{
+                Write-Log "[$($newDll.Name)] New逆コンパイル例外: $($_.Exception.Message)" "ERROR"
+                $script:errorList += [PSCustomObject]@{
                     DllName = $newDll.Name
                     Type = "New"
                     Error = $_.Exception.Message
@@ -369,9 +403,11 @@ process{
             # 両方成功した場合のみ成功カウント
             if ($oldDecompileSuccess -and $newDecompileSuccess) {
                 $successCount++
+                Write-Log "[$($oldDll.Name)] 逆コンパイル成功" "SUCCESS"
             }
         } else {
             Write-Warning "'$($oldDll.Name)'に対応する新しいDLLが見つかりません - スキップ"
+            Write-Log "[$($oldDll.Name)] 対応DLLが見つからずスキップ" "WARNING"
             $skipCount++
         }
     }
@@ -398,10 +434,25 @@ end{
     } else {
         Write-Host "$skipCount"
     }
-    Write-Host "========================================`n" -ForegroundColor $colorInfo
+    Write-Host "========================================`n" -ForegroundColor $script:colorInfo
+    
+    # 処理統計をログに記録
+    Write-Log "──────── 処理結果 ────────" "INFO"
+    Write-Log "処理DLL数: $totalCount" "INFO"
+    Write-Log "成功: $successCount" "SUCCESS"
+    if ($failCount -gt 0) {
+        Write-Log "失敗: $failCount" "ERROR"
+    } else {
+        Write-Log "失敗: $failCount" "INFO"
+    }
+    if ($skipCount -gt 0) {
+        Write-Log "スキップ: $skipCount" "WARNING"
+    } else {
+        Write-Log "スキップ: $skipCount" "INFO"
+    }
     
     # エラーレポートの表示(エラーがある場合)
-    if ($errorList.Count -gt 0) {
+    if ($script:errorList.Count -gt 0) {
         Write-Host "========================================" -ForegroundColor $colorError
         Write-Host "         エラー詳細" -ForegroundColor $colorError
         Write-Host "========================================" -ForegroundColor $colorError
@@ -423,10 +474,11 @@ end{
     
     # 処理時間の計算と表示
     $endTime = Get-Date
-    $elapsedTime = $endTime - $startTime
+    $elapsedTime = $endTime - $script:startTime
     Write-Host "処理時間: " -NoNewline
-    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor $colorInfo
+    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor $script:colorInfo
     Write-Host ""
+    Write-Log "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))" "INFO"
     
     # WinMergeの実行準備
     $oldFile = Join-Path $outputFolder $folderOld
@@ -437,18 +489,22 @@ end{
     
     # 差分ツールの選択と起動
     if ($DiffTool -eq "VSCode") {
-        Write-Host "`nVSCodeを起動しています..." -ForegroundColor $colorInfo
+        Write-Host "`nVSCodeを起動しています..." -ForegroundColor $script:colorInfo
+        Write-Log "VSCodeで差分比較を起動" "INFO"
         if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) {
             try {
                 Start-Process -FilePath "code" -ArgumentList "--diff","`"$oldFile`"","`"$newFile`"" -ErrorAction Stop
-                Write-Host "VSCodeを起動しました。" -ForegroundColor $colorSuccess
+                Write-Host "VSCodeを起動しました。" -ForegroundColor $script:colorSuccess
+                Write-Log "VSCode起動成功" "SUCCESS"
             } catch {
                 Write-Warning "VSCodeの起動に失敗しました: $($_.Exception.Message)"
-                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor $colorWarning
+                Write-Log "VSCode起動失敗: $($_.Exception.Message)" "ERROR"
+                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor $script:colorWarning
             }
         }
     } elseif ($DiffTool -eq "Custom") {
-        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor $colorInfo
+        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor $script:colorInfo
+        Write-Log "カスタム差分ツールモード" "INFO"
         Write-Host "Old: " -NoNewline
         Write-Host "$oldFile" -ForegroundColor $colorWarning
         Write-Host "New: " -NoNewline
@@ -467,7 +523,8 @@ end{
         Write-Verbose "WinMerge実行ファイル: $ExecWinMerge"
     
         # WinMergeの実行
-        Write-Host "`nWinMergeを起動しています..." -ForegroundColor $colorInfo
+        Write-Host "`nWinMergeを起動しています..." -ForegroundColor $script:colorInfo
+        Write-Log "WinMergeで差分比較を起動" "INFO"
         if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) {
             try {
                 $winMergeArgs = @(
@@ -480,8 +537,10 @@ end{
                 )
                 
                 Start-Process -FilePath $ExecWinMerge -ArgumentList $winMergeArgs -ErrorAction Stop
-                Write-Host "WinMergeを起動しました。" -ForegroundColor $colorSuccess
+                Write-Host "WinMergeを起動しました。" -ForegroundColor $script:colorSuccess
+                Write-Log "WinMerge起動成功" "SUCCESS"
             } catch {
+                Write-Log "WinMerge起動失敗: $($_.Exception.Message)" "ERROR"
                 Show-ErrorPopup "WinMergeの実行に失敗しました。`r`n`r`n$($_.Exception.Message)"
                 exit $exitGeneralError
             }
@@ -489,15 +548,20 @@ end{
     }
     
     # 処理の完了メッセージ
-    Write-Host "`n処理が完了しました。" -ForegroundColor $colorSuccess
+    Write-Host "`n処理が完了しました。" -ForegroundColor $script:colorSuccess
     if (-not $WhatIfPreference) {
         if ($DiffTool -ne "Custom") {
-            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor $colorInfo
+            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor $script:colorInfo
         }
     }
     
-    # トランスクリプトログの停止
-    Stop-Transcript
+    # ログ完了
+    if ($failCount -gt 0) {
+        Write-Log "DLL逆コンパイルスクリプトを終了（一部失敗）" "WARNING"
+    } else {
+        Write-Log "DLL逆コンパイルスクリプトを正常終了" "SUCCESS"
+    }
+    Write-Log "────────────────────────────────────────" "INFO"
     
     # 失敗があった場合は適切な終了コードを返す
     if ($failCount -gt 0) {
