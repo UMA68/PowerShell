@@ -26,6 +26,13 @@
             "args": ["-WhatIf", "-Verbose"]
         },
         {
+            "name": "PowerShell: SkipAdminCheck Only",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-SkipAdminCheck"]
+        },
+        {
             "name": "PowerShell: SkipAdminCheck (Debug)",
             "type": "PowerShell",
             "request": "launch",

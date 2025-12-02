@@ -1,0 +1,71 @@
+# ==========================
+# プロジェクト情報
+# ==========================
+Project:
+ Name: ".NET Uninstall Tool Management"
+ ScriptVersion: "1.0.0"
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell: 
+ Version: 7.5.4
+
+# 実行に必要なモジュール
+Module:
+ Powershell-Yaml:
+  Name: powershell-yaml
+  Version: 0.4.7
+
+# -----------------
+# MSIファイル設定
+# -----------------
+MSI:
+ FileName: "dotnet-core-uninstall.msi"
+ ProductName: "*Uninstall Tool*"  # レジストリ検索用のパターン
+
+# -----------------
+# インストールパス設定
+# -----------------
+Installation:
+ DefaultPath: "C:\\Program Files (x86)\\dotnet-core-uninstall"
+ CommandName: "dotnet-core-uninstall"
+
+# -----------------
+# ログ設定
+# -----------------
+LogCleanup:
+ Enabled: true
+ RetentionDays: 30
+
+LOG:
+ FILENAME: DotNetUninstallTool
+ EXTENSION: .log
+
+# -----------------
+# タイムアウト設定
+# -----------------
+Timeout:
+ InstallSeconds: 300
+ UninstallSeconds: 300
+ SleepAfterOperation: 5
+
+# -----------------
+# Popupダイアログアイコン
+# -----------------
+PopupIcon:
+ Error: 0x10
+ Warning: 0x30
+ Information: 0x40
+
+# -----------------
+# 終了コード
+# -----------------
+ExitCode:
+ Success: 0
+ GeneralError: 1
+ UserCancelled: 2
+ InsufficientPrivileges: 3
+ FileNotFound: 4
+ InstallFailed: 5
+ UninstallFailed: 6

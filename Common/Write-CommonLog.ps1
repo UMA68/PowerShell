@@ -81,6 +81,7 @@
     https://github.com/UMA68/PowerShell
 #>
 function Write-CommonLog {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
@@ -91,7 +92,12 @@ function Write-CommonLog {
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "$timestamp [$Level] - $Message"
-    Write-Output $logMessage | Tee-Object -FilePath $LogPath -Append | Out-Default
+    
+    # コンソールに出力（パイプラインに流さない）
+    Write-Host $logMessage
+    
+    # -WhatIfモードでも必ずログファイルに書き込む
+    Add-Content -Path $LogPath -Value $logMessage -Encoding UTF8 -WhatIf:$false
 
     $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
         if (Get-Variable -Name NoDoubleActivation_Mutex -Scope Global -ErrorAction SilentlyContinue) {
@@ -100,4 +106,3 @@ function Write-CommonLog {
         }
     } -SupportEvent -MessageData "NoDoubleActivation_Event"
 }
-    

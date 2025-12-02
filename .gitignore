@@ -26,3 +26,6 @@ DecompileDLL/LOG/*
 
 # DotnetSdk削除
 DotnetSdk削除/LOG/*
+
+# ditNetSdkUninstallToolの入手
+dotNetSdkUninstallToolの入手/LOG/*
