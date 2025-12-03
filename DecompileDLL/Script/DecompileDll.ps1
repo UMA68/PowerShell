@@ -31,6 +31,9 @@
 .PARAMETER ThrottleLimit
     並列処理時の最大スレッド数。デフォルトは4。1-10の範囲で指定可能です。
 
+.PARAMETER Force
+    確認プロンプトをスキップして強制的に実行します。CleanOutputと組み合わせる場合に便利です。
+
 .PARAMETER WhatIf
     実際には処理を実行せず、実行される内容を表示します。
 
@@ -70,6 +73,10 @@
     .\DecompileDll.ps1 -Parallel -ThrottleLimit 8
     最大8スレッドで並列処理を実行します。
 
+.EXAMPLE
+    .\DecompileDll.ps1 -CleanOutput -Force
+    確認なしで出力フォルダーをクリアして実行します。
+
 .NOTES
     File Name      : DecompileDll.ps1
     Author         : UMA
@@ -105,7 +112,10 @@ param (
     
     [Parameter(Mandatory=$false)]
     [ValidateRange(1, 10)]
-    [int]$ThrottleLimit = 4
+    [int]$ThrottleLimit = 4,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Force
 )
 
 begin{
@@ -370,7 +380,9 @@ begin{
         $oldOutputPath = Join-Path $outputFolder $folderOld
         $newOutputPath = Join-Path $outputFolder $folderNew
         
-        if ($PSCmdlet.ShouldProcess($oldOutputPath, "出力フォルダー($folderOld)の削除")) {
+        $shouldClean = $Force -or $PSCmdlet.ShouldProcess("$oldOutputPath, $newOutputPath", "出力フォルダーのクリア")
+        
+        if ($shouldClean) {
             if (Test-Path $oldOutputPath) {
                 try {
                     Remove-Item -Path $oldOutputPath -Recurse -Force -ErrorAction Stop
@@ -379,9 +391,7 @@ begin{
                     Write-Warning "出力フォルダー($folderOld)のクリアに失敗しました: $($_.Exception.Message)"
                 }
             }
-        }
-        
-        if ($PSCmdlet.ShouldProcess($newOutputPath, "出力フォルダー($folderNew)の削除")) {
+            
             if (Test-Path $newOutputPath) {
                 try {
                     Remove-Item -Path $newOutputPath -Recurse -Force -ErrorAction Stop
@@ -408,6 +418,10 @@ process{
     $failCount = 0
     $skipCount = 0
     $script:errorList = @()  # エラー詳細のリスト
+    $script:skipReasons = @()  # スキップ理由のリスト
+    
+    # ETA計算用
+    $processStartTime = Get-Date
     
     Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $script:colorInfo
     if ($Parallel) {
@@ -423,8 +437,10 @@ process{
         FailCount = 0
         SkipCount = 0
         ErrorList = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]::new())
+        SkipReasons = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]::new())
         CurrentCount = 0
         LogPath = $script:logPath
+        StartTime = $processStartTime
     })
     
     # 並列処理または順次処理
@@ -601,7 +617,12 @@ process{
                 }
             } else {
                 [System.Threading.Interlocked]::Increment([ref]$syncHash.SkipCount)
-                Write-ThreadSafeLog "[$($oldDll.Name)] 対応DLLが見つからずスキップ" "WARNING"
+                $skipReason = if (-not $newDll) { "対応する新しいDLLが見つかりません" } else { "WhatIfモードのためスキップ" }
+                Write-ThreadSafeLog "[$($oldDll.Name)] スキップ: $skipReason" "WARNING"
+                $syncHash.SkipReasons.Add([PSCustomObject]@{
+                    DllName = $oldDll.Name
+                    Reason = $skipReason
+                }) | Out-Null
             }
         } -ThrottleLimit $ThrottleLimit
         
@@ -610,6 +631,7 @@ process{
         $failCount = $syncHash.FailCount
         $skipCount = $syncHash.SkipCount
         $script:errorList = $syncHash.ErrorList
+        $script:skipReasons = $syncHash.SkipReasons
         
     } else {
         # 順次処理（既存のコード）
@@ -628,7 +650,24 @@ process{
 
             $currentCount++
             $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)
-            Write-Progress -Activity "逆コンパイル中" -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress
+            
+            # ETA計算
+            $elapsed = (Get-Date) - $processStartTime
+            if ($currentCount -gt 1) {
+                $avgTimePerItem = $elapsed.TotalSeconds / ($currentCount - 1)
+                $remainingItems = $totalCount - $currentCount
+                $etaSeconds = [Math]::Round($avgTimePerItem * $remainingItems)
+                $etaTimeSpan = [TimeSpan]::FromSeconds($etaSeconds)
+                $etaDisplay = "ETA: {0:hh\:mm\:ss}" -f $etaTimeSpan
+            } else {
+                $etaDisplay = "ETA: 計算中..."
+            }
+            
+            Write-Progress -Activity "逆コンパイル中" `
+                -Status "$baseName ($currentCount/$totalCount) - $etaDisplay" `
+                -PercentComplete $progress `
+                -SecondsRemaining $(if ($currentCount -gt 1) { $etaSeconds } else { -1 })
+            
             Write-Verbose "処理中: $baseName"
 
             if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) {
@@ -689,11 +728,22 @@ process{
                     Write-Log "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" "SUCCESS"
                 }
             } else {
-                Write-Warning "'$($oldDll.Name)'に対応する新しいDLLが見つかりません - スキップ"
-                Write-Log "[$($oldDll.Name)] 対応DLLが見つからずスキップ" "WARNING"
+                # スキップ理由を記録
+                $skipReason = if (-not $newDll) {
+                    "対応する新しいDLLが見つかりません"
+                } else {
+                    "WhatIfモードのためスキップ"
+                }
+                Write-Warning "'$($oldDll.Name)' をスキップ: $skipReason"
+                Write-Log "[$($oldDll.Name)] スキップ: $skipReason" "WARNING"
+                $script:skipReasons += [PSCustomObject]@{
+                    DllName = $oldDll.Name
+                    Reason = $skipReason
+                }
                 $skipCount++
             }
         }
+        $script:errorList = $script:errorList
     }
 }
 end{
@@ -754,6 +804,20 @@ end{
         Write-Host "エラーレポートを保存しました: " -NoNewline
         Write-Host "$errorReportPath" -ForegroundColor $colorWarning
         Write-Host ""
+    }
+    
+    # スキップレポートの表示(スキップがある場合)
+    if ($script:skipReasons.Count -gt 0) {
+        Write-Host "========================================" -ForegroundColor $colorWarning
+        Write-Host "       スキップ詳細" -ForegroundColor $colorWarning
+        Write-Host "========================================" -ForegroundColor $colorWarning
+        foreach ($skipItem in $script:skipReasons) {
+            Write-Host "DLL: " -NoNewline
+            Write-Host "$($skipItem.DllName)" -ForegroundColor $colorInfo -NoNewline
+            Write-Host ""
+            Write-Host "  理由: $($skipItem.Reason)" -ForegroundColor Gray
+        }
+        Write-Host "========================================`n" -ForegroundColor $colorWarning
     }
     
     # 処理時間の計算と表示
