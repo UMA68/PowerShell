@@ -396,18 +396,11 @@ begin{
     $script:exitFileNotFound = if ($config.ExitCodes.FileNotFound) { $config.ExitCodes.FileNotFound } else { 4 }
     $script:exitDecompileFailed = if ($config.ExitCodes.DecompileFailed) { $config.ExitCodes.DecompileFailed } else { 5 }
     
-    # 色設定の読み込み（nullチェックを強化）
-    $script:colorInfo = "Cyan"
-    $script:colorSuccess = "Green"
-    $script:colorWarning = "Yellow"
-    $script:colorError = "Red"
-    
-    if ($config.Colors) {
-        if ($config.Colors.Info) { $script:colorInfo = $config.Colors.Info }
-        if ($config.Colors.Success) { $script:colorSuccess = $config.Colors.Success }
-        if ($config.Colors.Warning) { $script:colorWarning = $config.Colors.Warning }
-        if ($config.Colors.Error) { $script:colorError = $config.Colors.Error }
-    }
+    # 色設定の読み込み（YAML設定を優先、フォールバックのみ設定）
+    $script:colorInfo = if ($config.Colors.Info) { $config.Colors.Info } else { "Cyan" }
+    $script:colorSuccess = if ($config.Colors.Success) { $config.Colors.Success } else { "Green" }
+    $script:colorWarning = if ($config.Colors.Warning) { $config.Colors.Warning } else { "Yellow" }
+    $script:colorError = if ($config.Colors.Error) { $config.Colors.Error } else { "Red" }
     
     # リトライ設定の読み込み（デフォルト値あり）
     $script:retryMaxAttempts = if ($config.Retry.MaxAttempts) { $config.Retry.MaxAttempts } else { 3 }
@@ -519,7 +512,7 @@ process{
     $script:errorList = @()  # エラー詳細のリスト
     $script:skipReasons = @()  # スキップ理由のリスト
     
-    # ETA計算用
+    # 完了予定時刻（ETA）計算用
     $processStartTime = Get-Date
     
     Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $script:colorInfo
@@ -750,7 +743,7 @@ process{
             $currentCount++
             $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)
             
-            # ETA計算
+            # 完了予定時刻（ETA）の計算
             $elapsed = (Get-Date) - $processStartTime
             if ($currentCount -gt 1) {
                 $avgTimePerItem = $elapsed.TotalSeconds / ($currentCount - 1)
