@@ -1,95 +1,179 @@
 <#
 .SYNOPSIS
-    新旧DLLファイルを逆コンパイルし、WinMergeで差分を比較します。
+    新旧DLLファイルを逆コンパイルし、差分を比較します。
 
 .DESCRIPTION
     指定されたフォルダ内の新旧DLLファイルをILSpyCmdで逆コンパイルし、
-    WinMergeを使用して差分を視覚的に比較するスクリプトです。
+    WinMerge/VS Code等を使用して差分を視覚的に比較するスクリプトです。
     
     主な機能:
-    - 複数DLLの一括逆コンパイル
-    - 進捗状況の表示
+    - 複数DLLの一括逆コンパイル（順次または並列処理）
+    - 自動リトライ機能（最大3回、タイムアウト制御付き）
+    - ETA付き進捗状況表示
+    - 詳細なエラーレポートとスキップ理由の記録
     - OS自動判定によるWinMergeパス解決
     - YAML設定による柔軟な設定管理
+    - カスタムログ出力
 
 .PARAMETER EnvYaml
     使用するYAML設定ファイル名。デフォルトは"Decompile.yaml"。
     YAMLフォルダー内に配置する必要があります。
+    
+    カスタム設定例:
+    - リトライ回数、タイムアウト時間
+    - フォルダー名、終了コード
+    - 表示色、WinMergeパス
 
 .PARAMETER CleanOutput
-    実行前に出力フォルダーの内容をクリアします。前回の逆コンパイル結果を削除したい場合に使用します。
+    実行前に出力フォルダーの内容をクリアします。
+    前回の逆コンパイル結果を削除したい場合に使用します。
+    
+    注意: -Forceと組み合わせない場合、確認プロンプトが表示されます。
 
 .PARAMETER ShowConfig
-    YAML設定ファイルの内容を表示して終了します。設定確認用です。
+    YAML設定ファイルの内容を表示して終了します。
+    設定確認用です。実際の処理は実行されません。
 
 .PARAMETER DiffTool
-    使用する差分比較ツールを指定します。選択能: WinMerge(デフォルト), VSCode, Custom。
+    使用する差分比較ツールを指定します。
+    選択肢:
+    - WinMerge (デフォルト): WinMergeで比較
+    - VSCode: VS Codeで比較
+    - Custom: パスのみ表示（手動比較）
+    
+    注意: 並列処理モードでは自動起動されません。
 
 .PARAMETER Parallel
-    複数のDLLを並列で逆コンパイルします。処理時間を大幅に短縮できますが、CPU負荷が高くなります。
+    複数のDLLを並列で逆コンパイルします。
+    
+    利点:
+    - 処理時間を大幅に短縮（最大でスレッド数倍の高速化）
+    
+    制限事項:
+    - 差分ツールは自動起動しません（手動で比較）
+    - CPU負荷が高くなります
+    
+    推奨: 4個以上のDLLを処理する場合
 
 .PARAMETER ThrottleLimit
-    並列処理時の最大スレッド数。デフォルトは4。1-10の範囲で指定可能です。
+    並列処理時の最大スレッド数。デフォルトは4。
+    1-10の範囲で指定可能です。
+    
+    推奨値:
+    - 小規模（4-10個）: 4スレッド
+    - 大規模（11個以上）: 8スレッド
 
 .PARAMETER Force
-    確認プロンプトをスキップして強制的に実行します。CleanOutputと組み合わせる場合に便利です。
+    確認プロンプトをスキップして強制的に実行します。
+    CleanOutputと組み合わせる場合に便利です。
+    
+    用途: バッチ処理、自動化スクリプト
 
 .PARAMETER WhatIf
     実際には処理を実行せず、実行される内容を表示します。
+    事前確認やテスト実行に使用します。
 
 .EXAMPLE
     .\DecompileDll.ps1
+    
     デフォルト設定で実行します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -EnvYaml "CustomConfig.yaml"
-    カスタム設定ファイルを使用して実行します。
+    - 順次処理
+    - WinMergeで比較
+    - デフォルトYAML設定
 
 .EXAMPLE
     .\DecompileDll.ps1 -Verbose
+    
     詳細ログを表示しながら実行します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -CleanOutput
-    出力フォルダーをクリアしてから逆コンパイルを実行します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -WhatIf
-    実際には実行せず、処理内容を確認します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -ShowConfig
-    YAML設定内容を表示して終了します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -DiffTool VSCode
-    VSCodeを使用して差分を表示します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -Parallel
-    並列処理で高速に逆コンパイルを実行します。
-
-.EXAMPLE
-    .\DecompileDll.ps1 -Parallel -ThrottleLimit 8
-    最大8スレッドで並列処理を実行します。
+    各DLLの処理状況、YAML設定値などが表示されます。
 
 .EXAMPLE
     .\DecompileDll.ps1 -CleanOutput -Force
+    
     確認なしで出力フォルダーをクリアして実行します。
+    前回の結果を完全に削除してから新しい処理を開始します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -Parallel -ThrottleLimit 8
+    
+    最大8スレッドで並列処理を実行します。
+    多数のDLLを高速に処理したい場合に推奨です。
+    
+    注意: 処理完了後、手動で差分を比較してください。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -DiffTool VSCode
+    
+    VS Codeを使用して差分を表示します。
+    VS Codeがインストールされ、PATHに含まれている必要があります。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -EnvYaml "CustomConfig.yaml" -ShowConfig
+    
+    カスタム設定ファイルの内容を表示して終了します。
+    設定値の確認に使用します。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -WhatIf -Verbose
+    
+    実際には実行せず、詳細な処理内容を確認します。
+    テスト実行や動作確認に便利です。
+
+.EXAMPLE
+    .\DecompileDll.ps1 -Parallel -CleanOutput -Force -DiffTool Custom
+    
+    高度な使用例:
+    - 並列処理で高速実行
+    - 出力フォルダーを自動クリア
+    - 差分は手動で比較
+
+.OUTPUTS
+    終了コード:
+    0 - Success: 正常終了
+    1 - GeneralError: 一般エラー
+    2 - UserCancelled: ユーザーキャンセル
+    3 - OSNotSupported: OS非対応
+    4 - FileNotFound: ファイル/フォルダーが見つからない
+    5 - DecompileFailed: 逆コンパイル失敗
+    
+    ログファイル:
+    Log\DecompileDll_YYYYMMDD-HHMMSS.log
+    
+    エラーレポート（エラー発生時）:
+    Log\DecompileErrors_YYYYMMDD-HHMMSS.txt
 
 .NOTES
     File Name      : DecompileDll.ps1
+    Version        : 2.0.0
     Author         : UMA
-    Prerequisite   : PowerShell 7.x, ILSpyCmd, WinMerge, powershell-yaml module
+    Prerequisite   : PowerShell 7.x, ILSpyCmd, WinMerge/VS Code, powershell-yaml module
     
     前提条件:
-    - ILSpyCmdがインストールされていること
-    - WinMergeがインストールされていること
-    - powershell-yamlモジュールがインストールされていること
-    - Dlls\OldとDlls\Newフォルダーに比較対象のDLLが配置されていること
+    1. PowerShell 7.x 以降
+    2. ILSpyCmdがインストールされていること
+       インストール: dotnet tool install ilspycmd -g
+    3. WinMerge または VS Code がインストールされていること
+    4. powershell-yamlモジュールがインストールされていること
+       インストール: Install-Module powershell-yaml -Scope CurrentUser
+    5. Dlls\OldとDlls\Newフォルダーに比較対象のDLLが配置されていること
+    
+    主要機能:
+    - 並列処理: 複数DLLを同時に処理して高速化
+    - リトライ機能: 失敗時に自動的に最大3回リトライ
+    - タイムアウト制御: 大容量DLLにも対応（デフォルト300秒）
+    - ETA表示: 予想完了時刻をリアルタイム表示
+    - 詳細レポート: エラーとスキップの詳細情報を記録
+    
+    パフォーマンス目安:
+    - 順次処理: 1個あたり約10秒
+    - 並列処理（4スレッド）: 4個を約12秒で処理
+    - 並列処理（8スレッド）: 8個を約15秒で処理
 
 .LINK
     https://github.com/UMA68/PowerShell
+    
+.LINK
+    README.md - 詳細なドキュメント
 #>
 
 [CmdletBinding(SupportsShouldProcess=$true)]
@@ -119,6 +203,21 @@ param (
 )
 
 begin{
+    #region 定数定義
+    # ILSpyCmd引数
+    $script:ILSPY_NESTED_DIR = "--nested-directories"
+    $script:ILSPY_PROJECT_FLAG = "-p"
+    $script:ILSPY_OUTPUT_FLAG = "-o"
+    
+    # 進捗バー
+    $script:PROGRESS_ACTIVITY_SEQUENTIAL = "逆コンパイル中"
+    $script:PROGRESS_ACTIVITY_PARALLEL = "逆コンパイル中 (並列)"
+    
+    # エラーメッセージ
+    $script:MSG_NO_OLD_DLL = "古いDLLファイルが見つかりません。`r`n`r`n{0}`r`nにDLLファイルを配置してください。"
+    $script:MSG_NO_ILSPYCMD = "「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n`r`n「ILSpyCmdインストール」スクリプトを実行してインストールすることもできます。"
+    #endregion
+    
     # カスタムログ初期化
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
     $UpperPath = Split-Path -Parent $scriptPath
@@ -182,9 +281,9 @@ begin{
             
             try {
                 $ilspyArgs = @(
-                    "--nested-directories"
-                    "-p"
-                    "-o", $OutputPath
+                    $script:ILSPY_NESTED_DIR
+                    $script:ILSPY_PROJECT_FLAG
+                    $script:ILSPY_OUTPUT_FLAG, $OutputPath
                     $DllPath
                 )
                 
@@ -348,7 +447,7 @@ begin{
     # ILSpyCmd(逆コンパイルコマンド)の存在チェック
     $ilspyCmd = Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue
     if (-not $ilspyCmd) {
-        Show-ErrorPopup "「ILSpyCmd.exe」が存在しません。インストールしてください。`r`n`r`n「ILSpyCmdインストール」スクリプトを実行してインストールすることもできます。"
+        Show-ErrorPopup $script:MSG_NO_ILSPYCMD
         exit $script:exitFileNotFound
     }
     Write-Verbose "ILSpyCmd場所: $($ilspyCmd.Source)"
@@ -371,7 +470,7 @@ begin{
             Write-Verbose "出力フォルダーを作成しました: $outputFolder"
         } catch {
             Show-ErrorPopup "出力フォルダーの作成に失敗しました。`r`n`r`n$($_.Exception.Message)"
-            exit $exitGeneralError
+            exit $script:exitGeneralError
         }
     }
     
@@ -386,7 +485,7 @@ begin{
             if (Test-Path $oldOutputPath) {
                 try {
                     Remove-Item -Path $oldOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー($folderOld)をクリアしました: $oldOutputPath" -ForegroundColor $colorSuccess
+                    Write-Host "出力フォルダー($folderOld)をクリアしました: $oldOutputPath" -ForegroundColor $script:colorSuccess
                 } catch {
                     Write-Warning "出力フォルダー($folderOld)のクリアに失敗しました: $($_.Exception.Message)"
                 }
@@ -395,7 +494,7 @@ begin{
             if (Test-Path $newOutputPath) {
                 try {
                     Remove-Item -Path $newOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー($folderNew)をクリアしました: $newOutputPath" -ForegroundColor $colorSuccess
+                    Write-Host "出力フォルダー($folderNew)をクリアしました: $newOutputPath" -ForegroundColor $script:colorSuccess
                 } catch {
                     Write-Warning "出力フォルダー($folderNew)のクリアに失敗しました: $($_.Exception.Message)"
                 }
@@ -409,7 +508,7 @@ process{
     $oldDlls = Get-ChildItem $oldDllFolder -Filter *.dll -ErrorAction SilentlyContinue
     
     if (-not $oldDlls) {
-        Show-ErrorPopup "古いDLLファイルが見つかりません。`r`n`r`n$oldDllFolder`r`nにDLLファイルを配置してください。"
+        Show-ErrorPopup ($script:MSG_NO_OLD_DLL -f $oldDllFolder)
         exit $script:exitFileNotFound
     }
     
@@ -497,9 +596,9 @@ process{
                     
                     try {
                         $ilspyArgs = @(
-                            "--nested-directories"
-                            "-p"
-                            "-o", $OutputPath
+                            $using:script:ILSPY_NESTED_DIR
+                            $using:script:ILSPY_PROJECT_FLAG
+                            $using:script:ILSPY_OUTPUT_FLAG, $OutputPath
                             $DllPath
                         )
                         
@@ -566,7 +665,7 @@ process{
             # 進捗更新
             $currentCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.CurrentCount)
             $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)
-            Write-Progress -Activity "逆コンパイル中 (並列)" -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress -Id $oldDll.GetHashCode()
+            Write-Progress -Activity $using:script:PROGRESS_ACTIVITY_PARALLEL -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress -Id $oldDll.GetHashCode()
 
             # 逆コンパイル
             if ($newDll) {
@@ -663,7 +762,7 @@ process{
                 $etaDisplay = "ETA: 計算中..."
             }
             
-            Write-Progress -Activity "逆コンパイル中" `
+            Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL `
                 -Status "$baseName ($currentCount/$totalCount) - $etaDisplay" `
                 -PercentComplete $progress `
                 -SecondsRemaining $(if ($currentCount -gt 1) { $etaSeconds } else { -1 })
@@ -747,24 +846,24 @@ process{
     }
 }
 end{
-    Write-Progress -Activity "逆コンパイル中" -Completed
+    Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL -Completed
     
     # 処理統計の表示
-    Write-Host "`n========================================" -ForegroundColor $colorInfo
-    Write-Host "           処理サマリー" -ForegroundColor $colorInfo
-    Write-Host "========================================" -ForegroundColor $colorInfo
+    Write-Host "`n========================================" -ForegroundColor $script:colorInfo
+    Write-Host "           処理サマリー" -ForegroundColor $script:colorInfo
+    Write-Host "========================================" -ForegroundColor $script:colorInfo
     Write-Host "処理DLL数:      $totalCount"
     Write-Host "成功:           " -NoNewline
-    Write-Host "$successCount" -ForegroundColor $colorSuccess
+    Write-Host "$successCount" -ForegroundColor $script:colorSuccess
     Write-Host "失敗:           " -NoNewline
     if ($failCount -gt 0) {
-        Write-Host "$failCount" -ForegroundColor $colorError
+        Write-Host "$failCount" -ForegroundColor $script:colorError
     } else {
         Write-Host "$failCount"
     }
     Write-Host "スキップ:       " -NoNewline
     if ($skipCount -gt 0) {
-        Write-Host "$skipCount" -ForegroundColor $colorWarning
+        Write-Host "$skipCount" -ForegroundColor $script:colorWarning
     } else {
         Write-Host "$skipCount"
     }
@@ -787,37 +886,37 @@ end{
     
     # エラーレポートの表示(エラーがある場合)
     if ($script:errorList.Count -gt 0) {
-        Write-Host "========================================" -ForegroundColor $colorError
-        Write-Host "         エラー詳細" -ForegroundColor $colorError
-        Write-Host "========================================" -ForegroundColor $colorError
+        Write-Host "========================================" -ForegroundColor $script:colorError
+        Write-Host "         エラー詳細" -ForegroundColor $script:colorError
+        Write-Host "========================================" -ForegroundColor $script:colorError
         foreach ($errorItem in $errorList) {
             Write-Host "DLL: " -NoNewline
-            Write-Host "$($errorItem.DllName)" -ForegroundColor $colorWarning -NoNewline
+            Write-Host "$($errorItem.DllName)" -ForegroundColor $script:colorWarning -NoNewline
             Write-Host " [$($errorItem.Type)]"
             Write-Host "  エラー: $($errorItem.Error)" -ForegroundColor Gray
         }
-        Write-Host "========================================`n" -ForegroundColor $colorError
+        Write-Host "========================================`n" -ForegroundColor $script:colorError
         
         # エラーレポートをファイルに保存
         $errorReportPath = Join-Path $LogDir "DecompileErrors_$timestamp.txt"
         $errorList | Format-Table -AutoSize | Out-File -FilePath $errorReportPath -Encoding UTF8
         Write-Host "エラーレポートを保存しました: " -NoNewline
-        Write-Host "$errorReportPath" -ForegroundColor $colorWarning
+        Write-Host "$errorReportPath" -ForegroundColor $script:colorWarning
         Write-Host ""
     }
     
     # スキップレポートの表示(スキップがある場合)
     if ($script:skipReasons.Count -gt 0) {
-        Write-Host "========================================" -ForegroundColor $colorWarning
-        Write-Host "       スキップ詳細" -ForegroundColor $colorWarning
-        Write-Host "========================================" -ForegroundColor $colorWarning
+        Write-Host "========================================" -ForegroundColor $script:colorWarning
+        Write-Host "       スキップ詳細" -ForegroundColor $script:colorWarning
+        Write-Host "========================================" -ForegroundColor $script:colorWarning
         foreach ($skipItem in $script:skipReasons) {
             Write-Host "DLL: " -NoNewline
-            Write-Host "$($skipItem.DllName)" -ForegroundColor $colorInfo -NoNewline
+            Write-Host "$($skipItem.DllName)" -ForegroundColor $script:colorInfo -NoNewline
             Write-Host ""
             Write-Host "  理由: $($skipItem.Reason)" -ForegroundColor Gray
         }
-        Write-Host "========================================`n" -ForegroundColor $colorWarning
+        Write-Host "========================================`n" -ForegroundColor $script:colorWarning
     }
     
     # 処理時間の計算と表示
