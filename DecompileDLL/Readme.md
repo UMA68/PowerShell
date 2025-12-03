@@ -388,15 +388,28 @@ if ($LASTEXITCODE -eq 0) {
 - YAML設定対応
 
 ## ライセンス
-このプロジェクトは社内ツールとして開発されています。
+このプロジェクトに含まれるスクリプト類（`Script/`配下、`YAML/`配下、`Readme.md`等）は、本リポジトリ直下の`LICENSE`に従います。
 
+注意事項:
+
+- 本ツールは外部ソフトウェア（ILSpyCmd、WinMerge、VS Code）を呼び出して動作します。これらのソフトウェアはそれぞれのライセンスにしたがってご利用ください。
+    - ILSpyCmd: MIT License（ICSharpCode/ILSpyに準拠）
+    - WinMerge: GPLライセンス系（WinMergeの配布条件に準拠）
+    - VS Code: Microsoftの使用許諾に準拠
+- 逆コンパイルで生成されるソースコードやアーティファクト（`Dlls/Decompiled/`配下）は、元のDLLの著作権・ライセンスに従います。分析・比較目的の利用に留め、第三者への配布や公開、ライセンス違反となる利用は避けてください。
+- 逆コンパイル物のリポジトリへのコミットは、権利上の問題が生じる可能性があります。公開範囲や契約条件を確認のうえ、必要に応じてコミット対象から除外してください（例: `.gitignore`で`Dlls/Decompiled/`を除外）。
+
+ 
 ## サポート
 問題が発生した場合は、以下を確認してください：
+
 1. ログファイル（`Log/`フォルダー）
 2. エラーレポート（`Log/DecompileErrors_*.txt`）
 3. YAML設定ファイル（`YAML/Decompile.yaml`）
 
+ 
 ## 関連リンク
+
 - [ILSpy公式サイト](https://github.com/icsharpcode/ILSpy)
 - [WinMerge公式サイト](https://winmerge.org/)
 - [PowerShell 7ドキュメント](https://docs.microsoft.com/powershell/)
