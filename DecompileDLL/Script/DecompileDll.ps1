@@ -1023,7 +1023,21 @@ end{
     # 失敗があった場合は適切な終了コードを返す
     if ($failCount -gt 0) {
         Write-Warning "一部のDLL処理に失敗しました。詳細はログを確認してください。"
-        exit $exitDecompileFailed
+    }
+    
+    # ショートカットから実行された場合の一時停止
+    # 親プロセスがexplorer.exeの場合（ショートカットからの実行）に待機
+    $parentProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $PID" | 
+                     ForEach-Object { Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue }
+    
+    if ($parentProcess.ProcessName -eq 'explorer') {
+        Write-Host "`n" -NoNewline
+        Write-Host "続行するには何かキーを押してください..." -ForegroundColor $script:colorInfo
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    }
+    
+    # 終了コードを設定
+    if ($failCount -gt 0) {
+        exit $script:exitDecompileFailed
     }
 }
-
