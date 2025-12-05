@@ -280,7 +280,7 @@ begin{
             $attempt++  # 試行回数をインクリメント
             
             try {
-                $ilspyArgs = @(
+                $ilspyArgs = @( # ILSpyCmd引数リスト
                     $script:ILSPY_NESTED_DIR                # ネストディレクトリ対応
                     $script:ILSPY_PROJECT_FLAG              # プロジェクトフォルダー
                     $script:ILSPY_OUTPUT_FLAG, $OutputPath  # 出力フォルダー
@@ -307,7 +307,7 @@ begin{
                         if ($LogFunction) { # ログ関数が指定されている場合
                             & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 逆コンパイル成功 (試行: $attempt/$MaxAttempts)" "SUCCESS"
                         }
-                    } else {
+                    } else {    # 失敗した場合
                         $lastError = "ILSpyCmd終了コード: $exitCode"
                         if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
                             if ($LogFunction) { # ログ関数が指定されている場合
@@ -316,12 +316,11 @@ begin{
                             Start-Sleep -Seconds $DelaySeconds
                         }
                     }
-                } else {
-                    # タイムアウト
+                } else {    # タイムアウト
                     Remove-Job -Job $job -Force
                     $lastError = "タイムアウト (${TimeoutSeconds}秒)"
                     if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
-                        if ($LogFunction) {
+                        if ($LogFunction) { # ログ関数が指定されている場合
                             & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
                         }
                         Start-Sleep -Seconds $DelaySeconds
@@ -330,7 +329,7 @@ begin{
             } catch {
                 $lastError = $_.Exception.Message
                 if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
-                    if ($LogFunction) {
+                    if ($LogFunction) { # ログ関数が指定されている場合
                         & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARNING"
                     }
                     Start-Sleep -Seconds $DelaySeconds
@@ -338,7 +337,7 @@ begin{
             }
         }
         
-        return @{
+        return @{   # 結果ハッシュテーブルを返す
             Success = $success  # true/false
             Attempts = $attempt # 試行回数
             Error = $lastError  # 最後のエラーメッセージ
@@ -536,7 +535,7 @@ process{
     })
     
     # 並列処理または順次処理
-    if ($Parallel) {
+    if ($Parallel) {    # 並列処理
         # 並列処理
         $oldDlls | ForEach-Object -Parallel {
             $oldDll = $_                                                # 現在のDLLファイル
@@ -588,7 +587,7 @@ process{
                     $attempt++
                     
                     try {
-                        $ilspyArgs = @(
+                        $ilspyArgs = @( # ILSpyCmd引数リスト
                             $using:script:ILSPY_NESTED_DIR                  # ILSpyネストディレクトリ
                             $using:script:ILSPY_PROJECT_FLAG                # ILSpyプロジェクトフラグ
                             $using:script:ILSPY_OUTPUT_FLAG, $OutputPath    # 出力パス
@@ -606,7 +605,7 @@ process{
                         
                         $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds
                         
-                        if ($completed) {               # ジョブ完了
+                        if ($completed) {   # ジョブ完了
                             $exitCode = Receive-Job -Job $job
                             Remove-Job -Job $job -Force
                             
@@ -619,7 +618,7 @@ process{
                                     Start-Sleep -Seconds $DelaySeconds
                                 }
                             }
-                        } else {
+                        } else {    # タイムアウト
                             # タイムアウト
                             Remove-Job -Job $job -Force
                             $lastError = "タイムアウト (${TimeoutSeconds}秒)"
@@ -637,7 +636,7 @@ process{
                     }
                 }
                 
-                return @{
+                return @{   # 結果ハッシュテーブルを返す
                     Success = $success  # 成功フラグ
                     Attempts = $attempt # 試行回数
                     Error = $lastError  # 最終エラーメッセージ
@@ -726,7 +725,7 @@ process{
         $script:errorList = $syncHash.ErrorList     # エラー詳細リスト
         $script:skipReasons = $syncHash.SkipReasons # スキップ理由リスト
         
-    } else {
+    } else {    # 順次処理
         # 順次処理（既存のコード）
         $currentCount = 0
         foreach ($oldDll in $oldDlls) { # 古い各DLLファイルを処理
@@ -837,7 +836,7 @@ process{
                 $skipCount++
             }
         }
-        $script:errorList = $script:errorList
+        $script:errorList = $script:errorList   # エラー詳細リスト
     }
 }
 end{
@@ -880,7 +879,7 @@ end{
     }
     
     # エラーレポートの表示(エラーがある場合)
-    if ($script:errorList.Count -gt 0) {
+    if ($script:errorList.Count -gt 0) {    # エラーがある場合
         Write-Host "========================================" -ForegroundColor $script:colorError
         Write-Host "         エラー詳細" -ForegroundColor $script:colorError
         Write-Host "========================================" -ForegroundColor $script:colorError
