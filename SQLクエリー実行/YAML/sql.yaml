@@ -23,10 +23,11 @@ Module:
 # -----------------
 # VERIONには"SELECT @@VERSION;"の結果をコピペ
 HOST:
- SERVER: localhost  # サーバー名
- DATABASE: TestDB   # データベース名
+ SERVER: 127.0.0.1  # サーバー名
+ PORT: 11433        # ポート番号 (例: 11433)
+ DATABASE: appdb    # データベース名
  USERNAME: sa       # ユーザー名
- PWF: test.pass     # パスワードファイル名
+ PWF: mssql2022-dev-db.pass     # パスワードファイル名
  VERSION: Microsoft SQL Server 2022 (RTM-CU5) (KB5026806) - 16.0.4045.3 (X64)
         May 26 2023 12:52:08
         Copyright (C) 2022 Microsoft Corporation

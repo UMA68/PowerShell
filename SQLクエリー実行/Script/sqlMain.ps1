@@ -96,7 +96,12 @@ begin{
     # .$ScriptDir"\CopyItem.ps1"
 
         # パラメータの定義
-        [string]$ServerInstance = $YamlOBJ.HOST.SERVER
+        # サーバーインスタンス: PORTが指定されていれば末尾に付与する
+        if ($YamlOBJ.HOST.PORT) {
+            [string]$ServerInstance = "$($YamlOBJ.HOST.SERVER),$($YamlOBJ.HOST.PORT)"
+        } else {
+            [string]$ServerInstance = $YamlOBJ.HOST.SERVER
+        }
         [string]$Database = $YamlOBJ.HOST.DATABASE
         [string]$Username = $YamlOBJ.HOST.USERNAME
         [string]$pwFile = $YamlOBJ.HOST.PWF   # パスワードファイル名

@@ -1,1 +1,1 @@
-SELECT TableNameId,Column1 FROM TESTTABLE
+SELECT Name, Address FROM dbo.Customers;

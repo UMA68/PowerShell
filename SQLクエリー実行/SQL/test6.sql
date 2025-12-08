@@ -1,1 +1,1 @@
-SELECT * FROM TESTTABLE
+SELECT * FROM dbo.Orders;

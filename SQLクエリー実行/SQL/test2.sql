@@ -1,1 +1,1 @@
-SELEC TableNameId,Column1 FROM TESTTABLE
+SELECT * FROM dbo.Customers;
