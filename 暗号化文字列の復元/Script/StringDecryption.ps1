@@ -256,7 +256,7 @@ try {
         Clear-Variable -Name button -ErrorAction SilentlyContinue 
     }
     
-    if ($null -ne $form) { 
+    if ($null -ne $form) {  # フォームが存在する場合
         $form.Dispose()
         Clear-Variable -Name form -ErrorAction SilentlyContinue 
     }
