@@ -1,0 +1,14 @@
+
+version: "3.8"
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql2022   # ← ここで固定名を指定
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Str0ngP@ssw0rd2025!"  # ← 強力なパスワードを指定してください
+      TZ: "Asia/Tokyo"  # タイムゾーンを日本に設定
+    ports:
+      - "11433:1433"  # ポートのマッピング状態を指定できます
+    restart: unless-stopped
