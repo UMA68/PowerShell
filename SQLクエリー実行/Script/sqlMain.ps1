@@ -123,7 +123,7 @@ begin {
     # ====================================
     # PowerShell-Yaml モジュールがインストールされているか確認
     $YamlModuleCount = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count
-    if ($YamlModuleCount -eq 0) {
+    if ($YamlModuleCount -eq 0) {   # モジュール未インストール
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("PowerShell-Yamlモジュールがインストールされていません。処理を終了します。", 0, "警告", 0x30) | Out-Null
         exit
@@ -133,7 +133,7 @@ begin {
     # 設定ファイルの読み込み
     # ====================================
     # YAML設定ファイルの存在確認
-    if (-not (Test-Path -Path $YamlPath)) {
+    if (-not (Test-Path -Path $YamlPath)) { # YAMLファイル無し
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($EnvYaml + "ファイルが見つかりません。処理を終了します。", 0, "エラー", 0x10) | Out-Null
         exit
@@ -155,7 +155,7 @@ begin {
     # YAML設定のバージョンと実行バージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $pwsAssumVer = $YamlOBJ.PowerShell.Version
-    if ($pwsVerChk -ne $pwsAssumVer) {
+    if ($pwsVerChk -ne $pwsAssumVer) {  # バージョン不一致
         $obj = New-Object -ComObject WScript.Shell
         [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $pwsAssumVer + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
         switch ($retButton) {
@@ -168,7 +168,7 @@ begin {
     # 必須モジュールのインポート
     # ====================================
     # YAMLに記述されたバージョンでモジュールをインポート
-    foreach ($module in $YamlOBJ.Module.Keys) {
+    foreach ($module in $YamlOBJ.Module.Keys) { # 各モジュールを処理
         try {
             Import-Module $YamlOBJ.Module.$module.Name -RequiredVersion $YamlOBJ.Module.$module.Version -ErrorAction Stop
         }
@@ -184,7 +184,7 @@ begin {
     # ====================================
     # ログ出力先ディレクトリを作成（未存在の場合）
     $LogFolder = Join-Path -Path $UpperDir -ChildPath $YamlOBJ.LOG.FOLDER
-    if (-not (Test-Path -Path $LogFolder)) {
+    if (-not (Test-Path -Path $LogFolder)) {    # ログフォルダがなければ作成
         New-Item -Path $LogFolder -ItemType Directory -Force | Out-Null
     }
     $LogFileName = $YamlOBJ.LOG.FILENAME + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + $YamlOBJ.LOG.EXTENSION
@@ -194,7 +194,7 @@ begin {
     # SQL接続パラメータの定義
     # ====================================
     # ホスト、ポート、データベース、ユーザー名の設定
-    if ($YamlOBJ.HOST.PORT) {
+    if ($YamlOBJ.HOST.PORT) {   # ポート指定がある場合
         [string]$ServerInstance = "$($YamlOBJ.HOST.SERVER),$($YamlOBJ.HOST.PORT)"
     } else {    # ポート指定がない場合
         [string]$ServerInstance = $YamlOBJ.HOST.SERVER
@@ -209,7 +209,7 @@ begin {
     # ====================================
     # パスワード復号化用の鍵ファイルを読み込む
     try {
-        if (Test-Path -Path $KeyPath) {
+        if (Test-Path -Path $KeyPath) { # 鍵ファイルが存在する場合
             [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($KeyPath)
             Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
         } else {    # 鍵ファイルが存在しない場合
@@ -227,7 +227,7 @@ begin {
     # ====================================
     # 暗号化されたパスワードファイルを復号化して平文に変換
     try {
-        if (-not (Test-Path -Path $pwFilePath)) {
+        if (-not (Test-Path -Path $pwFilePath)) {   # パスワードファイルが存在しない場合
             throw "パスワードファイル『$pwFile』が見つかりません。"
         }
         $password = Get-Content -Path $pwFilePath | ConvertTo-SecureString -Key $EncryptedKey -ErrorAction Stop
@@ -264,7 +264,7 @@ process {
     $SqlFiles = Get-ChildItem -Path $SqlFolder -Filter *.sql | Sort-Object Name
     
     # SQLファイルが存在しない場合は警告
-    if ($SqlFiles.Count -eq 0) {
+    if ($SqlFiles.Count -eq 0) {    # SQLファイル無し
         $warnMsg = "SQLフォルダ内に.sqlファイルが見つかりません。"
         Write-Host $warnMsg -ForegroundColor Yellow
         Write-Output $warnMsg | Out-File -FilePath $LogPath -Append
@@ -277,10 +277,10 @@ process {
     # TrustServerCertificate パラメータの必要性を判定
     # SQL Server 2019以降ではTrustServerCertificate=true が必要
     $TrustServerCert = $false
-    if ($YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') {
+    if ($YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') {    # バージョン情報がある場合
         $sqlVersion = [int]$Matches[1]
         $TrustServerCert = ($sqlVersion -ge 2019)
-    } else {
+    } else {    # バージョン情報が不明な場合は警告を表示して有効にする
         Write-Host "SQL Serverバージョンの判定に失敗しました。TrustServerCertificateを有効にします。" -ForegroundColor Yellow
         $TrustServerCert = $true
     }
@@ -292,7 +292,7 @@ process {
     $successCount = 0
     $errorCount = 0
     
-    foreach ($sqlFile in $SqlFiles) {
+    foreach ($sqlFile in $SqlFiles) {   # 各SQLファイルを処理
         Write-Output "====================================" | Tee-Object -FilePath $LogPath -Append | Out-Default
         Write-Output $sqlFile.Name | Tee-Object -FilePath $LogPath -Append | Out-Default
         
@@ -303,9 +303,11 @@ process {
             # ====================================
             # ファイルがUTF-8(CRLF)以外だったらUTF-8(CRLF)に変換する
             $fileEncoding = & nkf32 --guess $sqlFile.FullName
-            if ($fileEncoding -ne "UTF-8 (CRLF)") {
+            if ($fileEncoding -ne "UTF-8 (CRLF)") { # UTF-8(CRLF)でない場合
+                Write-Output "///文字エンコーディング変換: $fileEncoding → UTF-8 (CRLF)///" | Tee-Object -FilePath $LogPath -Append | Out-Default
                 $tempFile = $sqlFile.FullName + ".utf8(CRLF)"
-                & nkf32 --ms-ucs-map -x -wLw -O $sqlFile.FullName $tempFile
+                & nkf32 --ms-ucs-map -x -wLw -O $sqlFile.FullName $tempFile # UTF-8(CRLF)に変換して一時ファイルに保存
+                Write-Output "///一時ファイル作成: $tempFile///" | Tee-Object -FilePath $LogPath -Append | Out-Default
                 $sqlFile = Get-Item -Path $tempFile
             }
             
@@ -313,7 +315,7 @@ process {
             # SQL実行
             # ====================================
             # invoke-sqlcmd パラメータをスプラッティングで構築
-            $invokeParams = @{
+            $invokeParams = @{  # invoke-sqlcmd パラメータ
                 ErrorAction     = 'Stop'
                 InputFile       = $sqlFile.FullName
                 ServerInstance  = $ServerInstance
@@ -324,7 +326,7 @@ process {
             }
             
             # SQL Server 2019以降の場合のみ TrustServerCertificate を追加
-            if ($TrustServerCert) {
+            if ($TrustServerCert) { # TrustServerCertificate が必要な場合
                 $invokeParams['TrustServerCertificate'] = $true
             }
             
@@ -335,9 +337,9 @@ process {
             # 結果出力
             # ====================================
             # 結果セットが空の場合は専用メッセージ、そうでなければ表形式で出力
-            if ($null -eq $result -or @($result).Count -eq 0) {
+            if ($null -eq $result -or @($result).Count -eq 0) { # 結果セットなし
                 Write-Output "(結果セットなし)" | Tee-Object -FilePath $LogPath -Append | Out-Default
-            } else {
+            } else {    # 結果セットあり
                 $result | Select-Object -Property * -ExcludeProperty RowError, RowState, Table, ItemArray, HasErrors | Format-Table -Property * -AutoSize -Wrap | Out-String -Width 4096 | Tee-Object -FilePath $LogPath -Append | Out-Default
             }
             $successCount++
@@ -356,7 +358,7 @@ process {
             # クリーンアップ
             # ====================================
             # 一時ファイル（UTF-8変換後）が存在すれば削除
-            if ($tempFile -and (Test-Path -Path $tempFile)) {
+            if ($tempFile -and (Test-Path -Path $tempFile)) {   # 一時ファイルの存在チェック
                 Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
             }
         }
