@@ -196,7 +196,7 @@ begin {
     # ホスト、ポート、データベース、ユーザー名の設定
     if ($YamlOBJ.HOST.PORT) {
         [string]$ServerInstance = "$($YamlOBJ.HOST.SERVER),$($YamlOBJ.HOST.PORT)"
-    } else {
+    } else {    # ポート指定がない場合
         [string]$ServerInstance = $YamlOBJ.HOST.SERVER
     }
     [string]$Database = $YamlOBJ.HOST.DATABASE
@@ -212,7 +212,7 @@ begin {
         if (Test-Path -Path $KeyPath) {
             [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($KeyPath)
             Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
-        } else {
+        } else {    # 鍵ファイルが存在しない場合
             throw "鍵ファイル『$DecryptionKey』が見つかりません。"
         }
     } catch {
@@ -253,7 +253,7 @@ process {
     $SqlFolder = Join-Path -Path $UpperDir -ChildPath $YamlSQL
     
     # SQLフォルダの存在確認
-    if (-not (Test-Path -Path $SqlFolder)) {
+    if (-not (Test-Path -Path $SqlFolder)) {    # SQLフォルダ無し
         $errorMsg = "SQLフォルダ『$YamlSQL』が見つかりません。処理を終了します。"
         Write-Host $errorMsg -ForegroundColor Red
         Write-Output $errorMsg | Out-File -FilePath $LogPath -Append
