@@ -93,13 +93,13 @@ $script:form.CancelButton = $cancelButton
 # イベントハンドラー
 # ====================================
 # OKボタンがクリックされたときのイベントハンドラー
-$script:button.Add_Click({
+$script:button.Add_Click({ # 復号実行処理
     if (-not [string]::IsNullOrWhiteSpace($script:textBox.Text)) {
         Write-Host "復号する文字列を受け取りました（長さ: $($script:textBox.Text.Length) 文字）" -ForegroundColor Cyan
         $script:form.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $script:form.Close()
-    } else {
-        [System.Windows.Forms.MessageBox]::Show(
+    } else { # 入力が空の場合
+        [System.Windows.Forms.MessageBox]::Show( # 警告ダイアログ表示
             "文字列を入力してください。",
             "入力エラー",
             [System.Windows.Forms.MessageBoxButtons]::OK,
@@ -109,19 +109,19 @@ $script:button.Add_Click({
 })
 
 # キャンセルボタンのイベントハンドラー
-$cancelButton.Add_Click({
+$cancelButton.Add_Click({ # キャンセル処理
     Write-Host "操作がキャンセルされました。" -ForegroundColor Yellow
     $script:form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $script:form.Close()
 })
 
 # Enter キーで OK、Escape キーでキャンセル
-$script:textBox.Add_KeyDown({
+$script:textBox.Add_KeyDown({ # キー押下イベントハンドラー
     param($sender, $e)
-    if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
+    if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) { # Enter キー
         $script:button.PerformClick()
         $e.SuppressKeyPress = $true
-    } elseif ($e.KeyCode -eq [System.Windows.Forms.Keys]::Escape) {
+    } elseif ($e.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { # Escape キー
         $cancelButton.PerformClick()
         $e.SuppressKeyPress = $true
     }
