@@ -1,0 +1,309 @@
+# リリースバッチ自動化スクリプト
+
+YAML設定に基づいてファイルを自動的にリリース先へコピーするPowerShellスクリプトです。
+
+## 概要
+
+`relMain.ps1` は、YAML設定ファイルで定義されたリリースタイプごとに、リリース元フォルダからリリース先フォルダへファイルを自動コピーします。開発環境（DEV）、ステージング環境（STG）、本番環境（PROD）など、複数の環境設定に対応しています。
+
+## 主な機能
+
+- ✅ **複数環境対応**: DEV/STG/PROD など環境別のYAML設定ファイル
+- ✅ **バージョニング**: 既存ファイルをタイムスタンプ付きでリネーム保存
+- ✅ **多言語メッセージ**: 日本語/英語のメッセージ表示
+- ✅ **自動ログ生成**: 実行ログを自動生成（機密情報マスキング対応）
+- ✅ **二重起動防止**: 同時実行を防止する早期チェック機能
+- ✅ **セキュリティ**: ログディレクトリ・ファイルのパーミッション管理
+- ✅ **検証機能**: PowerShellバージョン・必須モジュールの自動チェック
+- ✅ **スコープ管理**: `$script:` による一貫した変数管理
+
+## 前提条件
+
+### 必須環境
+
+- **PowerShell**: 7.3.9 以上
+- **実行ポリシー**: RemoteSigned 以上
+
+### 必須モジュール
+
+以下のモジュールが自動的にインポートされます（未インストールの場合は手動インストールが必要）：
+
+- `PowerShell-Yaml` 0.4.7 以上
+- `SqlServer` 22.1.1 以上
+
+```powershell
+# モジュールインストール例
+Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Scope CurrentUser
+Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
+```
+
+## ディレクトリ構造
+
+```
+PowerShell/
+├── Common/
+│   ├── Encryption.Key              # 暗号化鍵（将来使用予定）
+│   ├── FindModule.ps1              # モジュール検索関数
+│   ├── NoDoubleActivation.ps1      # 二重起動防止機能
+│   └── Write-CommonLog.ps1         # ログ出力関数
+└── リリースバッチ/
+    ├── Readme.md                   # このファイル
+    ├── Script/
+    │   ├── relMain.ps1             # メインスクリプト
+    │   └── CopyItemCustom.ps1      # ファイルコピー処理
+    ├── YAML/
+    │   ├── EnvDEV.yaml             # 開発環境設定
+    │   ├── EnvSTG.yaml             # ステージング環境設定
+    │   └── EnvPROD.yaml            # 本番環境設定
+    └── LOG/                         # 自動作成
+        └── relMain_YYYYMMDD-HHmmss.log
+```
+
+## 使用方法
+
+### 基本的な使い方
+
+```powershell
+# デフォルト（DEV環境）で実行
+.\Script\relMain.ps1
+
+# STG環境で実行
+.\Script\relMain.ps1 -EnvYaml "EnvSTG.yaml"
+
+# PROD環境で実行
+.\Script\relMain.ps1 -EnvYaml "EnvPROD.yaml"
+```
+
+### パラメータ
+
+#### `-EnvYaml`
+
+環境設定YAMLファイル名を指定します（デフォルト: `EnvDEV.yaml`）
+
+**有効な値:**
+- `EnvDEV.yaml` - 開発環境
+- `EnvSTG.yaml` - ステージング環境
+- `EnvPROD.yaml` - 本番環境
+
+**検証ルール:**
+- `.yaml` または `.yml` 拡張子が必須
+- ファイル名に使用できない文字（`\ / : " * ? < > |`）を含まない
+- 空白文字のみの入力は不可
+- 最大255文字
+
+#### `-DecryptionKey`
+
+暗号化鍵ファイル名を指定します（デフォルト: `Encryption.Key`）
+
+**注意:** 現在このパラメータは未使用です。将来的にリリース設定に機密情報（パスワード、APIキーなど）を含める場合の暗号化・復号化機能用に予約されています。
+
+実装例は `SQLクエリー実行/Script/sqlMain.ps1` の復号化処理を参照してください。
+
+**検証ルール:**
+- ファイル名に使用できない文字を含まない
+- 空白文字のみの入力は不可
+- 最大255文字
+
+## YAML設定ファイル
+
+### 設定例（EnvDEV.yaml）
+
+```yaml
+# 環境設定
+Environment: DEV
+Language: ja  # ja: 日本語, en: 英語
+
+# 必須モジュール
+RequiredModules:
+  - Name: SqlServer
+    MinimumVersion: 22.1.1
+
+# リリース設定
+ReleaseTypes:
+  - Type: TYPE_A
+    SourcePath: C:\Projects\AppA\Release
+    DestinationPath: \\Server\Share\AppA
+    Files:
+      - app.exe
+      - config.xml
+      - libs\*.dll
+  
+  - Type: TYPE_B
+    SourcePath: C:\Projects\AppB\Output
+    DestinationPath: \\Server\Share\AppB
+    Files:
+      - service.exe
+      - settings.json
+
+# メッセージ定義
+Messages:
+  ja:
+    Error_NoYamlFile: "YAMLファイルが見つかりません: {0}"
+    Error_InvalidYaml: "YAML読み込みエラー: {0}"
+    # ... その他のメッセージ
+  en:
+    Error_NoYamlFile: "YAML file not found: {0}"
+    Error_InvalidYaml: "YAML read error: {0}"
+    # ... その他のメッセージ
+```
+
+### 主要な設定項目
+
+| 項目 | 説明 | 必須 |
+|------|------|:----:|
+| `Environment` | 環境名（DEV/STG/PROD） | ✓ |
+| `Language` | メッセージ言語（ja/en） | ✓ |
+| `RequiredModules` | 必須モジュールリスト | ✓ |
+| `ReleaseTypes` | リリース定義の配列 | ✓ |
+| `Messages` | メッセージ定義（多言語対応） | ✓ |
+
+### リリースタイプ設定
+
+各リリースタイプには以下の項目を指定します：
+
+| 項目 | 説明 | 例 |
+|------|------|-----|
+| `Type` | リリースタイプ名 | TYPE_A |
+| `SourcePath` | コピー元パス | C:\Projects\App |
+| `DestinationPath` | コピー先パス | \\Server\Share |
+| `Files` | コピー対象ファイルパターン | *.exe, config.xml |
+
+## ログ出力
+
+### ログファイル
+
+ログファイルは `LOG/` ディレクトリに自動生成されます。
+
+**ファイル名形式:** `relMain_YYYYMMDD-HHmmss.log`
+
+**例:** `relMain_20251210-143025.log`
+
+### ログ内容
+
+- スクリプト開始・終了時刻
+- 実行環境情報（ユーザー名、ホスト名、PowerShellバージョン）
+- YAML設定の読み込み結果
+- 各リリースタイプのコピー処理結果
+- エラーメッセージ
+- 実行時間（分:秒）
+
+### 機密情報マスキング
+
+ログには機密情報マスキング機能が実装されています。以下のパターンは自動的に `****` に置き換えられます：
+
+- パスワード
+- トークン
+- APIキー
+- シークレット
+- 接続文字列
+
+## エラー処理
+
+### 二重起動防止
+
+スクリプトは二重起動を防止します。既に実行中の場合、以下のメッセージが表示され終了します：
+
+```
+スクリプトは既に実行中です。
+```
+
+### バージョンチェック
+
+PowerShell 7.3.9 未満の環境では実行できません：
+
+```
+このスクリプトはPowerShell 7.3.9以降が必要です。現在のバージョン: 7.x.x
+```
+
+### モジュールチェック
+
+必須モジュールが見つからない場合、エラーメッセージが表示されます：
+
+```
+必須モジュール 'SqlServer' (最小バージョン: 22.1.1) が見つかりません。
+```
+
+## トラブルシューティング
+
+### Q: YAMLファイルが読み込めない
+
+**A:** 以下を確認してください：
+1. YAMLファイルが `YAML/` ディレクトリに存在するか
+2. ファイル名のスペルが正しいか
+3. YAML構文が正しいか（インデント、コロン、ハイフンなど）
+
+### Q: ファイルコピーが失敗する
+
+**A:** 以下を確認してください：
+1. コピー元パスが存在するか
+2. コピー先パスへの書き込み権限があるか
+3. ネットワークドライブの場合、接続が有効か
+4. ファイルが他のプロセスで使用中でないか
+
+### Q: ログファイルが作成されない
+
+**A:** 以下を確認してください：
+1. `LOG/` ディレクトリへの書き込み権限があるか
+2. ディスク容量が十分にあるか
+3. ウイルス対策ソフトがブロックしていないか
+
+## セキュリティ
+
+### パーミッション管理
+
+スクリプトは自動的に以下のパーミッションを設定します：
+
+- **LOGディレクトリ**: 実行ユーザーのみアクセス可能
+- **ログファイル**: 実行ユーザーのみ読み書き可能
+
+### 機密情報の取り扱い
+
+現在、YAML設定ファイルに機密情報を含めることはサポートされていません。将来のバージョンで暗号化機能を実装予定です。
+
+**将来の暗号化機能:**
+- パスワード、APIキーなどの暗号化保存
+- 鍵ファイルによる復号化
+- 実装例: `SQLクエリー実行/Script/sqlMain.ps1`
+
+## 変更履歴
+
+### v1.2.0 (2025-12-10)
+
+- ✅ 変数スコープの統一（`$script:` プレフィックス）
+- ✅ パラメータ検証の強化（ValidateScript属性）
+- ✅ ログ出力の重複削除（秒数表示を削除、Min:Sec形式のみ）
+- ✅ 未使用変数の文書化（$DecryptionKey, $KeyPath）
+- ✅ パス結合を Join-Path に統一
+- ✅ 全exitポイントでCOMオブジェクト解放
+- ✅ ログファイルセキュリティ機能追加
+- ✅ 二重起動チェックを begin ブロックに移動（早期チェック）
+- ✅ COM オブジェクト管理を関数化
+
+### v1.1.0 (2025-12-09)
+
+- ✅ マルチ言語メッセージサポート実装
+- ✅ スクリプトブロックによるメッセージ管理
+- ✅ ログディレクトリパーミッション管理
+
+### v1.0.0 (2025-11-20)
+
+- ✅ 初版リリース
+- ✅ 基本的なリリース機能実装
+
+## 関連リンク
+
+- **GitHub**: [https://github.com/UMA68/PowerShell](https://github.com/UMA68/PowerShell)
+- **Wiki**: [https://github.com/UMA68/PowerShell/wiki](https://github.com/UMA68/PowerShell/wiki)
+- **スコープガイドライン**: [../SCOPE_GUIDELINES.md](../SCOPE_GUIDELINES.md)
+
+## ライセンス
+
+このプロジェクトのライセンスについては、リポジトリルートの `LICENSE` ファイルを参照してください。
+
+## 作成者
+
+UMA68
+
+## お問い合わせ
+
+問題や質問がある場合は、GitHubのIssuesページでお知らせください。

@@ -11,19 +11,37 @@
     - 既存ファイルのバージョニング（タイムスタンプ付きリネーム）
     - マルチ言語対応メッセージ（日本語/英語）
     - ログファイルの自動生成と機密情報マスキング
-    - 二重起動防止機能
-    - ファイルシステムパーミッション管理
+    - 二重起動防止機能（早期チェック）
+    - ファイルシステムパーミッション管理（ログディレクトリ・ファイル）
+    - PowerShellバージョン検証
+    - 必須モジュールの自動インポート
+    - スクリプトスコープによる一貫した変数管理
 
 .PARAMETER DecryptionKey
     暗号化用鍵ファイル名。デフォルト値: "Encryption.Key"
-    将来的な暗号化パスワード処理に使用予定
+    
+    注意: 現在このパラメータは未使用です。将来的にリリース設定に機密情報
+    （パスワード、APIキーなど）を含める場合の暗号化・復号化機能用に予約されています。
+    実装例は SQLクエリー実行/Script/sqlMain.ps1 の復号化処理を参照してください。
+    
+    パラメータ検証:
+    - ファイル名に使用できない文字（\ / : " * ? < > |）を検証
+    - 空白文字のみの入力を拒否
+    - 最大255文字の長さ制限
 
 .PARAMETER EnvYaml
     環境設定YAMLファイル名。デフォルト値: "EnvDEV.yaml"
+    
     有効な値:
     - EnvDEV.yaml   : 開発環境
     - EnvSTG.yaml   : ステージング環境
     - EnvPROD.yaml  : 本番環境
+    
+    パラメータ検証:
+    - .yaml または .yml 拡張子が必須
+    - ファイル名に使用できない文字を検証
+    - 空白文字のみの入力を拒否
+    - 最大255文字の長さ制限
 
 .EXAMPLE
     # デフォルト（DEV環境）で実行
@@ -37,6 +55,10 @@
     # PROD環境で実行
     .\relMain.ps1 -EnvYaml "EnvPROD.yaml"
 
+.EXAMPLE
+    # カスタム鍵ファイルを指定（将来の暗号化機能用）
+    .\relMain.ps1 -DecryptionKey "CustomKey.key" -EnvYaml "EnvPROD.yaml"
+
 .NOTES
     File Name      : relMain.ps1
     Author         : UMA68
@@ -47,22 +69,46 @@
     前提条件:
     - PowerShell 7.3.9 以上
     - PowerShell-Yaml モジュール 0.4.7 以上
-    - SqlServer モジュール 22.1.1 以上
+    - SqlServer モジュール 22.1.1 以上（YAMLで指定）
     - Windows PowerShell実行ポリシー: RemoteSigned 以上
     
     依存ファイル:
-    - Common/FindModule.ps1       : モジュール検索関数
+    - Common/FindModule.ps1         : モジュール検索関数
     - Common/NoDoubleActivation.ps1 : 二重起動防止機能
-    - Common/Write-CommonLog.ps1  : ログ出力関数
-    - Script/CopyItemCustom.ps1   : ファイルコピー処理
-    - YAML/Env*.yaml              : 環境設定ファイル
+    - Common/Write-CommonLog.ps1    : ログ出力関数（機密情報マスキング対応）
+    - Script/CopyItemCustom.ps1     : ファイルコピー処理とリリースルール適用
+    - YAML/Env*.yaml                : 環境設定ファイル
+    
+    ディレクトリ構造:
+    PowerShell/
+    ├── Common/
+    │   ├── Encryption.Key          (暗号化鍵・将来使用予定)
+    │   ├── FindModule.ps1
+    │   ├── NoDoubleActivation.ps1
+    │   └── Write-CommonLog.ps1
+    └── リリースバッチ/
+        ├── Script/
+        │   ├── relMain.ps1         (このファイル)
+        │   └── CopyItemCustom.ps1
+        ├── YAML/
+        │   ├── EnvDEV.yaml
+        │   ├── EnvSTG.yaml
+        │   └── EnvPROD.yaml
+        └── LOG/                     (自動作成)
+            └── relMain_YYYYMMDD-HHmmss.log
     
     変更履歴:
     v1.2.0 (2025-12-10)
+        - 変数スコープの統一（$script: プレフィックス）
+        - パラメータ検証の強化（ValidateScript属性）
+        - ログ出力の重複削除（秒数表示を削除、Min:Sec形式のみ）
+        - 未使用変数の文書化（$DecryptionKey, $KeyPath）
+        - パス結合を Join-Path に統一
+        - 全exitポイントでCOMオブジェクト解放
         - ログファイルセキュリティ機能追加（パーミッション設定、機密情報マスキング）
         - 二重起動チェックを begin ブロックに移動（早期チェック）
-        - COM オブジェクト管理を関数化
-        - エラーメッセージ多言語化
+        - COM オブジェクト管理を関数化（$script:ShowPopup, $script:GetMessage）
+        - エラーメッセージ多言語化（YAML定義）
         
     v1.1.0 (2025-12-09)
         - マルチ言語メッセージサポート実装
@@ -76,6 +122,7 @@
 .LINK
     GitHub: https://github.com/UMA68/PowerShell
     Wiki: https://github.com/UMA68/PowerShell/wiki
+    スコープガイドライン: ../SCOPE_GUIDELINES.md
 #>
 
 # ===================================
