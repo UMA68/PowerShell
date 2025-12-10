@@ -1,21 +1,25 @@
 # PowerShell スクリプト変数スコープガイドライン
 
 ## 概要
+
 このドキュメントは、PowerShellプロジェクト全体で一貫した変数スコープの使用を保証するためのガイドラインです。
 
 ## 基本原則
 
 ### 1. **スクリプトスコープ変数 (`$script:`) の使用**
+
 スクリプト全体で共有される変数は、明示的に `$script:` スコープを使用してください。
 
-#### 対象となる変数:
+#### 対象となる変数
+
 - **パス関連変数**: `$script:ScriptPath`, `$script:UpperPath`, `$script:PowerShellDir`, `$script:YamlPath`, `$script:ComPath`, `$script:LogDir`, `$script:LogPath`
 - **設定オブジェクト**: `$script:Yaml`, `$script:YamlOBJ`
 - **グローバル情報**: `$script:User`, `$script:HostName`
 - **スクリプトブロック関数**: `$script:ShowPopup`, `$script:GetMessage`
 - **共有リソース**: `$script:SensitivePatterns`, `$script:EncryptedKey`
 
-#### 例:
+#### 例
+
 ```powershell
 begin {
     # スクリプト実行環境を取得
@@ -33,14 +37,17 @@ begin {
 ```
 
 ### 2. **ローカル変数の使用**
+
 一時的な計算や限定的なスコープで使用する変数は、スコープ修飾子を付けません。
 
-#### 対象となる変数:
+#### 対象となる変数
+
 - ループカウンター: `$i`, `$counter`
 - 一時的な計算結果: `$result`, `$output`
 - 関数内のローカル変数: `$tempFile`, `$fileEncoding`
 
-#### 例:
+#### 例
+
 ```powershell
 process {
     foreach ($file in $files) {
@@ -50,10 +57,12 @@ process {
 }
 ```
 
-### 3. **関数パラメータ**
-関数のパラメータは、通常のローカルスコープとして扱います。
+### 3. **関数パラメーター**
 
-#### 例:
+関数のパラメーターは、通常のローカルスコープとして扱います。
+
+#### 例
+
 ```powershell
 function Copy-ItemCustom {
     param (
@@ -68,9 +77,11 @@ function Copy-ItemCustom {
 ```
 
 ### 4. **スクリプトブロック内の変数**
+
 スクリプトブロック (`{}`) 内で親スコープの変数を参照する場合、明示的に `$script:` を使用します。
 
-#### 例:
+#### 例
+
 ```powershell
 $script:ShowPopup = {
     param(
@@ -99,6 +110,7 @@ $script:GetMessage = {
 ## スコープ適用パターン
 
 ### パターン1: メインスクリプト構造
+
 ```powershell
 param(
     [Parameter(Mandatory=$false)]
@@ -134,6 +146,7 @@ end {
 ```
 
 ### パターン2: 関数定義
+
 ```powershell
 function Invoke-CustomProcess {
     param (
@@ -155,11 +168,13 @@ function Invoke-CustomProcess {
 ## 命名規則
 
 ### 推奨する変数名の大文字/小文字表記
+
 - **Pascal Case (大文字開始)**: `$script:ScriptPath`, `$script:YamlPath`, `$script:LogDir`
 - **Camel Case (小文字開始)**: ローカル変数 `$tempFile`, `$fileCount`
-- **定数風**: `$script:User`, `$script:HostName` (変更されない値)
+- **定数風**: `$script:User`, `$script:HostName` (変更されない値）
 
 ### 避けるべきパターン
+
 ```powershell
 # ❌ 悪い例: スコープが不明確
 $scriptPath = "..."  # ローカルか？スクリプトスコープか？
@@ -199,7 +214,7 @@ $script:Yaml = Get-Content ...
    - `DotNetSdk_Uninstall.ps1` ✓
 
 5. **DecompileDLL/**
-   - `DecompileDll.ps1` ✓ (一部)
+   - `DecompileDll.ps1` ✓ (一部）
 
 ## バージョン履歴
 
