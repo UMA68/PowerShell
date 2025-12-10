@@ -80,36 +80,36 @@ PowerShell/
 
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # ファイル名の検証
         # ファイル名としての有効性を検証
-        if ($_ -match '[\\/:"*?<>|]') {
+        if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
             throw "ファイル名に使用できない文字が含まれています: $_"
         }
-        if ([string]::IsNullOrWhiteSpace($_)) {
+        if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
             throw "ファイル名は空にできません"
         }
-        if ($_.Length -gt 255) {
+        if ($_.Length -gt 255) { # ファイル名長さ制限チェック
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
-        $true
+        $true   # バリデーション(検証)成功
     })]
     [string]$DecryptionKey = "Encryption.Key",  # 復号化鍵ファイル名
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # yamlファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
-        if ($_ -notmatch '\.(yaml|yml)$') {
+        if ($_ -notmatch '\.(yaml|yml)$') { # YAML拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
         }
-        if ($_ -match '[\\/:"*?<>|]') {
+        if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
             throw "ファイル名に使用できない文字が含まれています: $_"
         }
-        if ([string]::IsNullOrWhiteSpace($_)) {
+        if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
             throw "ファイル名は空にできません"
         }
-        if ($_.Length -gt 255) {
+        if ($_.Length -gt 255) { # ファイル名長さ制限チェック
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
-        $true
+        $true   # バリデーション(検証)成功
     })]
     [string]$EnvYaml = "sql.yaml"               # 設定ファイル名
 )
@@ -124,17 +124,17 @@ begin {
     $script:UpperDir = Split-Path -Parent $script:ScriptDir                       # SQLクエリー実行フォルダ
     $script:PowerShellDir = Split-Path -Parent $script:UpperDir                   # PowerShellフォルダ
     $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトフォルダ
-    $script:YamlDir = Join-Path -Path $script:UpperDir -ChildPath "YAML"             # 設定ファイルフォルダ
+    $script:YamlDir = Join-Path -Path $script:UpperDir -ChildPath "YAML"          # 設定ファイルフォルダ
     $script:KeyPath = Join-Path -Path $script:ComPath -ChildPath $DecryptionKey   # 鍵ファイルパス
-    $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml           # 設定ファイルパス
+    $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml        # 設定ファイルパス
 
     # ====================================
     # 共通スクリプトの読み込み
     # ====================================
     # 二重起動チェックとコマンド検証用スクリプトを読み込む
     try {
-        . (Join-Path -Path $script:ComPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
-        . (Join-Path -Path $script:ComPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:ComPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop   # 二重起動防止スクリプト読み込み
+        . (Join-Path -Path $script:ComPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop         # コマンド検証スクリプト読み込み
     } catch {
         $obj = $null
         try {
@@ -142,7 +142,7 @@ begin {
             $scriptName = $_.InvocationInfo.MyCommand.Name
             $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # スクリプト読み込みエラー
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -163,12 +163,12 @@ begin {
     # PowerShell-Yaml モジュールがインストールされているか確認
     $YamlModuleCount = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count
     $obj = $null
-    if ($YamlModuleCount -eq 0) {   # モジュール未インストール
+    if ($YamlModuleCount -eq 0) { # モジュール未インストール
         try {
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup("PowerShell-Yamlモジュールがインストールされていません。処理を終了します。", 0, "警告", 0x30) | Out-Null
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # モジュール未インストール
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -186,7 +186,7 @@ begin {
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($EnvYaml + "ファイルが見つかりません。処理を終了します。", 0, "エラー", 0x10) | Out-Null
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # YAMLファイル無し
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -204,7 +204,7 @@ begin {
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($EnvYaml + "ファイルが読み込めませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # YAML読み込みエラー
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -225,8 +225,8 @@ begin {
             [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $script:YamlOBJ.PowerShell.Version + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
             switch ($retButton) {
                 1 { break }  # OK
-                2 {
-                    if ($null -ne $obj) {
+                2 { # キャンセル
+                    if ($null -ne $obj) { # バージョン不一致
                         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                         $obj = $null
                     }
@@ -234,7 +234,7 @@ begin {
                 }
             }
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # バージョン不一致
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -255,7 +255,7 @@ begin {
                 $obj = New-Object -ComObject WScript.Shell
                 $obj.Popup($script:YamlOBJ.Module.$module.Name + "：" + $script:YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
             } finally {
-                if ($null -ne $obj) {
+                if ($null -ne $obj) { # モジュールインポートエラー
                     try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                     $obj = $null
                 }
@@ -269,7 +269,7 @@ begin {
     # ====================================
     # ログ出力先ディレクトリを作成（未存在の場合）
     $script:LogFolder = Join-Path -Path $script:UpperDir -ChildPath $script:YamlOBJ.LOG.FOLDER
-    if (-not (Test-Path -Path $script:LogFolder)) {    # ログフォルダがなければ作成
+    if (-not (Test-Path -Path $script:LogFolder)) { # ログフォルダがなければ作成
         New-Item -Path $script:LogFolder -ItemType Directory -Force | Out-Null
     }
     $LogFileName = $script:YamlOBJ.LOG.FILENAME + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + $script:YamlOBJ.LOG.EXTENSION
@@ -279,9 +279,9 @@ begin {
     # SQL接続パラメータの定義
     # ====================================
     # ホスト、ポート、データベース、ユーザー名の設定
-    if ($script:YamlOBJ.HOST.PORT) {   # ポート指定がある場合
+    if ($script:YamlOBJ.HOST.PORT) { # ポート指定がある場合
         [string]$script:ServerInstance = "$($script:YamlOBJ.HOST.SERVER),$($script:YamlOBJ.HOST.PORT)"
-    } else {    # ポート指定がない場合
+    } else { # ポート指定がない場合
         [string]$script:ServerInstance = $script:YamlOBJ.HOST.SERVER
     }
     [string]$script:Database = $script:YamlOBJ.HOST.DATABASE
@@ -297,7 +297,7 @@ begin {
         if (Test-Path -Path $script:KeyPath) { # 鍵ファイルが存在する場合
             [byte[]]$script:EncryptedKey = [System.IO.File]::ReadAllBytes($script:KeyPath)
             Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
-        } else {    # 鍵ファイルが存在しない場合
+        } else { # 鍵ファイルが存在しない場合
             throw "鍵ファイル『$DecryptionKey』が見つかりません。"
         }
     } catch {
@@ -307,7 +307,7 @@ begin {
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$($script:ComPath)`" へ置いてください。", 0, "エラー", 0x10)
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # 鍵ファイルエラー
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -320,7 +320,7 @@ begin {
     # ====================================
     # 暗号化されたパスワードファイルを復号化して平文に変換
     try {
-        if (-not (Test-Path -Path $script:PwFilePath)) {   # パスワードファイルが存在しない場合
+        if (-not (Test-Path -Path $script:PwFilePath)) { # パスワードファイルが存在しない場合
             throw "パスワードファイル『$pwFile』が見つかりません。"
         }
         $password = Get-Content -Path $script:PwFilePath | ConvertTo-SecureString -Key $script:EncryptedKey -ErrorAction Stop
@@ -346,7 +346,7 @@ process {
     $script:SqlFolder = Join-Path -Path $script:UpperDir -ChildPath $YamlSQL
     
     # SQLフォルダの存在確認
-    if (-not (Test-Path -Path $script:SqlFolder)) {    # SQLフォルダ無し
+    if (-not (Test-Path -Path $script:SqlFolder)) { # SQLフォルダ無し
         $errorMsg = "SQLフォルダ『$YamlSQL』が見つかりません。処理を終了します。"
         Write-Host $errorMsg -ForegroundColor Red
         Write-Output $errorMsg | Out-File -FilePath $script:LogPath -Append
@@ -357,7 +357,7 @@ process {
     $SqlFiles = Get-ChildItem -Path $script:SqlFolder -Filter *.sql | Sort-Object Name
     
     # SQLファイルが存在しない場合は警告
-    if ($SqlFiles.Count -eq 0) {    # SQLファイル無し
+    if ($SqlFiles.Count -eq 0) { # SQLファイル無し
         $warnMsg = "SQLフォルダ内に.sqlファイルが見つかりません。"
         Write-Host $warnMsg -ForegroundColor Yellow
         Write-Output $warnMsg | Out-File -FilePath $script:LogPath -Append
@@ -370,10 +370,10 @@ process {
     # TrustServerCertificate パラメータの必要性を判定
     # SQL Server 2019以降ではTrustServerCertificate=true が必要
     $script:TrustServerCert = $false
-    if ($script:YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') {    # バージョン情報がある場合
+    if ($script:YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') { # バージョン情報がある場合
         $sqlVersion = [int]$Matches[1]
         $script:TrustServerCert = ($sqlVersion -ge 2019)
-    } else {    # バージョン情報が不明な場合は警告を表示して有効にする
+    } else { # バージョン情報が不明な場合は警告を表示して有効にする
         Write-Host "SQL Serverバージョンの判定に失敗しました。TrustServerCertificateを有効にします。" -ForegroundColor Yellow
         $script:TrustServerCert = $true
     }
@@ -385,7 +385,7 @@ process {
     $successCount = 0
     $errorCount = 0
     
-    foreach ($sqlFile in $SqlFiles) {   # 各SQLファイルを処理
+    foreach ($sqlFile in $SqlFiles) { # 各SQLファイルを処理
         Write-Output "====================================" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
         Write-Output $sqlFile.Name | Tee-Object -FilePath $script:LogPath -Append | Out-Default
         
@@ -408,7 +408,7 @@ process {
             # SQL実行
             # ====================================
             # invoke-sqlcmd パラメータをスプラッティングで構築
-            $invokeParams = @{  # invoke-sqlcmd パラメータ
+            $invokeParams = @{ # invoke-sqlcmd パラメータ
                 ErrorAction     = 'Stop'
                 InputFile       = $sqlFile.FullName
                 ServerInstance  = $script:ServerInstance
@@ -432,7 +432,7 @@ process {
             # 結果セットが空の場合は専用メッセージ、そうでなければ表形式で出力
             if ($null -eq $result -or @($result).Count -eq 0) { # 結果セットなし
                 Write-Output "(結果セットなし)" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
-            } else {    # 結果セットあり
+            } else { # 結果セットあり
                 $result | Select-Object -Property * -ExcludeProperty RowError, RowState, Table, ItemArray, HasErrors | Format-Table -Property * -AutoSize -Wrap | Out-String -Width 4096 | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             }
             $successCount++

@@ -52,13 +52,13 @@
 function Copy-ItemCustom {
     param (
         [Parameter(Mandatory=$true)]
-        [string]$ReleaseType,
+        [string]$ReleaseType,               # リリースタイプ名
         [Parameter(Mandatory=$true)]
-        [object]$Yaml,
+        [object]$Yaml,                      # YAML設定オブジェクト
         [Parameter(Mandatory=$true)]
-        [string]$LogPath,
+        [string]$LogPath,                   # ログファイルパス
         [Parameter(Mandatory=$false)]
-        [string[]]$SensitivePatterns = @()
+        [string[]]$SensitivePatterns = @()  # 機密情報キーワード配列
     )
     
     begin{
@@ -76,7 +76,7 @@ function Copy-ItemCustom {
             return # YAML記述が間違っている場合は、Functionを抜ける
         }
         # フォルダ内ファイルのカウントが0の場合は、Functionを抜ける
-        if ($FileCount -eq 0) {
+        if ($FileCount -eq 0) { # リリース対象ファイルが存在しない場合
             Write-CommonLog -Message "[SKIP] RELEASE TYPE '$ReleaseSource' FOLDER EMPTY!." -LogPath $LogPath -Level 'WARN' -SensitivePatterns $SensitivePatterns
             return
         }
@@ -93,13 +93,13 @@ function Copy-ItemCustom {
         # リリース先フォルダ
         $ReleaseDestination = $Yaml.RELEASE.$ReleaseType.ReleaseTo
         # リリース先フォルダが存在しない場合は、エラーをログに記述
-        if(-not (Test-Path -Path $ReleaseDestination)) {
+        if(-not (Test-Path -Path $ReleaseDestination)) { # リリース先フォルダが存在しない場合
             Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             return
         }
 
         # リリース実行
-        foreach ($File in (Get-ChildItem -Path $ReleaseSource -Recurse -File)) {
+        foreach ($File in (Get-ChildItem -Path $ReleaseSource -Recurse -File)) { # リリース対象ファイルが存在する場合
             # リリースルールに従い実行
             Invoke-ReleaseRules -ReleaseTypeName $ReleaseType -FileObject $File -ReleaseDestination $ReleaseDestination -LogPath $LogPath -SensitivePatterns $SensitivePatterns
         }
@@ -145,15 +145,15 @@ function Copy-ItemCustom {
 function Invoke-ReleaseRules{
     param (
         [Parameter(Mandatory=$true)]
-        [string]$ReleaseTypeName,
+        [string]$ReleaseTypeName,               # ログ用リリースタイプ名
         [Parameter(Mandatory=$true)]
-        [System.IO.FileSystemInfo]$FileObject,
+        [System.IO.FileSystemInfo]$FileObject,  # コピー対象ファイルオブジェクト
         [Parameter(Mandatory=$true)]
-        [string]$ReleaseDestination,
+        [string]$ReleaseDestination,            # リリース先フォルダパス
         [Parameter(Mandatory=$true)]
-        [string]$LogPath,
+        [string]$LogPath,                       # ログファイルパス    
         [Parameter(Mandatory=$false)]
-        [string[]]$SensitivePatterns = @()
+        [string[]]$SensitivePatterns = @()      # 機密情報キーワード配列
     )
     # リリース先の既存リネームファイルを削除する
     $FileBaseName = $FileObject.BaseName      # ファイル名
@@ -162,7 +162,7 @@ function Invoke-ReleaseRules{
     # リネームファイルの検索
     $FileNameWithDate = Get-ChildItem -Path $ReleaseDestination -Filter $FileNameWithDatePattern -ErrorAction SilentlyContinue
     # 検索したリネームファイルを削除
-    foreach($RenamedFileName in $FileNameWithDate){
+    foreach($RenamedFileName in $FileNameWithDate){ # リネームファイルが存在する場合
         # リネームファイルの削除処理
         try{
             Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop
@@ -184,7 +184,7 @@ function Invoke-ReleaseRules{
         $NewFileNameWithDate = $FileBaseName + "_" + (Get-Date -Format "yyyyMMdd-HHmmss")+$FileExtension
         $FileNameWithDatePath = Join-Path -Path $ReleaseDestination -ChildPath $NewFileNameWithDate
         $FileExist = Get-ChildItem -Path $ReleaseDestination -Filter $FileObject.Name -ErrorAction SilentlyContinue
-        if ($FileExist) {
+        if ($FileExist) { # ファイルが存在する場合
             # リネーム処理
             Rename-Item -Path $ReleaseToFileName -NewName $NewFileNameWithDate -Force -ErrorAction Stop
             # リネーム結果をログに記述
