@@ -105,9 +105,17 @@ begin {
         . (Join-Path -Path $comPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
         . (Join-Path -Path $comPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop
     } catch {
-        $obj = New-Object -ComObject WScript.Shell
-        $scriptName = $_.InvocationInfo.MyCommand.Name
-        $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $scriptName = $_.InvocationInfo.MyCommand.Name
+            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit
     }
     
@@ -123,9 +131,17 @@ begin {
     # ====================================
     # PowerShell-Yaml モジュールがインストールされているか確認
     $YamlModuleCount = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count
+    $obj = $null
     if ($YamlModuleCount -eq 0) {   # モジュール未インストール
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("PowerShell-Yamlモジュールがインストールされていません。処理を終了します。", 0, "警告", 0x30) | Out-Null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup("PowerShell-Yamlモジュールがインストールされていません。処理を終了します。", 0, "警告", 0x30) | Out-Null
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit
     }
     
@@ -134,8 +150,16 @@ begin {
     # ====================================
     # YAML設定ファイルの存在確認
     if (-not (Test-Path -Path $YamlPath)) { # YAMLファイル無し
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup($EnvYaml + "ファイルが見つかりません。処理を終了します。", 0, "エラー", 0x10) | Out-Null
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup($EnvYaml + "ファイルが見つかりません。処理を終了します。", 0, "エラー", 0x10) | Out-Null
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit
     }
 
@@ -144,8 +168,16 @@ begin {
         $YamlOBJ = Get-Content $YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered 
     }
     catch {
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup($EnvYaml + "ファイルが読み込めませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup($EnvYaml + "ファイルが読み込めませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit
     }
 
@@ -155,12 +187,26 @@ begin {
     # YAML設定のバージョンと実行バージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $pwsAssumVer = $YamlOBJ.PowerShell.Version
+    $obj = $null
     if ($pwsVerChk -ne $pwsAssumVer) {  # バージョン不一致
-        $obj = New-Object -ComObject WScript.Shell
-        [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $pwsAssumVer + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
-        switch ($retButton) {
-            1 { break }  # OK
-            2 { exit }   # キャンセル
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $pwsAssumVer + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
+            switch ($retButton) {
+                1 { break }  # OK
+                2 {
+                    if ($null -ne $obj) {
+                        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                        $obj = $null
+                    }
+                    exit  # キャンセル
+                }
+            }
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
         }
     }
     
@@ -173,8 +219,16 @@ begin {
             Import-Module $YamlOBJ.Module.$module.Name -RequiredVersion $YamlOBJ.Module.$module.Version -ErrorAction Stop
         }
         catch {
-            $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($YamlOBJ.Module.$module.Name + "：" + $YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
+            $obj = $null
+            try {
+                $obj = New-Object -ComObject WScript.Shell
+                $obj.Popup($YamlOBJ.Module.$module.Name + "：" + $YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
+            } finally {
+                if ($null -ne $obj) {
+                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                    $obj = $null
+                }
+            }
             exit
         }
     }
@@ -217,8 +271,16 @@ begin {
         }
     } catch {
         Write-Host $_.Exception.Message -ForegroundColor Red
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$comPath`" へ置いてください。", 0, "エラー", 0x10)
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$comPath`" へ置いてください。", 0, "エラー", 0x10)
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit
     }
 

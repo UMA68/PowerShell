@@ -61,8 +61,16 @@ begin{
         . (Join-Path -Path $comPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop  
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit # 終了
     }
     

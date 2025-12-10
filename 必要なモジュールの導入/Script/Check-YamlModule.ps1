@@ -107,10 +107,11 @@ function Test-YamlModule {
         # ====================================
         # モジュール未インストール - インストール処理
         # ====================================
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("powershell-yaml $Ver がインストールされていません。`r`nインストールを開始します。",0,"情報",0x40) | Out-Null
-        
+        $obj = $null
         try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup("powershell-yaml $Ver がインストールされていません。`r`nインストールを開始します。",0,"情報",0x40) | Out-Null
+            
             # PowerShell Gallery からモジュールをインストール
             Install-Module -Name "powershell-yaml" -RequiredVersion $Ver -Force -Scope CurrentUser -ErrorAction Stop
             
@@ -125,8 +126,16 @@ function Test-YamlModule {
             
         } catch {
             # インストール失敗時の処理
-            $obj.Popup("powershell-yaml のインストールに失敗しました。処理を終了します。`r`n`r`nエラー: "+$_.Exception.Message,0,"エラー",0x30) | Out-Null
+            if ($null -ne $obj) {
+                $obj.Popup("powershell-yaml のインストールに失敗しました。処理を終了します。`r`n`r`nエラー: "+$_.Exception.Message,0,"エラー",0x30) | Out-Null
+            }
             exit
+        } finally {
+            # COM オブジェクトのクリーンアップ
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
         }
         
     } else {    # モジュール既にインストール済み

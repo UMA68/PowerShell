@@ -111,9 +111,16 @@ try {
 } catch {
     # エラーメッセージを表示して終了
     Write-Host $_.Exception.Message -ForegroundColor Red
-    $obj = New-Object -ComObject WScript.Shell
-    $obj.popup($_.Exception.Message, 0, "エラー", 0x10)  # 0x10:エラーアイコン
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
+    $obj = $null
+    try {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.popup($_.Exception.Message, 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    } finally {
+        if ($null -ne $obj) {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+    }
     exit
 }
 
@@ -137,9 +144,16 @@ try {
     }
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
-    $obj = New-Object -ComObject WScript.Shell
-    $obj.popup($_.Exception.Message + "`r`n`r`n作成した鍵ファイルを「$comPath」へ配置してください。", 0, "エラー", 0x10)
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
+    $obj = $null
+    try {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.popup($_.Exception.Message + "`r`n`r`n作成した鍵ファイルを「$comPath」へ配置してください。", 0, "エラー", 0x10)
+    } finally {
+        if ($null -ne $obj) {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+    }
     exit
 }
 
@@ -162,11 +176,18 @@ $InputString = $textBox.Text    # 入力された文字列取得
 # 入力検証
 if ([string]::IsNullOrWhiteSpace($InputString)) { # 入力が空の場合
     Write-Host "空文字列が入力されました。処理を終了します。" -ForegroundColor Yellow
-    $obj = New-Object -ComObject WScript.Shell
-    $obj.popup("入力が空です。処理を終了します。", 0, "情報", 0x40)
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
-    # フォームを破棄
-    if ($null -ne $form) { $form.Dispose() }
+    $obj = $null
+    try {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.popup("入力が空です。処理を終了します。", 0, "情報", 0x40)
+    } finally {
+        if ($null -ne $obj) {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+        # フォームを破棄
+        if ($null -ne $form) { $form.Dispose() }
+    }
     exit
 }
 
@@ -190,15 +211,20 @@ try {
     Write-Host "※ 上記の復号結果をコピーしてご利用ください" -ForegroundColor Gray
 } catch {
     Write-Host "文字列の復号に失敗しました: $($_.Exception.Message)" -ForegroundColor Red
-    $obj = New-Object -ComObject WScript.Shell
-    $obj.popup("文字列の復号に失敗しました。`r`n`r`n原因: $($_.Exception.Message)`r`n`r`n処理を終了します。", 0, "エラー", 0x10)
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
-    
-    # エラー時もフォームを破棄
-    if ($null -ne $form) { $form.Dispose() }
-    if ($null -ne $textBox) { $textBox.Dispose() }
-    if ($null -ne $button) { $button.Dispose() }
-    
+    $obj = $null
+    try {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.popup("文字列の復号に失敗しました。`r`n`r`n原因: $($_.Exception.Message)`r`n`r`n処理を終了します。", 0, "エラー", 0x10)
+    } finally {
+        if ($null -ne $obj) {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+        # エラー時もフォームを破棄
+        if ($null -ne $form) { $form.Dispose() }
+        if ($null -ne $textBox) { $textBox.Dispose() }
+        if ($null -ne $button) { $button.Dispose() }
+    }
     exit
 }
 

@@ -107,9 +107,17 @@ begin{
         . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop     # 環境モジュールチェック
         . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop    # YAMLモジュールチェック
     } catch {
-        $obj = New-Object -ComObject WScript.Shell
-        $scriptName = $_.InvocationInfo.MyCommand.Name
-        $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $scriptName = $_.InvocationInfo.MyCommand.Name
+            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit    # おわり
     }
     
@@ -139,8 +147,16 @@ begin{
     try{
         $yaml = Get-Content $envPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered
     }catch{
-        $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
         exit    # おわり
     }
 }
@@ -156,13 +172,27 @@ Process{
     # ====================================
     # 実行中のPowerShellバージョンとYAMLで指定されたバージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
+    $obj = $null
     if($pwsVerChk -ne $yaml.PowerShell.Version){    # バージョン不一致の場合
         # yaml記述のバージョンと違ったら警告表示
-        $obj = New-Object -ComObject WScript.Shell
-        [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`nPowerShell "+$yaml.PowerShell.Version+" を前提にインストールを行います。続行しますか？",0,"警告",4)   # はい=6 いいえ=7
-        switch($retButton){
-            6 { break } # はい
-            7 { exit }  # いいえ
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`nPowerShell "+$yaml.PowerShell.Version+" を前提にインストールを行います。続行しますか？",0,"警告",4)   # はい=6 いいえ=7
+            switch($retButton){
+                6 { break } # はい
+                7 {
+                    if ($null -ne $obj) {
+                        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                        $obj = $null
+                    }
+                    exit  # いいえ
+                }
+            }
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
         }
     }
 
