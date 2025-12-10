@@ -1,3 +1,83 @@
+<#
+.SYNOPSIS
+    リリースバッチ自動化スクリプト - YAML設定に基づいてファイルをリリース先にコピーします
+
+.DESCRIPTION
+    このスクリプトは、YAML設定ファイルで定義されたリリースタイプごとに、
+    リリース元フォルダからリリース先フォルダへファイルを自動コピーします。
+    
+    主な機能:
+    - 複数のリリースタイプ（TYPE_A, TYPE_B など）をサポート
+    - 既存ファイルのバージョニング（タイムスタンプ付きリネーム）
+    - マルチ言語対応メッセージ（日本語/英語）
+    - ログファイルの自動生成と機密情報マスキング
+    - 二重起動防止機能
+    - ファイルシステムパーミッション管理
+
+.PARAMETER DecryptionKey
+    暗号化用鍵ファイル名。デフォルト値: "Encryption.Key"
+    将来的な暗号化パスワード処理に使用予定
+
+.PARAMETER EnvYaml
+    環境設定YAMLファイル名。デフォルト値: "EnvDEV.yaml"
+    有効な値:
+    - EnvDEV.yaml   : 開発環境
+    - EnvSTG.yaml   : ステージング環境
+    - EnvPROD.yaml  : 本番環境
+
+.EXAMPLE
+    # デフォルト（DEV環境）で実行
+    .\relMain.ps1
+
+.EXAMPLE
+    # STG環境で実行
+    .\relMain.ps1 -EnvYaml "EnvSTG.yaml"
+
+.EXAMPLE
+    # PROD環境で実行
+    .\relMain.ps1 -EnvYaml "EnvPROD.yaml"
+
+.NOTES
+    File Name      : relMain.ps1
+    Author         : UMA68
+    Version        : 1.2.0
+    Release Date   : 2025-12-10
+    Last Modified  : 2025-12-10
+    
+    前提条件:
+    - PowerShell 7.3.9 以上
+    - PowerShell-Yaml モジュール 0.4.7 以上
+    - SqlServer モジュール 22.1.1 以上
+    - Windows PowerShell実行ポリシー: RemoteSigned 以上
+    
+    依存ファイル:
+    - Common/FindModule.ps1       : モジュール検索関数
+    - Common/NoDoubleActivation.ps1 : 二重起動防止機能
+    - Common/Write-CommonLog.ps1  : ログ出力関数
+    - Script/CopyItemCustom.ps1   : ファイルコピー処理
+    - YAML/Env*.yaml              : 環境設定ファイル
+    
+    変更履歴:
+    v1.2.0 (2025-12-10)
+        - ログファイルセキュリティ機能追加（パーミッション設定、機密情報マスキング）
+        - 二重起動チェックを begin ブロックに移動（早期チェック）
+        - COM オブジェクト管理を関数化
+        - エラーメッセージ多言語化
+        
+    v1.1.0 (2025-12-09)
+        - マルチ言語メッセージサポート実装
+        - スクリプトブロックによるメッセージ管理
+        - ログディレクトリパーミッション管理
+        
+    v1.0.0 (2025-11-20)
+        - 初版リリース
+        - 基本的なリリース機能実装
+
+.LINK
+    GitHub: https://github.com/UMA68/PowerShell
+    Wiki: https://github.com/UMA68/PowerShell/wiki
+#>
+
 # ===================================
 # 起動オプション
 #  -DecryptionKey   鍵ファイル指定
@@ -139,8 +219,9 @@ begin{
     }
     
     # ログディレクトリのパーミッション設定（現在のユーザーのみアクセス可能）
+    # 管理者権限がない場合はスキップ
     try {
-        $logDirAcl = Get-Acl -Path $logDir
+        $logDirAcl = Get-Acl -Path $logDir -ErrorAction Stop
         # 既存の継承権を無効化
         $logDirAcl.SetAccessRuleProtection($true, $false)
         # すべての権限を削除
@@ -149,16 +230,19 @@ begin{
         $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
         $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $logDirAcl.AddAccessRule($rule)
-        Set-Acl -Path $logDir -AclObject $logDirAcl
+        Set-Acl -Path $logDir -AclObject $logDirAcl -ErrorAction Stop
     } catch {
-        # パーミッション設定に失敗した場合は警告を表示するが、処理を続行
-        Write-Host "[WARNING] Could not set permissions on log directory: $_" -ForegroundColor Yellow
+        # ACL設定に失敗した場合は警告を表示するが、処理を続行
+        # （管理者権限がない場合など）
+        Write-Host "[WARNING] Could not set ACL on log directory (requires administrator privilege). Continuing without ACL configuration." -ForegroundColor Yellow
     }
+
+    # 二重起動の禁止（早期チェック）
+    Test-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
 }
 process{
-
-    # 二重起動の禁止
-    Test-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
+    # スクリプトバージョン情報をログに記録（デバッグ用）
+    Write-Host "[INFO] Script version: 1.2.0, Configuration version: $($script:yaml.Version)" -ForegroundColor Gray
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
@@ -256,9 +340,10 @@ process{
 }
 end{
     # ログファイルのパーミッション設定（現在のユーザーのみ読み取り可能）
+    # 管理者権限がない場合はスキップ
     try {
         if (Test-Path -Path $script:LogPath) {
-            $logFileAcl = Get-Acl -Path $script:LogPath
+            $logFileAcl = Get-Acl -Path $script:LogPath -ErrorAction Stop
             # 既存の継承権を無効化
             $logFileAcl.SetAccessRuleProtection($true, $false)
             # すべての権限を削除
@@ -267,10 +352,10 @@ end{
             $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
             $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "None", "None", "Allow")
             $logFileAcl.AddAccessRule($rule)
-            Set-Acl -Path $script:LogPath -AclObject $logFileAcl
+            Set-Acl -Path $script:LogPath -AclObject $logFileAcl -ErrorAction Stop
         }
     } catch {
-        Write-CommonLog -Message "[WARNING] Could not set permissions on log file: $_" -LogPath $script:LogPath -Level 'WARN'
+        Write-CommonLog -Message "[WARNING] Could not set ACL on log file (requires administrator privilege). Continuing without ACL configuration." -LogPath $script:LogPath -Level 'WARN'
     }
     
     # Measure-Commandの結果をログに出力

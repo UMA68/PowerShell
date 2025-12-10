@@ -1,3 +1,54 @@
+<#
+.SYNOPSIS
+    リリースバッチのカスタムファイルコピー処理を実行します
+
+.DESCRIPTION
+    指定されたリリースタイプに基づいて、リリース元フォルダからリリース先フォルダへ
+    ファイルをコピーします。既存ファイルがある場合はタイムスタンプ付きでリネームします。
+    
+    処理フロー:
+    1. リリース元フォルダのファイル確認
+    2. リリース先フォルダの既存ファイルをリネーム（yyyyMMdd-HHmmss形式）
+    3. 新しいファイルをリリース先へコピー
+    4. ログ記録
+
+.PARAMETER ReleaseType
+    リリースタイプ名。YAML設定ファイルで定義されたタイプを指定します。
+    例: 'TYPE_A', 'TYPE_B', 'TYPE_C'
+
+.PARAMETER Yaml
+    YAML設定オブジェクト。ConvertFrom-Yaml で解析されたハッシュテーブル
+
+.PARAMETER LogPath
+    ログファイルの完全パス
+
+.PARAMETER SensitivePatterns
+    ログに出力する際にマスキング対象とする機密情報キーワード配列
+    デフォルト: @()
+
+.EXAMPLE
+    Copy-ItemCustom -ReleaseType "TYPE_A" -Yaml $yamlConfig -LogPath "C:\Logs\release.log"
+
+.NOTES
+    File Name      : CopyItemCustom.ps1
+    Author         : UMA68
+    Version        : 1.2.0
+    Release Date   : 2025-12-10
+    Last Modified  : 2025-12-10
+    
+    依存関数:
+    - Write-CommonLog : ログ出力関数
+    - Invoke-ReleaseRules : リリースルール適用
+    
+    変更履歴:
+    v1.2.0 (2025-12-10)
+        - 機密情報マスキング機能追加
+        - SensitivePatterns パラメータ対応
+        
+    v1.1.0 (2025-11-20)
+        - 初版リリース
+#>
+
 function Copy-ItemCustom {
     param (
         [Parameter(Mandatory=$true)]
@@ -63,6 +114,34 @@ function Copy-ItemCustom {
     }
 }
 # リリースルールのスクリプト化
+<#
+.SYNOPSIS
+    リリースルールを適用してファイルをコピーします
+
+.DESCRIPTION
+    指定されたファイルに対してリリースルールを適用し、リリース先へコピーします。
+    既存ファイルが存在する場合はタイムスタンプ付きでリネーム・削除します。
+
+.PARAMETER ReleaseTypeName
+    リリースタイプ名（ログ出力用）
+
+.PARAMETER FileObject
+    コピー対象のファイルシステム情報オブジェクト
+
+.PARAMETER ReleaseDestination
+    リリース先フォルダパス
+
+.PARAMETER LogPath
+    ログファイルの完全パス
+
+.PARAMETER SensitivePatterns
+    ログに出力する際にマスキング対象とする機密情報キーワード配列
+
+.NOTES
+    内部用関数 - Copy-ItemCustom から呼び出されます
+    File Name: relMain.ps1 の Copy-ItemCustom 内部関数
+    Version: 1.2.0
+#>
 function Invoke-ReleaseRules{
     param (
         [Parameter(Mandatory=$true)]
