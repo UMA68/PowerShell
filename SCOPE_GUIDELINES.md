@@ -10,7 +10,7 @@
 
 スクリプト全体で共有される変数は、明示的に `$script:` スコープを使用してください。
 
-#### 対象となる変数
+#### 対象となる変数（スクリプトスコープ）
 
 - **パス関連変数**: `$script:ScriptPath`, `$script:UpperPath`, `$script:PowerShellDir`, `$script:YamlPath`, `$script:ComPath`, `$script:LogDir`, `$script:LogPath`
 - **設定オブジェクト**: `$script:Yaml`, `$script:YamlOBJ`
@@ -18,7 +18,7 @@
 - **スクリプトブロック関数**: `$script:ShowPopup`, `$script:GetMessage`
 - **共有リソース**: `$script:SensitivePatterns`, `$script:EncryptedKey`
 
-#### 例
+#### 例（スクリプトスコープ変数）
 
 ```powershell
 begin {
@@ -40,13 +40,13 @@ begin {
 
 一時的な計算や限定的なスコープで使用する変数は、スコープ修飾子を付けません。
 
-#### 対象となる変数)
+#### 対象となる変数（ローカル）
 
 - ループカウンター: `$i`, `$counter`
 - 一時的な計算結果: `$result`, `$output`
 - 関数内のローカル変数: `$tempFile`, `$fileEncoding`
 
-#### 例)
+#### 例（ローカル変数）
 
 ```powershell
 process {
@@ -61,7 +61,7 @@ process {
 
 関数のパラメーターは、通常のローカルスコープとして扱います。
 
-#### 例)
+#### 例（関数パラメーター）
 
 ```powershell
 function Copy-ItemCustom {
@@ -80,7 +80,7 @@ function Copy-ItemCustom {
 
 スクリプトブロック (`{}`) 内で親スコープの変数を参照する場合、明示的に `$script:` を使用します。
 
-#### 例)
+#### 例（スクリプトブロック）
 
 ```powershell
 $script:ShowPopup = {
