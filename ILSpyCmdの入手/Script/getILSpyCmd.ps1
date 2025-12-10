@@ -80,18 +80,34 @@
 #>
 param (
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        if ($_ -notmatch '\.(yaml|yml)$') {
+            throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
+        }
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
     [string]$EnvYaml = "getILSpyCmd.yaml"   # デフォルトのYAMLファイル名
 )
 
 begin{
     # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
-    $UpperPath = Split-Path -Parent $scriptPath                     # スクリプトの親パスを取得
-    $PowerShellDir = Split-Path -Parent $UpperPath                  # スクリプトの親パスの親パスを取得
-    $YamlDir = Join-Path -Path $UpperPath -ChildPath "YAML"         # YAMLフォルダのパスを取得
-    $YamlPath = Join-Path -Path $YamlDir -ChildPath $EnvYaml        # YAMLファイルのパスを取得
-    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
-    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
+    $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
+    $script:UpperPath = Split-Path -Parent $script:ScriptPath                     # スクリプトの親パスを取得
+    $script:PowerShellDir = Split-Path -Parent $script:UpperPath                  # スクリプトの親パスの親パスを取得
+    $script:YamlDir = Join-Path -Path $script:UpperPath -ChildPath "YAML"         # YAMLフォルダのパスを取得
+    $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml        # YAMLファイルのパスを取得
+    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
+    $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
     
     # COMオブジェクトの作成（スクリプト全体で使用）
     $script:comObject = $null
@@ -103,7 +119,7 @@ begin{
     }
 
     # 共通スクリプトのインポート
-    $commonLogPath = Join-Path -Path $comPath -ChildPath "Write-CommonLog.ps1"
+    $commonLogPath = Join-Path -Path $script:ComPath -ChildPath "Write-CommonLog.ps1"
     try{
         . $commonLogPath -ErrorAction Stop
     }catch{
@@ -113,16 +129,16 @@ begin{
     }
 
     # YAMLファイルの存在チェック
-    if (-not (Test-Path -Path $YamlPath)) {
-        $script:comObject.Popup("YAMLファイルが存在しません。`r`n`r`nパス: $YamlPath",0,"ファイルエラー",0x10) | Out-Null
-        Write-Error "Exit Code 1: YAML file not found - $YamlPath"
+    if (-not (Test-Path -Path $script:YamlPath)) {
+        $script:comObject.Popup("YAMLファイルが存在しません。`r`n`r`nパス: $($script:YamlPath)",0,"ファイルエラー",0x10) | Out-Null
+        Write-Error "Exit Code 1: YAML file not found - $($script:YamlPath)"
         exit 1
     }
     
     # YAMLファイルの読み込み（まず基本的なYAML読み込みのみ）
     try {
         Import-Module -Name "powershell-yaml" -ErrorAction Stop
-        $yaml = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
+        $script:Yaml = Get-Content -Path $script:YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
     } catch {
         $script:comObject.Popup("YAMLファイルの読み込みに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)",0,"YAML読み込みエラー",0x10) | Out-Null
         Write-Error "Exit Code 1: YAML parse failed - $($_.Exception.Message)"
@@ -130,8 +146,8 @@ begin{
     }
     
     # YAMLファイルにバージョン指定があれば、指定バージョンで再インポート
-    if ($yaml.Module.'Powershell-Yaml'.Version) {
-        [string]$PowershellYamlVersion = $yaml.Module.'Powershell-Yaml'.Version.ToString()
+    if ($script:Yaml.Module.'Powershell-Yaml'.Version) {
+        [string]$PowershellYamlVersion = $script:Yaml.Module.'Powershell-Yaml'.Version.ToString()
         try {
             Import-Module -Name "powershell-yaml" -RequiredVersion $PowershellYamlVersion -Force -ErrorAction Stop
         } catch {
@@ -223,8 +239,8 @@ begin{
     $script:HostName = $env:COMPUTERNAME
 
     # YAMLファイルから必要な情報を取得
-    $LogFileName = $yaml.LOG.FILENAME
-    $Logextension = $yaml.LOG.EXTENSION
+    $LogFileName = $script:Yaml.LOG.FILENAME
+    $Logextension = $script:Yaml.LOG.EXTENSION
 
     # ログファイルパスの定義（ミリ秒を含めて重複を回避）
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -242,11 +258,11 @@ process{
     Write-CommonLog -Message "USER: $script:User" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "Running as Administrator: $script:isAdmin" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "Running PowerShell Version: $($PSVersionTable.PSVersion)" -LogPath $script:Log -Level "INFO"
-    $ProjectLength = ("Project name: " + $yaml.Project).Length
+    $ProjectLength = ("Project name: " + $script:Yaml.Project).Length
     $ProjectLine = "=" * $ProjectLength
     Write-CommonLog -Message $ProjectLine -LogPath $script:Log -Level "INFO"
-    Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:Log -Level "INFO"
-    Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "Project name: $($script:Yaml.Project)" -LogPath $script:Log -Level "INFO"
+    Write-CommonLog -Message "Project version: $($script:Yaml.Version)" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message $ProjectLine -LogPath $script:Log -Level "INFO"
     
     # 改行をログに出力
@@ -265,8 +281,8 @@ process{
         Write-CommonLog -Message "Installation path: $installedPath" -LogPath $script:Log -Level "INFO"
         
         # YAMLに期待バージョンがあれば比較
-        if ($yaml.ILSpyCmd -and $yaml.ILSpyCmd.ExpectedVersion) {
-            $expectedVersion = $yaml.ILSpyCmd.ExpectedVersion
+        if ($script:Yaml.ILSpyCmd -and $script:Yaml.ILSpyCmd.ExpectedVersion) {
+            $expectedVersion = $script:Yaml.ILSpyCmd.ExpectedVersion
             Write-CommonLog -Message "Expected version (from YAML): $expectedVersion" -LogPath $script:Log -Level "INFO"
             # バージョン比較
             if ($installedVersion.ToString() -ne $expectedVersion) {
@@ -311,10 +327,10 @@ process{
             # はい(.NET SDKをインストール)
             6 {
                 # インストーラー格納先
-                $SdkFolderName = $yaml.DotnetSdk.SdkFolder
-                $SdkFolderPath = Join-Path -Path $UpperPath -ChildPath $SdkFolderName
-                $installerPath = Join-Path -Path $SdkFolderPath -ChildPath $yaml.DotnetSdk.Installer
-                $verSDK = $yaml.DotnetSdk.Version
+                $SdkFolderName = $script:Yaml.DotnetSdk.SdkFolder
+                $SdkFolderPath = Join-Path -Path $script:UpperPath -ChildPath $SdkFolderName
+                $installerPath = Join-Path -Path $SdkFolderPath -ChildPath $script:Yaml.DotnetSdk.Installer
+                $verSDK = $script:Yaml.DotnetSdk.Version
                 
                 # インストーラーの存在確認
                 if (-not (Test-Path -Path $installerPath)) {

@@ -179,6 +179,22 @@
 [CmdletBinding(SupportsShouldProcess=$true)]
 param (
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        if ($_ -notmatch '\.(yaml|yml)$') {
+            throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
+        }
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
     [string]$EnvYaml = "Decompile.yaml",    # YAML設定ファイル
     
     [Parameter(Mandatory=$false)]
@@ -224,7 +240,7 @@ begin{
     $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"   # ログフォルダーパス
     
     if (-not (Test-Path $LogDir)) { # ログフォルダーが存在しない場合は作成
-        New-Item -Path $LogDir -ItemType Directory -Force | Out-Null
+        New-Item -Path $script:LogDir -ItemType Directory -Force | Out-Null
     }
     
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"                     # タイムスタンプ
@@ -345,13 +361,13 @@ begin{
     }
 
     # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path           # スクリプトの実行パスを取得
-    $UpperPath = Split-Path -Parent $scriptPath                             # スクリプトの親パスを取得
-    $YamlPath = Join-Path -Path $UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
-    $LogDir = Join-Path -Path $UpperPath -ChildPath "Log"                   # ログフォルダー
+    $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path           # スクリプトの実行パスを取得
+    $script:UpperPath = Split-Path -Parent $script:ScriptPath                             # スクリプトの親パスを取得
+    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
+    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"                   # ログフォルダー
 
-    $oldDllFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Old"        # 古いDLLフォルダー
-    $newDllFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\New"        # 新しいDLLフォルダー
+    $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\Old"        # 古いDLLフォルダー
+    $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\New"        # 新しいDLLフォルダー
     $outputFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Decompiled" # 出力フォルダー
     
     Write-Verbose "スクリプトパス: $scriptPath"
@@ -892,7 +908,7 @@ end{
         Write-Host "========================================`n" -ForegroundColor $script:colorError
         
         # エラーレポートをファイルに保存
-        $errorReportPath = Join-Path $LogDir "DecompileErrors_$timestamp.txt"
+        $errorReportPath = Join-Path $script:LogDir "DecompileErrors_$timestamp.txt"
         $errorList | Format-Table -AutoSize | Out-File -FilePath $errorReportPath -Encoding UTF8
         Write-Host "エラーレポートを保存しました: " -NoNewline
         Write-Host "$errorReportPath" -ForegroundColor $script:colorWarning

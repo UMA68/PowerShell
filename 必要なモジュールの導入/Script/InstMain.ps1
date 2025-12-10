@@ -85,10 +85,10 @@ begin{
     $scriptDir = Split-Path $MyInvocation.MyCommand.Path    # スクリプト実行ディレクトリ取得
     $UpperDir = Split-Path $scriptDir -Parent               # スクリプト実行ディレクトリの親ディレクトリ取得
     $PowerShellDir = Split-Path $UpperDir -Parent           # PowerShellディレクトリ
-    $yamlDir = $UpperDir+"\YAML"                            # Yamlファイル格納ディレクトリ
-    $LogDir = $UpperDir+"\Log"                              # Logファイル格納ディレクトリ
-    $envPath = $yamlDir+"\"+$envFileName                    # yamlファイルのパス
-    $comPath = $PowerShellDir+"\Common"                     # 共通スクリプト格納ディレクトリ
+    $yamlDir = Join-Path -Path $UpperDir -ChildPath "YAML"  # Yamlファイル格納ディレクトリ
+    $LogDir = Join-Path -Path $UpperDir -ChildPath "Log"    # Logファイル格納ディレクトリ
+    $envPath = Join-Path -Path $yamlDir -ChildPath $envFileName  # yamlファイルのパス
+    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"  # 共通スクリプト格納ディレクトリ
     
     # ====================================
     # 環境変数の取得

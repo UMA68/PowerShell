@@ -132,6 +132,23 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # SdkVersion のバージョン形式を検証（x.x.xxx または x.x.xxx,x.x.xxx の形式）
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            # 空文字列は許可（対話的な入力を促す）
+            $true
+        } else {
+            # バージョン形式を検証（例：9.0.301 または 9.0.301,8.0.100）
+            $versions = $_ -split ','
+            foreach ($version in $versions) {
+                $version = $version.Trim()
+                if ($version -notmatch '^\d+\.\d+\.\d+$') {
+                    throw "バージョン形式が正しくありません。x.x.xxx 形式で指定してください: $_"
+                }
+            }
+            $true
+        }
+    })]
     [string]$SdkVersion,            # 削除する .NET SDKバージョン（省略時は対話的に入力を求める）
     
     [Parameter(Mandatory=$false)]
@@ -142,13 +159,13 @@ param (
 )
 
 begin {
-    # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
-    $UpperPath = Split-Path -Parent $scriptPath                     # スクリプトの親パスを取得
-    $PowerShellDir = Split-Path -Parent $UpperPath                  # スクリプトの親パスの親パスを取得
-    $LogDir = Join-Path -Path $UpperPath -ChildPath "LOG"           # ログディレクトリのパスを指定
-    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
-    $yamlPath = Join-Path -Path $UpperPath -ChildPath "YAML\DotNetUninst.yaml"  # YAML設定ファイルのパス
+    # スクリプトのパス情報を取得
+    $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
+    $script:UpperPath = Split-Path -Parent $script:ScriptPath                     # スクリプトの親パスを取得
+    $script:PowerShellDir = Split-Path -Parent $script:UpperPath                  # スクリプトの親パスの親パスを取得
+    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "LOG"           # ログディレクトリのパスを指定
+    $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
+    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\DotNetUninst.yaml"  # YAML設定ファイルのパス
     
     # YAML設定ファイルの読み込み
     try {
@@ -160,7 +177,7 @@ begin {
         Import-Module powershell-yaml -ErrorAction Stop
         
         # YAML読み込み
-        $yamlContent = Get-Content -Path $yamlPath -Raw -Encoding UTF8
+        $yamlContent = Get-Content -Path $script:YamlPath -Raw -Encoding UTF8
         $script:config = ConvertFrom-Yaml -Yaml $yamlContent
         
         # 設定値の検証
@@ -191,7 +208,7 @@ begin {
     }
 
     # 共通スクリプトのインポート
-    $commonLogPath = Join-Path -Path $comPath -ChildPath "Write-CommonLog.ps1"
+    $commonLogPath = Join-Path -Path $script:ComPath -ChildPath "Write-CommonLog.ps1"
     try {
         . $commonLogPath -ErrorAction Stop
     } catch {
@@ -202,13 +219,13 @@ begin {
     }
 
     # ログディレクトリが作成されていなければ作成
-    if (-not (Test-Path -Path $LogDir)) {
+    if (-not (Test-Path -Path $script:LogDir)) {
         try {
-            New-Item -Path $LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            New-Item -Path $script:LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
         } catch {
             $iconError = [int]$script:config.PopupIcon.Error
-            $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)", 0, "ディレクトリエラー", $iconError) | Out-Null
-            Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Log directory creation failed - $LogDir"
+            $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $($script:LogDir)`r`nエラー: $($_.Exception.Message)", 0, "ディレクトリエラー", $iconError) | Out-Null
+            Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Log directory creation failed - $($script:LogDir)"
             exit $script:config.ExitCode.GeneralError
         }
     }
@@ -219,7 +236,7 @@ begin {
         $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)
         $logFileName = $script:config.LOG.FILENAME
         $logExtension = $script:config.LOG.EXTENSION
-        $oldLogs = Get-ChildItem -Path $LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
+        $oldLogs = Get-ChildItem -Path $script:LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
                    Where-Object { $_.LastWriteTime -lt $cutoffDate }
         
         if ($oldLogs -and $oldLogs.Count -gt 0) {
@@ -245,7 +262,7 @@ begin {
     $milliseconds = (Get-Date).Millisecond.ToString("000")
     $logFileName = $script:config.LOG.FILENAME
     $logExtension = $script:config.LOG.EXTENSION
-    $script:Log = Join-Path -Path $LogDir -ChildPath ("${logFileName}_" + $timestamp + "-" + $milliseconds + $logExtension)
+    $script:Log = Join-Path -Path $script:LogDir -ChildPath ("${logFileName}_" + $timestamp + "-" + $milliseconds + $logExtension)
     
     # 管理者権限の確認
     $script:isAdmin = $false
@@ -497,7 +514,7 @@ process {
             }
             
             $backupFileName = "Backup_" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".json"
-            $backupPath = Join-Path -Path $LogDir -ChildPath $backupFileName
+            $backupPath = Join-Path -Path $script:LogDir -ChildPath $backupFileName
             $backupData | ConvertTo-Json -Depth 10 | Out-File -FilePath $backupPath -Encoding UTF8
             
             Write-CommonLog -Message "Backup created: $backupPath" -LogPath $script:Log -Level "INFO"

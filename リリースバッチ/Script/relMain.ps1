@@ -80,14 +80,43 @@
 
 # ===================================
 # 起動オプション
-#  -DecryptionKey   鍵ファイル指定
+#  -DecryptionKey   鍵ファイル指定 (現在未使用・将来の暗号化機能用に予約)
 #  -EnvYaml         YAMLファイル指定
 # ===================================
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$DecryptionKey = "Encryption.Key" , # オプション無しのデフォルト値
+    [ValidateScript({
+        # ファイル名としての有効性を検証
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
+    [string]$DecryptionKey = "Encryption.Key" , # 暗号化鍵ファイル名（現在未使用・将来の暗号化機能用に予約）
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        if ($_ -notmatch '\.(yaml|yml)$') {
+            throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
+        }
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
@@ -100,13 +129,18 @@ begin{
     }
     
     # スクリプトの実行環境を取得
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
-    $UpperPath = Split-Path -Parent $scriptPath                         # スクリプトの親パスを取得
-    $PowerShellDir = Split-Path -Parent $UpperPath                      # スクリプトの親パスの親パスを取得
-    $YamlPath = Join-Path -Path $UpperPath -ChildPath "YAML" | Join-Path -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
-    # $KeyPath = Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得（将来使用予定）
+    $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
+    $script:UpperPath = Split-Path -Parent $script:ScriptPath                   # スクリプトの親パスを取得
+    $script:PowerShellDir = Split-Path -Parent $script:UpperPath                # スクリプトの親パスの親パスを取得
+    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML" | Join-Path -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
     
-    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
+    # NOTE: 暗号化機能は現在未実装
+    # 将来、リリース設定に機密情報（パスワード、APIキーなど）を含める場合、
+    # 以下の$KeyPathを使用して暗号化・復号化機能を実装する予定
+    # 実装例は sqlMain.ps1 の復号化処理を参照
+    # $script:KeyPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath $DecryptionKey
+    
+    $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
 
     # ユーザの特定
     $script:User = $env:USERNAME
@@ -114,10 +148,10 @@ begin{
 
     # .ps1ファイルの読み込み
     try{
-        . (Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "FindModule.ps1") -ErrorAction Stop
-        . (Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
-        . (Join-Path -Path $comPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop
-        . (Join-Path -Path $scriptPath -ChildPath "CopyItemCustom.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "FindModule.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:ComPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:ScriptPath -ChildPath "CopyItemCustom.ps1") -ErrorAction Stop
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
@@ -148,7 +182,7 @@ begin{
 
     # YAMLファイルの読み込み
     try{
-        $script:yaml = Get-Content $YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
+        $script:Yaml = Get-Content $script:YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
@@ -187,41 +221,41 @@ begin{
         )
         # スクリプトブロックの可変長引数は$argsに入る
         $Arguments = $args
-        $lang = $script:yaml.MESSAGES.LANGUAGE
-        $message = $script:yaml.MESSAGES.$lang.$Key
+        $script:Lang = $script:Yaml.MESSAGES.LANGUAGE
+        $script:Message = $script:Yaml.MESSAGES.$script:Lang.$Key
         
         # メッセージがない場合はキーをそのまま返す
-        if ([string]::IsNullOrEmpty($message)) {
+        if ([string]::IsNullOrEmpty($script:Message)) {
             return $Key
         }
         
         # YAMLのエスケープシーケンスを実際の改行に変換
-        $message = $message.Replace('\r\n', "`r`n").Replace('\n', "`n")
+        $script:Message = $script:Message.Replace('\r\n', "`r`n").Replace('\n', "`n")
         
         # 引数があれば、文字列をフォーマット
         if ($Arguments -and $Arguments.Count -gt 0) {
             try {
-                return ($message -f $Arguments)
+                return ($script:Message -f $Arguments)
             } catch {
-                return $message
+                return $script:Message
             }
         }
         
-        return $message
+        return $script:Message
     }
 
     # ログの定義
-    $script:LogPath = Join-Path -Path $yaml.LOG.PATH -ChildPath ($yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$yaml.LOG.EXTENSION) # ログの保存先
+    $script:LogPath = Join-Path -Path $script:Yaml.LOG.PATH -ChildPath ($script:Yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$script:Yaml.LOG.EXTENSION) # ログの保存先
     # ログファイルのディレクトリが存在しなければ作成
-    $logDir = Split-Path -Parent $script:LogPath
-    if (-not (Test-Path -Path $logDir)) {
-        New-Item -ItemType Directory -Path $logDir | Out-Null
+    $script:LogDir = Split-Path -Parent $script:LogPath
+    if (-not (Test-Path -Path $script:LogDir)) {
+        New-Item -ItemType Directory -Path $script:LogDir | Out-Null
     }
     
     # ログディレクトリのパーミッション設定（現在のユーザーのみアクセス可能）
     # 管理者権限がない場合はスキップ
     try {
-        $logDirAcl = Get-Acl -Path $logDir -ErrorAction Stop
+        $logDirAcl = Get-Acl -Path $script:LogDir -ErrorAction Stop
         # 既存の継承権を無効化
         $logDirAcl.SetAccessRuleProtection($true, $false)
         # すべての権限を削除
@@ -230,7 +264,7 @@ begin{
         $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
         $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $logDirAcl.AddAccessRule($rule)
-        Set-Acl -Path $logDir -AclObject $logDirAcl -ErrorAction Stop
+        Set-Acl -Path $script:LogDir -AclObject $logDirAcl -ErrorAction Stop
     } catch {
         # ACL設定に失敗した場合は警告を表示するが、処理を続行
         # （管理者権限がない場合など）
@@ -246,8 +280,8 @@ process{
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if($script:yaml.PowerShell.Version -ne $PwsVerChk){
-        [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
+    if($script:Yaml.PowerShell.Version -ne $PwsVerChk){
+        [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:Yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
         switch($Button){
             6 { break } # OK(Continue)
             7 { exit }  # Cancel(End)
@@ -272,17 +306,17 @@ process{
     }
 
     # タイトル表示
-    $ProjectLength = "Project name: $($yaml.Project)".Length    # プロジェクト名の長さを取得
+    $ProjectLength = "Project name: $($script:Yaml.Project)".Length    # プロジェクト名の長さを取得
     $ProjectLine = "=" * $ProjectLength                         # プロジェクト名の長さと同じ長さの=を作成
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                            # プロジェクト名の長さと同じ長さの=をログに出力
-    Write-CommonLog -Message "Project name: $($yaml.Project)" -LogPath $script:LogPath -Level 'INFO'        # プロジェクト名をログに出力
-    Write-CommonLog -Message "Project version: $($yaml.Version)" -LogPath $script:LogPath -Level 'INFO'     # バージョンをログに出力
+    Write-CommonLog -Message "Project name: $($script:Yaml.Project)" -LogPath $script:LogPath -Level 'INFO'        # プロジェクト名をログに出力
+    Write-CommonLog -Message "Project version: $($script:Yaml.Version)" -LogPath $script:LogPath -Level 'INFO'     # バージョンをログに出力
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
     
     # モジュールのインポート
-    foreach($ModuleType in $yaml.Module.Keys){
-        $ModuleName = $yaml.Module.$ModuleType.Name         # モジュール名
-        $ModuleVersion = $yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
+    foreach($ModuleType in $script:Yaml.Module.Keys){
+        $ModuleName = $script:Yaml.Module.$ModuleType.Name         # モジュール名
+        $ModuleVersion = $script:Yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
         
         # もし、モジュール名かバージョンが空であれば、スキップ
         if ([string]::IsNullOrWhiteSpace($ModuleName) -or [string]::IsNullOrWhiteSpace($ModuleVersion)) {
@@ -331,10 +365,10 @@ process{
     $TimeLap = Measure-Command{ # 開始時間を取得
 
     # リリース処理
-    $AllTypeObj = $yaml.RELEASE.Keys # リリースタイプの取得
+    $AllTypeObj = $script:Yaml.RELEASE.Keys # リリースタイプの取得
     foreach($ReleaseType in $AllTypeObj){
         # リリース処理を実行
-        Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $yaml -LogPath $script:LogPath -SensitivePatterns $script:SensitivePatterns
+        Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $script:Yaml -LogPath $script:LogPath -SensitivePatterns $script:SensitivePatterns
     }    } # ここまで時間計測
 
 }
@@ -359,7 +393,6 @@ end{
     }
     
     # Measure-Commandの結果をログに出力
-    Write-CommonLog -Message "Elapsed time for release: $($TimeLap.TotalSeconds) seconds" -LogPath $script:LogPath -Level 'INFO'    # リリース処理の経過時間をログに出力
     Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO' # リリース処理の経過時間をログに出力
     Write-CommonLog -Message "Release end time: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" -LogPath $script:LogPath -Level 'INFO'   # リリース終了時間をログに出力
     

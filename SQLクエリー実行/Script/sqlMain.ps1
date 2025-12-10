@@ -79,7 +79,38 @@ PowerShell/
 # SQLファイルを実行するスクリプト
 
 param(
+    [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # ファイル名としての有効性を検証
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
     [string]$DecryptionKey = "Encryption.Key",  # 復号化鍵ファイル名
+    [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        if ($_ -notmatch '\.(yaml|yml)$') {
+            throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
+        }
+        if ($_ -match '[\\/:"*?<>|]') {
+            throw "ファイル名に使用できない文字が含まれています: $_"
+        }
+        if ([string]::IsNullOrWhiteSpace($_)) {
+            throw "ファイル名は空にできません"
+        }
+        if ($_.Length -gt 255) {
+            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        }
+        $true
+    })]
     [string]$EnvYaml = "sql.yaml"               # 設定ファイル名
 )
 
@@ -89,21 +120,21 @@ begin {
     # ディレクトリとパスの初期化
     # ====================================
     # スクリプト実行位置から相対的にパスを構築
-    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path    # スクリプトディレクトリ
-    $UpperDir = Split-Path -Parent $ScriptDir                       # SQLクエリー実行フォルダ
-    $PowerShellDir = Split-Path -Parent $UpperDir                   # PowerShellフォルダ
-    $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"   # 共通スクリプトフォルダ
-    $Yaml = Join-Path -Path $UpperDir -ChildPath "YAML"             # 設定ファイルフォルダ
-    $KeyPath = Join-Path -Path $comPath -ChildPath $DecryptionKey   # 鍵ファイルパス
-    $YamlPath = Join-Path -Path $Yaml -ChildPath $EnvYaml           # 設定ファイルパス
+    $script:ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path    # スクリプトディレクトリ
+    $script:UpperDir = Split-Path -Parent $script:ScriptDir                       # SQLクエリー実行フォルダ
+    $script:PowerShellDir = Split-Path -Parent $script:UpperDir                   # PowerShellフォルダ
+    $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトフォルダ
+    $script:YamlDir = Join-Path -Path $script:UpperDir -ChildPath "YAML"             # 設定ファイルフォルダ
+    $script:KeyPath = Join-Path -Path $script:ComPath -ChildPath $DecryptionKey   # 鍵ファイルパス
+    $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml           # 設定ファイルパス
 
     # ====================================
     # 共通スクリプトの読み込み
     # ====================================
     # 二重起動チェックとコマンド検証用スクリプトを読み込む
     try {
-        . (Join-Path -Path $comPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
-        . (Join-Path -Path $comPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:ComPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
+        . (Join-Path -Path $script:ComPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop
     } catch {
         $obj = $null
         try {
@@ -165,7 +196,7 @@ begin {
 
     # YAML設定ファイルを読み込む
     try {
-        $YamlOBJ = Get-Content $YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered 
+        $script:YamlOBJ = Get-Content $script:YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered 
     }
     catch {
         $obj = $null
@@ -186,12 +217,12 @@ begin {
     # ====================================
     # YAML設定のバージョンと実行バージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    $pwsAssumVer = $YamlOBJ.PowerShell.Version
+    $pwsAssumVer = $script:YamlOBJ.PowerShell.Version
     $obj = $null
     if ($pwsVerChk -ne $pwsAssumVer) {  # バージョン不一致
         try {
             $obj = New-Object -ComObject WScript.Shell
-            [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $pwsAssumVer + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
+            [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $script:YamlOBJ.PowerShell.Version + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
             switch ($retButton) {
                 1 { break }  # OK
                 2 {
@@ -214,15 +245,15 @@ begin {
     # 必須モジュールのインポート
     # ====================================
     # YAMLに記述されたバージョンでモジュールをインポート
-    foreach ($module in $YamlOBJ.Module.Keys) { # 各モジュールを処理
+    foreach ($module in $script:YamlOBJ.Module.Keys) { # 各モジュールを処理
         try {
-            Import-Module $YamlOBJ.Module.$module.Name -RequiredVersion $YamlOBJ.Module.$module.Version -ErrorAction Stop
+            Import-Module $script:YamlOBJ.Module.$module.Name -RequiredVersion $script:YamlOBJ.Module.$module.Version -ErrorAction Stop
         }
         catch {
             $obj = $null
             try {
                 $obj = New-Object -ComObject WScript.Shell
-                $obj.Popup($YamlOBJ.Module.$module.Name + "：" + $YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
+                $obj.Popup($script:YamlOBJ.Module.$module.Name + "：" + $script:YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
             } finally {
                 if ($null -ne $obj) {
                     try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
@@ -237,34 +268,34 @@ begin {
     # ログファイルの初期化
     # ====================================
     # ログ出力先ディレクトリを作成（未存在の場合）
-    $LogFolder = Join-Path -Path $UpperDir -ChildPath $YamlOBJ.LOG.FOLDER
-    if (-not (Test-Path -Path $LogFolder)) {    # ログフォルダがなければ作成
-        New-Item -Path $LogFolder -ItemType Directory -Force | Out-Null
+    $script:LogFolder = Join-Path -Path $script:UpperDir -ChildPath $script:YamlOBJ.LOG.FOLDER
+    if (-not (Test-Path -Path $script:LogFolder)) {    # ログフォルダがなければ作成
+        New-Item -Path $script:LogFolder -ItemType Directory -Force | Out-Null
     }
-    $LogFileName = $YamlOBJ.LOG.FILENAME + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + $YamlOBJ.LOG.EXTENSION
-    $LogPath = Join-Path -Path $LogFolder -ChildPath $LogFileName
+    $LogFileName = $script:YamlOBJ.LOG.FILENAME + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + $script:YamlOBJ.LOG.EXTENSION
+    $script:LogPath = Join-Path -Path $script:LogFolder -ChildPath $LogFileName
 
     # ====================================
     # SQL接続パラメータの定義
     # ====================================
     # ホスト、ポート、データベース、ユーザー名の設定
-    if ($YamlOBJ.HOST.PORT) {   # ポート指定がある場合
-        [string]$ServerInstance = "$($YamlOBJ.HOST.SERVER),$($YamlOBJ.HOST.PORT)"
+    if ($script:YamlOBJ.HOST.PORT) {   # ポート指定がある場合
+        [string]$script:ServerInstance = "$($script:YamlOBJ.HOST.SERVER),$($script:YamlOBJ.HOST.PORT)"
     } else {    # ポート指定がない場合
-        [string]$ServerInstance = $YamlOBJ.HOST.SERVER
+        [string]$script:ServerInstance = $script:YamlOBJ.HOST.SERVER
     }
-    [string]$Database = $YamlOBJ.HOST.DATABASE
-    [string]$Username = $YamlOBJ.HOST.USERNAME
-    [string]$pwFile = $YamlOBJ.HOST.PWF
-    $pwFilePath = Join-Path -Path $UpperDir -ChildPath $pwFile
+    [string]$script:Database = $script:YamlOBJ.HOST.DATABASE
+    [string]$script:Username = $script:YamlOBJ.HOST.USERNAME
+    [string]$pwFile = $script:YamlOBJ.HOST.PWF
+    $script:PwFilePath = Join-Path -Path $script:UpperDir -ChildPath $pwFile
 
     # ====================================
     # 復号化鍵の読み込み
     # ====================================
     # パスワード復号化用の鍵ファイルを読み込む
     try {
-        if (Test-Path -Path $KeyPath) { # 鍵ファイルが存在する場合
-            [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($KeyPath)
+        if (Test-Path -Path $script:KeyPath) { # 鍵ファイルが存在する場合
+            [byte[]]$script:EncryptedKey = [System.IO.File]::ReadAllBytes($script:KeyPath)
             Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
         } else {    # 鍵ファイルが存在しない場合
             throw "鍵ファイル『$DecryptionKey』が見つかりません。"
@@ -274,7 +305,7 @@ begin {
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$comPath`" へ置いてください。", 0, "エラー", 0x10)
+            $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$($script:ComPath)`" へ置いてください。", 0, "エラー", 0x10)
         } finally {
             if ($null -ne $obj) {
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
@@ -289,10 +320,10 @@ begin {
     # ====================================
     # 暗号化されたパスワードファイルを復号化して平文に変換
     try {
-        if (-not (Test-Path -Path $pwFilePath)) {   # パスワードファイルが存在しない場合
+        if (-not (Test-Path -Path $script:PwFilePath)) {   # パスワードファイルが存在しない場合
             throw "パスワードファイル『$pwFile』が見つかりません。"
         }
-        $password = Get-Content -Path $pwFilePath | ConvertTo-SecureString -Key $EncryptedKey -ErrorAction Stop
+        $password = Get-Content -Path $script:PwFilePath | ConvertTo-SecureString -Key $script:EncryptedKey -ErrorAction Stop
     }
     catch {
         Write-Host "パスワードの復号化に失敗しました。" -ForegroundColor Yellow
@@ -311,25 +342,25 @@ process {
     # SQLファイルの検出と準備
     # ====================================
     # YAML設定から SQL ファイル格納フォルダを取得
-    $YamlSQL = $YamlOBJ.RELEASE.SQL.FolderBy[0]
-    $SqlFolder = Join-Path -Path $UpperDir -ChildPath $YamlSQL
+    $YamlSQL = $script:YamlOBJ.RELEASE.SQL.FolderBy[0]
+    $script:SqlFolder = Join-Path -Path $script:UpperDir -ChildPath $YamlSQL
     
     # SQLフォルダの存在確認
-    if (-not (Test-Path -Path $SqlFolder)) {    # SQLフォルダ無し
+    if (-not (Test-Path -Path $script:SqlFolder)) {    # SQLフォルダ無し
         $errorMsg = "SQLフォルダ『$YamlSQL』が見つかりません。処理を終了します。"
         Write-Host $errorMsg -ForegroundColor Red
-        Write-Output $errorMsg | Out-File -FilePath $LogPath -Append
+        Write-Output $errorMsg | Out-File -FilePath $script:LogPath -Append
         exit
     }
     
     # SQLファイルをファイル名順でソート取得
-    $SqlFiles = Get-ChildItem -Path $SqlFolder -Filter *.sql | Sort-Object Name
+    $SqlFiles = Get-ChildItem -Path $script:SqlFolder -Filter *.sql | Sort-Object Name
     
     # SQLファイルが存在しない場合は警告
     if ($SqlFiles.Count -eq 0) {    # SQLファイル無し
         $warnMsg = "SQLフォルダ内に.sqlファイルが見つかりません。"
         Write-Host $warnMsg -ForegroundColor Yellow
-        Write-Output $warnMsg | Out-File -FilePath $LogPath -Append
+        Write-Output $warnMsg | Out-File -FilePath $script:LogPath -Append
         exit
     }
 
@@ -338,13 +369,13 @@ process {
     # ====================================
     # TrustServerCertificate パラメータの必要性を判定
     # SQL Server 2019以降ではTrustServerCertificate=true が必要
-    $TrustServerCert = $false
-    if ($YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') {    # バージョン情報がある場合
+    $script:TrustServerCert = $false
+    if ($script:YamlOBJ.HOST.VERSION -match 'SQL Server (\d{4})') {    # バージョン情報がある場合
         $sqlVersion = [int]$Matches[1]
-        $TrustServerCert = ($sqlVersion -ge 2019)
+        $script:TrustServerCert = ($sqlVersion -ge 2019)
     } else {    # バージョン情報が不明な場合は警告を表示して有効にする
         Write-Host "SQL Serverバージョンの判定に失敗しました。TrustServerCertificateを有効にします。" -ForegroundColor Yellow
-        $TrustServerCert = $true
+        $script:TrustServerCert = $true
     }
     
     # ====================================
@@ -355,8 +386,8 @@ process {
     $errorCount = 0
     
     foreach ($sqlFile in $SqlFiles) {   # 各SQLファイルを処理
-        Write-Output "====================================" | Tee-Object -FilePath $LogPath -Append | Out-Default
-        Write-Output $sqlFile.Name | Tee-Object -FilePath $LogPath -Append | Out-Default
+        Write-Output "====================================" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+        Write-Output $sqlFile.Name | Tee-Object -FilePath $script:LogPath -Append | Out-Default
         
         $tempFile = $null
         try {
@@ -366,10 +397,10 @@ process {
             # ファイルがUTF-8(CRLF)以外だったらUTF-8(CRLF)に変換する
             $fileEncoding = & nkf32 --guess $sqlFile.FullName
             if ($fileEncoding -ne "UTF-8 (CRLF)") { # UTF-8(CRLF)でない場合
-                Write-Output "///文字エンコーディング変換: $fileEncoding → UTF-8 (CRLF)///" | Tee-Object -FilePath $LogPath -Append | Out-Default
+                Write-Output "///文字エンコーディング変換: $fileEncoding → UTF-8 (CRLF)///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
                 $tempFile = $sqlFile.FullName + ".utf8(CRLF)"
                 & nkf32 --ms-ucs-map -x -wLw -O $sqlFile.FullName $tempFile # UTF-8(CRLF)に変換して一時ファイルに保存
-                Write-Output "///一時ファイル作成: $tempFile///" | Tee-Object -FilePath $LogPath -Append | Out-Default
+                Write-Output "///一時ファイル作成: $tempFile///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
                 $sqlFile = Get-Item -Path $tempFile
             }
             
@@ -380,15 +411,15 @@ process {
             $invokeParams = @{  # invoke-sqlcmd パラメータ
                 ErrorAction     = 'Stop'
                 InputFile       = $sqlFile.FullName
-                ServerInstance  = $ServerInstance
-                Database        = $Database
-                Username        = $Username
+                ServerInstance  = $script:ServerInstance
+                Database        = $script:Database
+                Username        = $script:Username
                 Password        = $password
                 QueryTimeout    = 0
             }
             
             # SQL Server 2019以降の場合のみ TrustServerCertificate を追加
-            if ($TrustServerCert) { # TrustServerCertificate が必要な場合
+            if ($script:TrustServerCert) { # TrustServerCertificate が必要な場合
                 $invokeParams['TrustServerCertificate'] = $true
             }
             
@@ -400,9 +431,9 @@ process {
             # ====================================
             # 結果セットが空の場合は専用メッセージ、そうでなければ表形式で出力
             if ($null -eq $result -or @($result).Count -eq 0) { # 結果セットなし
-                Write-Output "(結果セットなし)" | Tee-Object -FilePath $LogPath -Append | Out-Default
+                Write-Output "(結果セットなし)" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             } else {    # 結果セットあり
-                $result | Select-Object -Property * -ExcludeProperty RowError, RowState, Table, ItemArray, HasErrors | Format-Table -Property * -AutoSize -Wrap | Out-String -Width 4096 | Tee-Object -FilePath $LogPath -Append | Out-Default
+                $result | Select-Object -Property * -ExcludeProperty RowError, RowState, Table, ItemArray, HasErrors | Format-Table -Property * -AutoSize -Wrap | Out-String -Width 4096 | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             }
             $successCount++
         }
@@ -411,8 +442,8 @@ process {
             # エラー処理
             # ====================================
             # SQL実行エラーをログに記録
-            Write-Output "///エラーが発生しました。///" | Tee-Object -FilePath $LogPath -Append | Out-Default
-            Write-Output $_.Exception.Message | Tee-Object -FilePath $LogPath -Append | Out-Default
+            Write-Output "///エラーが発生しました。///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+            Write-Output $_.Exception.Message | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             $errorCount++
         }
         finally {
@@ -424,7 +455,7 @@ process {
                 Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
             }
         }
-        Write-Output "====================================" | Tee-Object -FilePath $LogPath -Append | Out-Default
+        Write-Output "====================================" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
     }
     
     # ====================================
@@ -434,5 +465,5 @@ process {
     $totalCount = $SqlFiles.Count
     $summaryMsg = "`n実行完了: 合計 $totalCount 件 (成功: $successCount 件, エラー: $errorCount 件)"
     Write-Host $summaryMsg -ForegroundColor Cyan
-    Write-Output $summaryMsg | Out-File -FilePath $LogPath -Append
+    Write-Output $summaryMsg | Out-File -FilePath $script:LogPath -Append
 }

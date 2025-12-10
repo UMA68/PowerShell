@@ -4,13 +4,13 @@ function Get-ScriptPaths {
         # Upper = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
         # PowerShell = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
         # Common = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))) "Common"
-        $scriptDir = Split-Path $MyInvocation.MyCommand.Path    # スクリプト実行ディレクトリ取得
-        $UpperDir = Split-Path $scriptDir -Parent               # スクリプト実行ディレクトリの親ディレクトリ取得
-        $PowerShellDir = Split-Path $UpperDir -Parent           # PowerShellディレクトリ
-        $yamlDir = $UpperDir+"\YAML"                            # Yamlファイル格納ディレクトリ
-        $LogDir = $UpperDir+"\Log"                              # Logファイル格納ディレクトリ
-        $envPath = $yamlDir+"\"+$envFileName                    # yamlファイルのパス
-        $comPath = $PowerShellDir+"\Common"                     # 共通スクリプト格納ディレクトリ
+        $scriptDir = Split-Path $MyInvocation.MyCommand.Path  # スクリプト実行ディレクトリ取得
+        $UpperDir = Split-Path $scriptDir -Parent             # スクリプト実行ディレクトリの親ディレクトリ取得
+        $PowerShellDir = Split-Path $UpperDir -Parent         # PowerShellディレクトリ
+        $yamlDir = Join-Path -Path $UpperDir -ChildPath "YAML"  # Yamlファイル格納ディレクトリ
+        $LogDir = Join-Path -Path $UpperDir -ChildPath "Log"   # Logファイル格納ディレクトリ
+        $envPath = Join-Path -Path $yamlDir -ChildPath $envFileName  # yamlファイルのパス
+        $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"  # 共通スクリプト格納ディレクトリ
     }
 
     $null = Register-EngineEvent PowerShell.Exiting -Action {
