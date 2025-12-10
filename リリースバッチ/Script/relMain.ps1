@@ -13,10 +13,10 @@ param(
 begin{
     # スクリプトの実行環境を取得
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
-    $UpperPath = $scriptPath | Split-Path -Parent                       # スクリプトの親パスを取得
-    $PowerShellDir = $UpperPath | Split-Path -Parent                    # スクリプトの親パスの親パスを取得
-    $YamlPath = Join-Path -Path $UpperPath"\YAML" -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
-    # $KeyPath = Join-Path -Path $PowerShellDir"\Common" -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得（将来使用予定）
+    $UpperPath = Split-Path -Parent $scriptPath                         # スクリプトの親パスを取得
+    $PowerShellDir = Split-Path -Parent $UpperPath                      # スクリプトの親パスの親パスを取得
+    $YamlPath = Join-Path -Path $UpperPath -ChildPath "YAML" | Join-Path -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
+    # $KeyPath = Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath $DecryptionKey    # 鍵ファイルのフルパスを取得（将来使用予定）
     
     $comPath = Join-Path -Path $PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
 
@@ -26,15 +26,15 @@ begin{
 
     # .ps1ファイルの読み込み
     try{
-        . $PowerShellDir"\Common\FindModule.ps1" -ErrorAction Stop
-        . $PowerShellDir"\Common\NoDoubleActivation.ps1" -ErrorAction Stop
-        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop
-        . $scriptPath"\CopyItemCustom.ps1" -ErrorAction Stop
+        . (Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "FindModule.ps1") -ErrorAction Stop
+        . (Join-Path -Path $PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
+        . (Join-Path -Path $comPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop
+        . (Join-Path -Path $scriptPath -ChildPath "CopyItemCustom.ps1") -ErrorAction Stop
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
         exit # 終了
     }
 
@@ -42,8 +42,8 @@ begin{
     try {
         if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml")) {
             $obj = New-Object -ComObject WScript.Shell
-            # $obj.Popup("モジュール 'PowerShell-Yaml' がインストールされていません。処理を終了します。", 0, "Module Check", 0x30) | Out-Null
             $obj.Popup("Module 'PowerShell-Yaml' is not installed. I'm ending the process.", 0, "Module Check", 0x30) | Out-Null
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             exit # 終了
         }
     }
@@ -51,18 +51,49 @@ begin{
         # Test-ModuleInstalledを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup("I couldn't execute 'Test-ModuleInstalled'. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
         exit # 終了
     }
 
     # YAMLファイルの読み込み
     try{
-        $yaml = Get-Content $YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
+        $script:yaml = Get-Content $YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        # $obj.Popup("YAMLファイルを読み込めませんでした。処理を終了します。`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
         exit # 終了
+    }
+    
+    # メッセージ取得関数（YAMLから言語に応じたメッセージを取得）
+    $script:GetMessage = {
+        param(
+            [string]$Key
+        )
+        # スクリプトブロックの可変長引数は$argsに入る
+        $Arguments = $args
+        $lang = $script:yaml.MESSAGES.LANGUAGE
+        $message = $script:yaml.MESSAGES.$lang.$Key
+        
+        # メッセージがない場合はキーをそのまま返す
+        if ([string]::IsNullOrEmpty($message)) {
+            return $Key
+        }
+        
+        # YAMLのエスケープシーケンスを実際の改行に変換
+        $message = $message.Replace('\r\n', "`r`n").Replace('\n', "`n")
+        
+        # 引数があれば、文字列をフォーマット
+        if ($Arguments -and $Arguments.Count -gt 0) {
+            try {
+                return ($message -f $Arguments)
+            } catch {
+                return $message
+            }
+        }
+        
+        return $message
     }
 
     # ログの定義
@@ -80,32 +111,33 @@ process{
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if($yaml.PowerShell.Version -ne $PwsVerChk){
+    if($script:yaml.PowerShell.Version -ne $PwsVerChk){
         $obj = New-Object -ComObject WScript.Shell
-        # [int]$Button = $obj.Popup("実行中のPowerShellは"+$PwsVerChk+"です。`r`n`r`nこのスクリプトはバージョン"+$yaml.PowerShell.Version+"でのみ動作確認しています。処理を続行しますか？", 0, "警告", 4)
-        [int]$Button = $obj.Popup("The running PowerShell version is "+$PwsVerChk+".`r`n`r`nThis script has only been tested with version "+$yaml.PowerShell.Version+". Do you want to continue?", 0, "WARNING", 4)
+        [int]$Button = $obj.Popup((& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:yaml.PowerShell.Version), 0, "WARNING", 4)
         switch($Button){
-            6 { break } # OK(Continue)
-            7 { exit }  # Cancel(End)
-            # default { Write-Log "不明なボタンが押されました。" } # Unknown
-            default { Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR' ; exit } # Unknown
+            6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
+            7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
+            default { 
+                Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
+                $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                exit
+            }
         }
     }
 
     # 実行するかどうかの確認
     $obj = New-Object -ComObject WScript.Shell
-    # [int]$Button = $obj.Popup("リリースを実行しますか？", 0, "問い合わせ", 4) | Out-Null
-    [int]$Button = $obj.Popup("Do you want to execute the release?", 0, "INQUIRY", 4)
+    [int]$Button = $obj.Popup((& $script:GetMessage "EXECUTE_CONFIRM"), 0, "INQUIRY", 4)
     switch($Button){
-        6 { break } # OK(Continue)
-        7 { exit }  # Cancel(End)
+        6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
+        7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
         default { 
-            # Write-CommonLog "An unknown button was pressed."
-            Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR'
-            # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
-            $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
+            Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
+            $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             exit
-        } # Unknown
+        }
     }
 
     # タイトル表示
@@ -123,36 +155,37 @@ process{
         
         # もし、モジュール名かバージョンが空であれば、スキップ
         if ([string]::IsNullOrWhiteSpace($ModuleName) -or [string]::IsNullOrWhiteSpace($ModuleVersion)) {
-            Write-CommonLog -Message "Module name or version is empty. Skipping module import." -LogPath $script:LogPath -Level 'WARN' # ログにエラーメッセージを出力
+            Write-CommonLog -Message (& $script:GetMessage "MODULE_EMPTY_SKIP") -LogPath $script:LogPath -Level 'WARN'
             continue # スキップ
         }
         # モジュールがインストールされているか確認
         if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) {
             # モジュールがインストールされていない場合は、インストールを促す
             $obj = New-Object -ComObject WScript.Shell
-            # [int]$Button = $obj.Popup("Module '$ModuleName' がインストールされていません. インストールを実施してください。", 0, "Module Check", 4)
-            [int]$Button = $obj.Popup("Module '$ModuleName' is not installed. Do you want to install it?", 0, "Module Check", 4)
+            [int]$Button = $obj.Popup((& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName), 0, "Module Check", 4)
             switch($Button){
-                6 { break } # OK(Continue)
-                7 { exit }  # Cancel(End)
+                6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
+                7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
                 default { 
-                    # Write-Log "An unknown button was pressed."
-                    Write-CommonLog -Message "An unknown button was pressed." -LogPath $script:LogPath -Level 'ERROR'
-                    # $obj.Popup("不明なボタンが押されました。", 0, "Unknown", 0x30) | Out-Null
-                    $obj.Popup("An unknown button was pressed.", 0, "Unknown", 0x30) | Out-Null
+                    Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
+                    $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
+                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                     exit
-                } # Unknown
+                }
             }
         }
         
         try{
             # モジュールのインポート
-            Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop # モジュールのインポート
-            Write-CommonLog -Message "The import of module '$ModuleName($ModuleVersion)' was successful." -LogPath $script:LogPath -Level 'INFO' # モジュールのインポート成功メッセージ
+            Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop
+            $msg = & $script:GetMessage "MODULE_IMPORT_SUCCESS" $ModuleName $ModuleVersion
+            Write-CommonLog -Message $msg -LogPath $script:LogPath -Level 'INFO'
         }catch{
             # モジュールのインポートに失敗した場合は警告を表示し終了
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup("Module '$ModuleName($ModuleVersion)' import failed. I'm ending the process.`r`n`r`n"+$_Exception.Message, 0, "Module Check", 0x30) | Out-Null
+            $msg = & $script:GetMessage "MODULE_IMPORT_ERROR" $ModuleName $ModuleVersion
+            $obj.Popup($msg + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             exit # 終了
         }
     }
