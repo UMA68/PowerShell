@@ -69,13 +69,13 @@ begin {
 
     # .ps1ファイル読み込み
     try {
-        if (-not (Test-Path $noDoubleActivationPath)) {
+        if (-not (Test-Path $noDoubleActivationPath)) { # NoDoubleActivation.ps1の存在確認
             throw "NoDoubleActivation.ps1 が見つかりません: $noDoubleActivationPath"
         }
         . $noDoubleActivationPath -ErrorAction Stop
     } catch {
         $obj.Popup("共通スクリプトの読み込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)
-        if ($null -ne $obj) {
+        if ($null -ne $obj) { # COMオブジェクトが存在する場合
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             $obj = $null
         }
@@ -89,9 +89,9 @@ begin {
     # 出力先確認と既存ファイルチェック
     # ====================================
     # 出力先ディレクトリの存在確認
-    if (-not (Test-Path -Path $comPath)) {
+    if (-not (Test-Path -Path $comPath)) { # Commonフォルダーが存在しない場合
         $obj.Popup("Common フォルダーが存在しません。`r`n`r`n"+$comPath, 0, "エラー", 0x10)
-        if ($null -ne $obj) {
+        if ($null -ne $obj) { # COMオブジェクトが存在する場合
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             $obj = $null
         }
@@ -100,10 +100,10 @@ begin {
 
     # 既存ファイルの確認
     $KeyFilePath = Join-Path -Path $comPath -ChildPath "Encryption.Key"
-    if (Test-Path -Path $KeyFilePath) {
+    if (Test-Path -Path $KeyFilePath) { # 既存ファイルがある場合
         $result = $obj.Popup("既存の鍵ファイルが見つかりました。上書きしますか？`r`n`r`n"+$KeyFilePath, 0, "確認", 0x34)
         if ($result -ne 6) { # 6 = はい
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -130,13 +130,13 @@ process {
 
         # 鍵が正しく生成されたか検証（すべてゼロでないことを確認）
         $allZero = $true
-        foreach ($byte in $EncryptionKey) {
-            if ($byte -ne 0) {
+        foreach ($byte in $EncryptionKey) { # 鍵の各バイトをチェック
+            if ($byte -ne 0) { # 一つでもゼロでないバイトがあれば正常
                 $allZero = $false
                 break
             }
         }
-        if ($allZero) {
+        if ($allZero) { # すべてのバイトがゼロの場合は異常とみなす
             throw "鍵生成に失敗しました。すべてのバイトがゼロです。"
         }
 
@@ -154,7 +154,7 @@ process {
     } catch {
         Write-Host $_.Exception.Message -ForegroundColor Red
         $obj.popup("鍵生成またはファイル書き込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)
-        if ($null -ne $obj) {
+        if ($null -ne $obj) { # COMオブジェクトが存在する場合
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             $obj = $null
         }
@@ -164,12 +164,12 @@ process {
         # セキュリティクリーンアップ
         # ====================================
         # RNGCryptoServiceProviderのリソースを解放
-        if ($null -ne $rng) {
+        if ($null -ne $rng) { # リソース解放
             $rng.Dispose()
             $rng = $null
         }
         # 機密性の高い暗号化キーをメモリから明示的にクリア
-        if ($null -ne $EncryptionKey) {
+        if ($null -ne $EncryptionKey) { # メモリからクリア
             [Array]::Clear($EncryptionKey, 0, $EncryptionKey.Length)
             $EncryptionKey = $null
         }
@@ -184,7 +184,7 @@ end {
     # ====================================
     # COMオブジェクトの解放
     # ====================================
-    if ($null -ne $obj) {
+    if ($null -ne $obj) { # COMオブジェクトが存在する場合
         try {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
         } catch {
