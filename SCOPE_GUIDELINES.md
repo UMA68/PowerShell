@@ -40,13 +40,13 @@ begin {
 
 一時的な計算や限定的なスコープで使用する変数は、スコープ修飾子を付けません。
 
-#### 対象となる変数
+#### 対象となる変数)
 
 - ループカウンター: `$i`, `$counter`
 - 一時的な計算結果: `$result`, `$output`
 - 関数内のローカル変数: `$tempFile`, `$fileEncoding`
 
-#### 例
+#### 例)
 
 ```powershell
 process {
@@ -61,7 +61,7 @@ process {
 
 関数のパラメーターは、通常のローカルスコープとして扱います。
 
-#### 例
+#### 例)
 
 ```powershell
 function Copy-ItemCustom {
@@ -80,7 +80,7 @@ function Copy-ItemCustom {
 
 スクリプトブロック (`{}`) 内で親スコープの変数を参照する場合、明示的に `$script:` を使用します。
 
-#### 例
+#### 例)
 
 ```powershell
 $script:ShowPopup = {

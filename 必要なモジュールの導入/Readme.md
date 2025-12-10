@@ -18,22 +18,25 @@ YAMLファイルに定義されたPowerShellモジュールを自動的に一括
 ## システム要件
 
 ### PowerShell
+
 - **バージョン**: 7.3.9以上（推奨）
-- **実行ポリシー**: RemoteSigned または Unrestricted
+- **実行ポリシー**: RemoteSignedまたはUnrestricted
 
 ### 前提条件
+
 - インターネット接続（PowerShell Galleryへのアクセス）
 - 管理者権限：通常は不要です（ユーザースコープでインストール）
   - グローバルスコープ（AllUsers）でインストールする場合のみ必要
 
 ### 自動インストールされる前提モジュール
+
 | モジュール | バージョン | 用途 |
 |-----------|-----------|------|
 | powershell-yaml | 0.4.7 | YAML設定ファイルの読み込み |
 
 ## ディレクトリ構造
 
-```
+```Terminal
 必要なモジュールの導入/
 ├── Script/
 │   ├── InstMain.ps1              # メインスクリプト
@@ -66,18 +69,18 @@ cd "C:\Users\...\必要なモジュールの導入\Script"
 .\InstMain.ps1
 ```
 
-### パラメータ指定
+### パラメーター指定
 
 ```powershell
 # カスタム設定ファイルを使用
 .\InstMain.ps1 -envFileName "Production.yaml"
 ```
 
-#### パラメータ
+#### パラメーター
 
-| パラメータ | 型 | デフォルト | 説明 |
+| パラメーター | 型 | デフォルト | 説明 |
 |-----------|----|---------|----|
-| `envFileName` | string | "Env.yaml" | 使用する設定ファイル名（YAMLフォルダ内） |
+| `envFileName` | string | "Env.yaml" | 使用する設定ファイル名（YAMLフォルダー内） |
 
 ## 設定ファイル (Env.yaml)
 
@@ -123,7 +126,7 @@ Module:
   Version: x.x.x            # インストールするバージョン番号
 ```
 
-**例：新しいモジュールを追加**
+#### 例：新しいモジュールを追加
 
 ```yaml
  Az:
@@ -137,26 +140,31 @@ Module:
 ## 実行フロー
 
 ### 1. 初期化フェーズ
+
 - ディレクトリパスの構築
 - 環境変数の取得（ユーザー名、ホスト名）
 - 共通スクリプトの読み込み
 - ログファイルの初期化
 
 ### 2. 前提チェックフェーズ
+
 - `powershell-yaml` モジュールの存在確認・インストール
 - YAML設定ファイルの読み込み
 
 ### 3. 検証フェーズ
+
 - 二重起動チェック
 - PowerShellバージョン検証
 
 ### 4. インストールフェーズ
+
 - YAMLで定義された各モジュールについて：
   - 既存モジュールの検索
   - バージョン比較
   - 必要に応じてインストール
 
 ### 5. 完了フェーズ
+
 - 処理結果の集計
 - ログファイルの保存
 - 完了メッセージの表示
@@ -166,7 +174,7 @@ Module:
 
 ### ログの場所
 
-```
+```log
 必要なモジュールの導入/LOG/{ホスト名}_yyyyMMdd-HHmmss.log
 ```
 
@@ -174,7 +182,7 @@ Module:
 
 ### ログの内容
 
-```
+```log
 HOST: DESKTOP-ABC123
 USER: UMA68
 Running PowerShell Version: 7.3.9
@@ -227,6 +235,7 @@ Version: 0.0.0
 **症状**: スクリプトは正常終了するが、モジュールがインストールされていない
 
 **解決方法**:
+
 ```powershell
 # 管理者権限でPowerShellを起動
 Start-Process pwsh -Verb RunAs
@@ -237,9 +246,10 @@ Start-Process pwsh -Verb RunAs
 
 #### 2. PowerShellバージョン警告
 
-**症状**: "実行中のPowerShellは X.X.X です" という警告が表示される
+**症状**: "実行中のPowerShellはX.X.Xです" という警告が表示される
 
 **解決方法**:
+
 - 「はい」を選択して続行（通常は問題なく動作）
 - または、YAML設定ファイルの `PowerShell.Version` を現在のバージョンに更新
 
@@ -253,7 +263,8 @@ PowerShell:
 **症状**: "Env.yamlの読み込みに失敗しました"
 
 **確認事項**:
-- ファイルが `YAML/` フォルダに存在するか
+
+- ファイルが `YAML/` フォルダーに存在するか
 - ファイル名が正確か（大文字小文字、拡張子）
 - YAML形式が正しいか（インデントはスペース、タブ不可）
 
@@ -267,9 +278,10 @@ Get-Content "YAML\Env.yaml"
 
 #### 4. 二重起動エラー
 
-**症状**: "既に実行中です" のメッセージが表示
+**症状**: "すでに実行中です" のメッセージが表示
 
 **解決方法**:
+
 ```powershell
 # PowerShellプロセスを確認
 Get-Process | Where-Object {$_.ProcessName -like "*pwsh*"}
@@ -284,7 +296,7 @@ Stop-Process -Name pwsh -Force
 
 開発環境、ステージング環境、本番環境で異なるモジュール構成を管理：
 
-```
+```Terminal
 YAML/
 ├── Env.yaml              # 開発環境
 ├── Staging.yaml          # ステージング環境
@@ -292,6 +304,7 @@ YAML/
 ```
 
 **実行例**:
+
 ```powershell
 # ステージング環境用のモジュールをインストール
 .\InstMain.ps1 -envFileName "Staging.yaml"
@@ -326,10 +339,11 @@ Module:
 
 2. **基本タスクを作成**
    - 名前: "PowerShellモジュール更新"
-   - トリガー: 毎週月曜日 09:00
+   - トリガー: 毎週月曜日　09:00
 
 3. **操作を設定**
-   ```
+
+   ```text
    プログラム: C:\Windows\System32\pwsh.exe
    引数: -NoProfile -ExecutionPolicy Bypass -File "C:\Users\...\InstMain.ps1"
    開始: C:\Users\...\必要なモジュールの導入\Script
@@ -342,6 +356,7 @@ Module:
 本スクリプトは **CurrentUser スコープ**（ユーザースコープ）でモジュールをインストールします。
 
 **利点：**
+
 - 管理者権限が不要
 - ユーザー固有の環境になる
 - 他のユーザーに影響しない
@@ -363,7 +378,7 @@ Install-Module -Name ModuleName -Scope AllUsers
 
 スクリプトはPowerShell Galleryからモジュールをダウンロードします。初回実行時に信頼確認が表示される場合があります：
 
-```
+```PowerShell
 NuGet provider is required to continue
 PowerShellGet requires NuGet provider version '2.8.5.201' or newer...
 ```
@@ -388,7 +403,7 @@ PowerShellGet requires NuGet provider version '2.8.5.201' or newer...
 
 ### ネットワーク帯域
 
-PowerShell Galleryからのダウンロード速度に依存します。大規模モジュール（Az など）は数百MBのダウンロードが発生する場合があります。
+PowerShell Galleryからのダウンロード速度に依存します。大規模モジュール（Azなど）は数百MBのダウンロードが発生する場合があります。
 
 ## 関連スクリプト
 
@@ -415,7 +430,7 @@ PS C:\Users\...\Script> .\InstMain.ps1
 
 ### ログ出力例
 
-```
+```log
 HOST: MYCOMPUTER
 USER: UMA68
 Running PowerShell Version: 7.3.9
@@ -473,8 +488,9 @@ MIT License
 ## バージョン履歴
 
 ### v1.0.0 (2025-12-09)
+
 - 初版リリース
-- PowerShell 7.3.9 対応
+- PowerShell 7.3.9対応
 - YAMLベースの設定管理
 - 自動バージョンチェック機能
 - 詳細ログ記録機能

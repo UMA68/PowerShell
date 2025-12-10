@@ -7,6 +7,7 @@
 このツールは、`Encryption.key` などの鍵ファイルを使用して暗号化された文字列を復号します。暗号化した文字列が何だったか忘れた場合の救済処置として使用します。
 
 **復号結果は2つの方法で表示されます：**
+
 1. **ターミナル画面** - コピー＆ペースト用（便利！）
 2. **ポップアップダイアログ** - 確認用
 
@@ -21,16 +22,18 @@
 ## システム要件
 
 ### PowerShell
+
 - **バージョン**: 5.1以上（推奨: 7.3.9以上）
-- **実行ポリシー**: RemoteSigned または Unrestricted
+- **実行ポリシー**: `RemoteSigned`または`Unrestricted`
 
 ### 前提条件
+
 - 鍵ファイル（Encryption.key）が `Common/` フォルダーに存在すること
 - 暗号化時と同じ鍵ファイルを使用する必要があります
 
 ## ディレクトリ構造
 
-```
+```Terminal
 暗号化文字列の復元/
 ├── Script/
 │   ├── StringDecryption.ps1      # メインスクリプト
@@ -47,8 +50,9 @@
    - 暗号化時に使用した `Encryption.key` を `Common/` フォルダーに配置
 
 2. **スクリプトの実行**
-   - 「暗号文字列の復号.ps1 - ショートカット」をダブルクリック
-   - または PowerShell で直接実行:
+   - 「暗号文字列の復号 .ps1 - ショートカット」をダブルクリック
+   - またはPowerShellで直接実行:
+
      ```powershell
      .\Script\StringDecryption.ps1
      ```
@@ -65,7 +69,7 @@
 
 ### 出力例
 
-```
+```Terminal
 復号に成功しました。
 
 =============================
@@ -91,24 +95,29 @@
 ## 処理フロー
 
 ### 1. 初期化フェーズ
+
 - ディレクトリパスの構築
 - 必要なスクリプトファイルの読み込み（InputGUI.ps1、NoDoubleActivation.ps1）
 
 ### 2. 前提チェックフェーズ
+
 - 二重起動チェック
 - 鍵ファイルの存在確認と読み込み
 
 ### 3. 入力フェーズ
+
 - GUIフォームの表示
 - 暗号化文字列の入力受付
 - 入力検証（空文字列チェック）
 
 ### 4. 復号フェーズ
-- SecureString への変換
+
+- SecureStringへの変換
 - 平文への復号
 - エラーハンドリング
 
 ### 5. 結果表示とクリーンアップ
+
 - ターミナルへの復号結果表示（コピー＆ペースト用）
 - 復号結果のポップアップ表示
 - 機密情報のメモリからの削除
@@ -131,11 +140,13 @@
 **症状**: "文字列の復号に失敗しました" のエラーが表示される
 
 **原因**:
+
 - 暗号化時と異なる鍵ファイルを使用している
 - 暗号文字列が破損している
 - 暗号文字列のコピー時に改行や空白が混入している
 
 **対応**:
+
 - 暗号化時と同じ鍵ファイルを使用しているか確認
 - 暗号文字列を正確にコピーペーストする
 - 前後の空白や改行を削除する
@@ -145,10 +156,12 @@
 **症状**: スクリプトを実行してもフォームが表示されない
 
 **原因**:
-- InputGUI.ps1 が見つからない
-- PowerShell のバージョンが古い
+
+- InputGUI.ps1が見つからない
+- PowerShellのバージョンが古い
 
 **対応**:
+
 ```powershell
 # InputGUI.ps1 の存在確認
 Test-Path ".\Script\InputGUI.ps1"
@@ -211,7 +224,8 @@ $PSVersionTable.PSVersion
 
 ### Q1: 復号に失敗する原因は？
 
-**A**: 最も多い原因は以下の3つです：
+**A**: もっとも多い原因は以下の3つです：
+
 1. 暗号化時と異なる鍵ファイルを使用している
 2. 暗号文字列が正確にコピーされていない（改行や空白の混入）
 3. 暗号文字列自体が破損している
@@ -223,6 +237,7 @@ $PSVersionTable.PSVersion
 ### Q3: 複数の鍵ファイルを管理するには？
 
 **A**: `-keyFileName` パラメーターで鍵ファイル名を指定できます：
+
 ```powershell
 .\StringDecryption.ps1 -keyFileName "Project1.key"
 .\StringDecryption.ps1 -keyFileName "Project2.key"
@@ -234,11 +249,12 @@ $PSVersionTable.PSVersion
 
 ### Q5: どのような暗号化方式を使用していますか？
 
-**A**: AES（Advanced Encryption Standard）を使用しています。PowerShell の `ConvertFrom-SecureString` / `ConvertTo-SecureString` による標準的な暗号化です。
+**A**: AES（Advanced Encryption Standard）を使用しています。PowerShellの `ConvertFrom-SecureString` / `ConvertTo-SecureString` による標準的な暗号化です。
 
 ## バージョン履歴
 
 ### v1.1.0 (2025-12-09)
+
 - ターミナルへの復号結果表示機能追加（コピー＆ペースト用）
 - Enter/Escapeキー対応（GUI操作性向上）
 - キャンセルボタン追加
@@ -248,13 +264,14 @@ $PSVersionTable.PSVersion
 - エラー時のリソースクリーンアップ改善
 
 ### v1.0.0 (2025-12-09)
+
 - 初版リリース
 - PowerShell 5.1以上対応
 - GUIフォーム入力
 - 二重起動防止機構
 - セキュアな機密情報削除
 - 包括的なエラーハンドリング
-- PowerShell ヘルプドキュメント追加
+- PowerShellヘルプドキュメント追加
 
 ---
 
