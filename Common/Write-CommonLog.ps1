@@ -32,6 +32,12 @@
     - ERROR: エラーメッセージ
     - DEBUG: デバッグ情報（詳細トラブルシューティング用）
 
+.PARAMETER SensitivePatterns
+    ログメッセージ内の機密情報を検出してマスクするキーワードのリスト。
+    パターンにマッチする値は '***' で置き換えられます。
+    省略時はマスキング処理を行いません。
+    例: 'password', 'token', 'api_key' など
+
 .EXAMPLE
     Write-CommonLog -Message "処理を開始します" -LogPath "C:\Logs\app.log"
     
@@ -88,16 +94,28 @@ function Write-CommonLog {
         [Parameter(Mandatory=$true)]
         [string]$LogPath,
         [ValidateSet('INFO', 'WARN', 'ERROR', 'DEBUG')]
-        [string]$Level = 'INFO'
+        [string]$Level = 'INFO',
+        [Parameter(Mandatory=$false)]
+        [string[]]$SensitivePatterns = @()
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "$timestamp [$Level] - $Message"
     
+    # 機密情報マスキング処理
+    $maskedMessage = $logMessage
+    if ($SensitivePatterns -and $SensitivePatterns.Count -gt 0) {
+        foreach ($pattern in $SensitivePatterns) {
+            # パターンに合致する部分を '***' でマスク（値の部分をマスク）
+            # 例: "password=abc123" → "password=***"
+            $maskedMessage = $maskedMessage -ireplace "($pattern\s*[:=\s]+)[^\s,;`"']+", "`$1***"
+        }
+    }
+    
     # コンソールに出力（パイプラインに流さない）
-    Write-Host $logMessage
+    Write-Host $maskedMessage
     
     # -WhatIfモードでも必ずログファイルに書き込む
-    Add-Content -Path $LogPath -Value $logMessage -Encoding UTF8 -WhatIf:$false
+    Add-Content -Path $LogPath -Value $maskedMessage -Encoding UTF8 -WhatIf:$false
 
     $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
         if (Get-Variable -Name NoDoubleActivation_Mutex -Scope Global -ErrorAction SilentlyContinue) {

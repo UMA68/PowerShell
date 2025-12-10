@@ -35,9 +35,28 @@ HOST:
 # ログ保存先
 # -----------------
 LOG:
- Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ Path: \\\\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
  FILENAME: release(PROD)    # ログファイル名
  EXTENSION: .log            # ログファイル拡張子
+
+# -----------------
+# セキュリティ設定
+# -----------------
+SECURITY:
+ # ログファイルに出力される機密情報の検出キーワード（マスキング対象）
+ SensitivePatterns:
+  - "password"
+  - "passwd"
+  - "pwd"
+  - "secret"
+  - "token"
+  - "api_key"
+  - "api-key"
+  - "apikey"
+  - "auth"
+  - "credential"
+  - "username"
+  - "user"
 
 # -----------------
 # メッセージ定義（多言語対応）
@@ -46,7 +65,7 @@ MESSAGES:
   LANGUAGE: en  # ja: 日本語, en: English
   ja:
     SCRIPT_READ_ERROR: "PowerShell ファイルを読み込めませんでした。処理を終了します。"
-    MODULE_NOT_INSTALLED: "モジュール '{0}' がインストールされていません。処理を終了します。"
+    MODULE_NOT_INSTALLED: "モジュール 'PowerShell-Yaml' がインストールされていません。処理を終了します。"
     MODULE_CHECK_ERROR: "'Test-ModuleInstalled' を実行できませんでした。処理を終了します。"
     YAML_READ_ERROR: "YAMLファイルを読み込めませんでした。処理を終了します。"
     VERSION_WARNING: "実行中のPowerShellは{0}です。\r\n\r\nこのスクリプトはバージョン{1}でのみ動作確認しています。処理を続行しますか？"
@@ -58,7 +77,7 @@ MESSAGES:
     MODULE_EMPTY_SKIP: "モジュール名またはバージョンが空です。モジュールのインポートをスキップします。"
   en:
     SCRIPT_READ_ERROR: "I couldn't read the PowerShell file. I'm ending the process."
-    MODULE_NOT_INSTALLED: "Module '{0}' is not installed. I'm ending the process."
+    MODULE_NOT_INSTALLED: "Module 'PowerShell-Yaml' is not installed. I'm ending the process."
     MODULE_CHECK_ERROR: "I couldn't execute 'Test-ModuleInstalled'. I'm ending the process."
     YAML_READ_ERROR: "I couldn't read the YAML file. I'm ending the process."
     VERSION_WARNING: "The running PowerShell version is {0}.\r\n\r\nThis script has only been tested with version {1}. Do you want to continue?"

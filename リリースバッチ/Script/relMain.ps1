@@ -11,6 +11,14 @@ param(
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
+    # エラーメッセージ定数（YAML読み込み前）
+    $ErrorMessages = @{
+        ScriptReadError = "I couldn't read the PowerShell file. I'm ending the process."
+        ModuleNotInstalled = "Module 'PowerShell-Yaml' is not installed. I'm ending the process."
+        ModuleCheckError = "I couldn't execute 'Test-ModuleInstalled'. I'm ending the process."
+        YamlReadError = "I couldn't read the YAML file. I'm ending the process."
+    }
+    
     # スクリプトの実行環境を取得
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
     $UpperPath = Split-Path -Parent $scriptPath                         # スクリプトの親パスを取得
@@ -33,8 +41,9 @@ begin{
     }catch{
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("I couldn't read the PowerShell file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup($ErrorMessages.ScriptReadError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        $obj = $null
         exit # 終了
     }
 
@@ -42,16 +51,18 @@ begin{
     try {
         if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml")) {
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup("Module 'PowerShell-Yaml' is not installed. I'm ending the process.", 0, "Module Check", 0x30) | Out-Null
+            $obj.Popup($ErrorMessages.ModuleNotInstalled, 0, "Module Check", 0x30) | Out-Null
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
             exit # 終了
         }
     }
     catch {
         # Test-ModuleInstalledを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("I couldn't execute 'Test-ModuleInstalled'. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup($ErrorMessages.ModuleCheckError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        $obj = $null
         exit # 終了
     }
 
@@ -61,11 +72,34 @@ begin{
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
-        $obj.Popup("I couldn't read the YAML file. I'm ending the process.`r`n`r`n"+$_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
+        $obj.Popup($ErrorMessages.YamlReadError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        $obj = $null
         exit # 終了
     }
     
+    # 機密情報パターンを読み込む
+    $script:SensitivePatterns = @()
+    if ($script:yaml.SECURITY.SensitivePatterns) {
+        $script:SensitivePatterns = $script:yaml.SECURITY.SensitivePatterns
+    }
+    
+    # COM オブジェクト（WScript.Shell）を安全に管理するヘルパー関数
+    $script:ShowPopup = {
+        param(
+            [string]$Message,
+            [int]$Buttons = 0,
+            [string]$Title = "Information"
+        )
+        $obj = New-Object -ComObject WScript.Shell
+        try {
+            return [int]$obj.Popup($Message, 0, $Title, $Buttons)
+        } finally {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+    }
+
     # メッセージ取得関数（YAMLから言語に応じたメッセージを取得）
     $script:GetMessage = {
         param(
@@ -103,6 +137,23 @@ begin{
     if (-not (Test-Path -Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir | Out-Null
     }
+    
+    # ログディレクトリのパーミッション設定（現在のユーザーのみアクセス可能）
+    try {
+        $logDirAcl = Get-Acl -Path $logDir
+        # 既存の継承権を無効化
+        $logDirAcl.SetAccessRuleProtection($true, $false)
+        # すべての権限を削除
+        $logDirAcl.Access | ForEach-Object { $logDirAcl.RemoveAccessRule($_) } | Out-Null
+        # 現在のユーザーにフルアクセス権を付与
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $logDirAcl.AddAccessRule($rule)
+        Set-Acl -Path $logDir -AclObject $logDirAcl
+    } catch {
+        # パーミッション設定に失敗した場合は警告を表示するが、処理を続行
+        Write-Host "[WARNING] Could not set permissions on log directory: $_" -ForegroundColor Yellow
+    }
 }
 process{
 
@@ -112,30 +163,26 @@ process{
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
     if($script:yaml.PowerShell.Version -ne $PwsVerChk){
-        $obj = New-Object -ComObject WScript.Shell
-        [int]$Button = $obj.Popup((& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:yaml.PowerShell.Version), 0, "WARNING", 4)
+        [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
         switch($Button){
-            6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
-            7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
+            6 { break } # OK(Continue)
+            7 { exit }  # Cancel(End)
             default { 
                 Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
-                $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
                 exit
             }
         }
     }
 
     # 実行するかどうかの確認
-    $obj = New-Object -ComObject WScript.Shell
-    [int]$Button = $obj.Popup((& $script:GetMessage "EXECUTE_CONFIRM"), 0, "INQUIRY", 4)
+    [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "EXECUTE_CONFIRM") -Title "INQUIRY" -Buttons 4
     switch($Button){
-        6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
-        7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
+        6 { break } # OK(Continue)
+        7 { exit }  # Cancel(End)
         default { 
             Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
-            $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
-            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
             exit
         }
     }
@@ -161,15 +208,13 @@ process{
         # モジュールがインストールされているか確認
         if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) {
             # モジュールがインストールされていない場合は、インストールを促す
-            $obj = New-Object -ComObject WScript.Shell
-            [int]$Button = $obj.Popup((& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName), 0, "Module Check", 4)
+            [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName) -Title "Module Check" -Buttons 4
             switch($Button){
-                6 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; break } # OK(Continue)
-                7 { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}; exit }  # Cancel(End)
+                6 { break } # OK(Continue)
+                7 { exit }  # Cancel(End)
                 default { 
                     Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
-                    $obj.Popup((& $script:GetMessage "UNKNOWN_BUTTON"), 0, "Unknown", 0x30) | Out-Null
-                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                    & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
                     exit
                 }
             }
@@ -182,10 +227,8 @@ process{
             Write-CommonLog -Message $msg -LogPath $script:LogPath -Level 'INFO'
         }catch{
             # モジュールのインポートに失敗した場合は警告を表示し終了
-            $obj = New-Object -ComObject WScript.Shell
             $msg = & $script:GetMessage "MODULE_IMPORT_ERROR" $ModuleName $ModuleVersion
-            $obj.Popup($msg + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
-            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            & $script:ShowPopup -Message ($msg + "`r`n`r`n" + $_.Exception.Message) -Title "Module Check" -Buttons 0x30 | Out-Null
             exit # 終了
         }
     }
@@ -207,11 +250,29 @@ process{
     $AllTypeObj = $yaml.RELEASE.Keys # リリースタイプの取得
     foreach($ReleaseType in $AllTypeObj){
         # リリース処理を実行
-        Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $yaml -LogPath $script:LogPath
+        Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $yaml -LogPath $script:LogPath -SensitivePatterns $script:SensitivePatterns
     }    } # ここまで時間計測
 
 }
 end{
+    # ログファイルのパーミッション設定（現在のユーザーのみ読み取り可能）
+    try {
+        if (Test-Path -Path $script:LogPath) {
+            $logFileAcl = Get-Acl -Path $script:LogPath
+            # 既存の継承権を無効化
+            $logFileAcl.SetAccessRuleProtection($true, $false)
+            # すべての権限を削除
+            $logFileAcl.Access | ForEach-Object { $logFileAcl.RemoveAccessRule($_) } | Out-Null
+            # 現在のユーザーにフルアクセス権を付与
+            $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "None", "None", "Allow")
+            $logFileAcl.AddAccessRule($rule)
+            Set-Acl -Path $script:LogPath -AclObject $logFileAcl
+        }
+    } catch {
+        Write-CommonLog -Message "[WARNING] Could not set permissions on log file: $_" -LogPath $script:LogPath -Level 'WARN'
+    }
+    
     # Measure-Commandの結果をログに出力
     Write-CommonLog -Message "Elapsed time for release: $($TimeLap.TotalSeconds) seconds" -LogPath $script:LogPath -Level 'INFO'    # リリース処理の経過時間をログに出力
     Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO' # リリース処理の経過時間をログに出力
