@@ -83,7 +83,12 @@ begin {
     }
 
     # 二重起動の禁止
-    Test-NoDoubleActivation -Thread "MakeEncrypted"
+    # 同じスクリプトが複数同時実行されないようチェック
+    if (-not (Test-NoDoubleActivation -Thread "MakeEncrypted" -ShowDialog)) {
+        # 既に起動中のため処理を終了
+        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        return
+    }
 
     # ====================================
     # 出力先確認と既存ファイルチェック

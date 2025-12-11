@@ -4,14 +4,17 @@
 
 .DESCRIPTION
     このスクリプトは、YAML設定ファイルに定義されたPowerShellモジュールを自動的にインストールします。
+    begin-process-end パイプライン構造により、エラーハンドリングと制御フローを適切に管理します。
+    
     以下の機能を提供します：
     
     1. YAMLファイルからモジュール情報を読み込み
     2. 指定されたバージョンのモジュール存在チェック
     3. 不足しているモジュールの自動インストール
     4. PowerShellバージョンの検証と警告表示
-    5. 二重起動の防止
+    5. 二重起動の防止（最優先チェック）
     6. インストール結果の詳細ログ記録
+    7. エラー時・二重起動時の適切な処理
 
 .PARAMETER envFileName
     使用する環境設定YAMLファイル名を指定します。
@@ -23,6 +26,13 @@
     .\InstMain.ps1
     
     デフォルトの Env.yaml を使用してモジュールをインストールします。
+    1. 二重起動チェックが最優先で実行されます
+    2. PowerShell-Yaml モジュールを自動検証・インストール
+    3. YAML ファイルからモジュール定義を読み込み
+    4. PowerShell バージョンを検証（不一致時は警告表示）
+    5. 各モジュールの存在確認とインストール実行
+    6. 結果をログファイルに記録
+    7. 完了ダイアログ表示後、ログファイルを自動で開く
 
 .EXAMPLE
     .\InstMain.ps1 -envFileName "Production.yaml"
@@ -35,13 +45,32 @@
 
 .OUTPUTS
     None
-    標準出力はありません。結果はログファイルに記録されます。
+    標準出力はありません。結果はログファイルに記録され、自動的に表示されます。
 
 .NOTES
-    ファイル名: InstMain.ps1
-    作成者: UMA68
-    バージョン: 1.0.0
-    必要なモジュール: powershell-yaml (自動インストール)
+    FileName:      InstMain.ps1
+    Author:        UMA68
+    Version:       1.1.0
+    LastModified:  2025-12-11
+    Prerequisites: - PowerShell 5.1以上
+                   - NoDoubleActivation.ps1 がCommonフォルダーに存在すること
+                   - Write-CommonLog.ps1 がCommonフォルダーに存在すること
+                   - Check-EnvModule.ps1 が同じScriptフォルダーに存在すること
+                   - Check-YamlModule.ps1 が同じScriptフォルダーに存在すること
+    RequiredModules: powershell-yaml (自動インストール)
+    
+    変更履歴:
+    v1.1.0 (2025-12-11)
+        - begin-process-end 構造に変更
+        - 二重起動チェックを begin ブロックで最優先実行
+        - 制御フローフラグ（$script:CanExecuteProcess）を導入
+        - エラー時・二重起動時の適切なハンドリングを実装
+        - YAML読み込みとモジュール検証を Process ブロックに移動
+        - end ブロックでのフラグチェックによる条件分岐
+        - COM オブジェクトのリソース解放を強化
+    
+    v1.0.0 (初版)
+        - 基本的なモジュールインストール機能を実装
     
     ディレクトリ構造:
         必要なモジュールの導入/
@@ -60,12 +89,52 @@
         [NOTHING] - モジュールが存在しない
         [INSTALL] - モジュールを新規インストール
     
+    実行フロー:
+    【begin ブロック】
+        1. 制御フローフラグを初期化（$script:CanExecuteProcess = $true）
+        2. ディレクトリパスを構築
+        3. 環境変数を取得（ユーザー名、ホスト名）
+        4. NoDoubleActivation.ps1 を読み込み
+        5. 二重起動チェックを実行（最優先）
+           → 二重起動の場合: フラグを $false に設定して return
+        6. ログファイルパスを初期化
+        7. その他の共通スクリプトを読み込み
+           → エラー時: フラグを $false に設定
+    
+    【Process ブロック】
+        1. フラグをチェック（$false の場合は return でスキップ）
+        2. PowerShell-Yaml モジュールを検証・インストール
+        3. YAML ファイルを読み込み
+           → エラー時: フラグを $false に設定して return
+        4. PowerShell バージョンを検証
+           → 不一致時: 警告ダイアログを表示、キャンセル時は return
+        5. ログ記録を開始（ホスト名、ユーザー名、バージョン情報）
+        6. 各モジュールをチェック・インストール
+        7. ログに終了マーカーを記録
+    
+    【end ブロック】
+        1. フラグをチェック（$false の場合は何もせず return）
+        2. 完了ダイアログを表示
+        3. ログファイル末尾にログの見方を追記
+        4. ログファイルを自動で開く
+    
     セキュリティ:
         - 管理者権限が必要な場合があります
-        - 二重起動を防止する機構が組み込まれています
+        - 二重起動防止機構により、同時実行を制限します
+        - 二重起動時はダイアログで警告し、処理をスキップします
+    
+    エラーハンドリング:
+        - スクリプト読み込みエラー: エラーダイアログ表示 → end ブロックスキップ
+        - YAML 読み込みエラー: エラーダイアログ表示 → end ブロックスキップ
+        - 二重起動検出: 警告ダイアログ表示 → end ブロックスキップ
+        - バージョン不一致でキャンセル: end ブロックスキップ
 
 .LINK
     https://github.com/UMA68/PowerShell
+    関連スクリプト: NoDoubleActivation.ps1 (二重起動防止)
+    関連スクリプト: Write-CommonLog.ps1 (ログ記録)
+    関連スクリプト: Check-EnvModule.ps1 (モジュールチェック)
+    関連スクリプト: Check-YamlModule.ps1 (YAMLモジュールチェック)
 
 #>
 
@@ -78,6 +147,11 @@ param (
 )
 
 begin{
+    # ====================================
+    # 制御フローフラグの初期化
+    # ====================================
+    $script:CanExecuteProcess = $true  # Process ブロックを実行するかどうかのフラグ
+    
     # ====================================
     # ディレクトリとパスの初期化
     # ====================================
@@ -98,15 +172,13 @@ begin{
     $HostName = $env:COMPUTERNAME   # ホスト名取得
 
     # ====================================
-    # 共通スクリプトの読み込み
+    # 共通スクリプト（二重起動チェック）の読み込み
     # ====================================
-    # 必要な.ps1ファイルをドットソーシングで読み込み
+    # 二重起動チェック関数を最優先で読み込み
     try {
         . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop    # 二重起動チェック
-        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop       # ログ記録機能
-        . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop     # 環境モジュールチェック
-        . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop    # YAMLモジュールチェック
     } catch {
+        $script:CanExecuteProcess = $false
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
@@ -118,7 +190,18 @@ begin{
                 $obj = $null
             }
         }
-        exit    # おわり
+        return
+    }
+    
+    # ====================================
+    # 二重起動の防止（最優先チェック）
+    # ====================================
+    # 同じスクリプトが複数同時実行されないようチェック
+    if (-not (Test-NoDoubleActivation -Thread "InstMain" -ShowDialog)) {
+        # 既に起動中のため処理を終了
+        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        $script:CanExecuteProcess = $false
+        return
     }
     
     # ====================================
@@ -132,11 +215,38 @@ begin{
     }
     
     # ====================================
+    # 共通スクリプト（その他）の読み込み
+    # ====================================
+    # 必要な.ps1ファイルをドットソーシングで読み込み
+    try {
+        . $comPath"\Write-CommonLog.ps1" -ErrorAction Stop       # ログ記録機能
+        . $scriptDir"\Check-EnvModule.ps1" -ErrorAction Stop     # 環境モジュールチェック
+        . $scriptDir"\Check-YamlModule.ps1" -ErrorAction Stop    # YAMLモジュールチェック
+    } catch {
+        $script:CanExecuteProcess = $false
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $scriptName = $_.InvocationInfo.MyCommand.Name
+            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        } finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
+    }
+
+}
+Process{
+    if (-not $script:CanExecuteProcess) {
+        return  # begin ブロックでエラーが発生した場合はスキップ
+    }
+    
+    # ====================================
     # Powershell-Yamlモジュールの検証
     # ====================================
     # YAMLファイル読み込みに必須のモジュールを事前確認・インストール
-    # なければインストールする(無指定だと0.4.7をインストールする)
-    # 違うバージョンをインストールしたい場合は、以下のコメントアウトを参考にバージョン指定する
     # Test-YamlModule -Ver 'x.x.x'
     Test-YamlModule
 
@@ -147,6 +257,7 @@ begin{
     try{
         $yaml = Get-Content $envPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered
     }catch{
+        $script:CanExecuteProcess = $false
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
@@ -157,17 +268,10 @@ begin{
                 $obj = $null
             }
         }
-        exit    # おわり
+        return
     }
-}
-Process{
-    # ====================================
-    # 二重起動の防止
-    # ====================================
-    # 同じスクリプトが複数同時実行されないようチェック
-    Test-NoDoubleActivation -Thread "InstMain" # スレッド名は拡張子無しのスクリプトファイル名
 
-    # ====================================
+    # ====================================" 
     # PowerShellバージョンの検証
     # ====================================
     # 実行中のPowerShellバージョンとYAMLで指定されたバージョンを比較
@@ -185,7 +289,8 @@ Process{
                         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                         $obj = $null
                     }
-                    exit  # いいえ
+                    $script:CanExecuteProcess = $false
+                    return  # いいえ
                 }
             }
         } finally {
@@ -223,12 +328,25 @@ Process{
     Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO'
 }
 end{
+    if (-not $script:CanExecuteProcess) {
+        # エラーまたは二重起動の場合は何もせず終了
+        return
+    }
+    
     # ====================================
     # 完了メッセージの表示
     # ====================================
     # 処理終了をポップアップで通知
-    $obj = New-Object -ComObject WScript.Shell
-    $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
+    $obj = $null
+    try {
+        $obj = New-Object -ComObject WScript.Shell
+        $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
+    } finally {
+        if ($null -ne $obj) {
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            $obj = $null
+        }
+    }
 
     # ====================================
     # ログの見方を追記

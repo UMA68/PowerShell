@@ -319,7 +319,13 @@ begin{
     }
 
     # 二重起動の禁止（早期チェック）
-    Test-NoDoubleActivation -Thread "relMain" # スレッド名は拡張子無しのスクリプトファイル名
+    # 同じスクリプトが複数同時実行されないようチェック
+    if (-not (Test-NoDoubleActivation -Thread "relMain" -ShowDialog)) {
+        # 既に起動中のため処理を終了
+        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        exit
+    }
+
 }
 process{
     # スクリプトバージョン情報をログに記録（デバッグ用）
