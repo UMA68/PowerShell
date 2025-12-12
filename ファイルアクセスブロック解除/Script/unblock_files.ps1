@@ -340,7 +340,7 @@ end{
     Write-CommonLog -Message "Files failed to unblock: $script:failedFiles" -LogPath $script:logFilePath -Level "INFO"
     
     # 成功率の計算と出力
-    if ($script:totalFiles -gt 0) {
+    if ($script:totalFiles -gt 0) { # 成功率計算の分母が0になるのを防止
         $successCount = $script:unblockedFiles + $script:alreadyUnblockedFiles
         $successRate = [math]::Round(($successCount / $script:totalFiles) * 100, 2)
         Write-CommonLog -Message "Success rate: $successRate%" -LogPath $script:logFilePath -Level "INFO"
