@@ -66,14 +66,61 @@ function Copy-ItemCustom {
     )
     
     begin{
+        # 設定の読み取り（フェーズ2拡張）
+        $OverwritePolicy = $Yaml.RELEASE.$ReleaseType.OverwritePolicy
+        if ([string]::IsNullOrWhiteSpace($OverwritePolicy)) { $OverwritePolicy = 'RenameThenCopy' } # 既定
+        $RetryCount = $Yaml.RELEASE.$ReleaseType.RetryCount
+        if (-not $RetryCount -or $RetryCount -lt 0) { $RetryCount = 0 }
+        $RetryDelayMs = $Yaml.RELEASE.$ReleaseType.RetryDelayMs
+        if (-not $RetryDelayMs -or $RetryDelayMs -lt 0) { $RetryDelayMs = 250 }
+        $EnableLongPath = $Yaml.RELEASE.$ReleaseType.EnableLongPath
+        if (-not $EnableLongPath) { $EnableLongPath = $false }
+
+        # ロングパス変換ヘルパー
+        function Convert-ToLongPath([string]$path){
+            if (-not $EnableLongPath) { return $path }
+            if ($path -like "\\?\*") { return $path }
+            if ($path -match '^[A-Za-z]:\\') { return "\\\\?\\$path" }
+            return $path
+        }
+
+        # リトライヘルパー
+        function Invoke-WithRetry([scriptblock]$Action){
+            $attempt = 0
+            while ($true) {
+                try { & $Action; return $true }
+                catch {
+                    if ($attempt -ge $RetryCount) { throw }
+                    Start-Sleep -Milliseconds $RetryDelayMs
+                    $attempt++
+                }
+            }
+        }
+        # ログディレクトリの事前作成（ログ出力失敗防止）
+        try {
+            $logDir = Split-Path -Parent $LogPath
+            if ($logDir -and -not (Test-Path -Path $logDir)) {
+                New-Item -ItemType Directory -Path $logDir -ErrorAction Stop | Out-Null
+            }
+        } catch {
+            # ディレクトリ作成に失敗しても処理は継続（relMain側のACLで後続保護）
+            Write-CommonLog -Message "[WARN] LOG DIRECTORY CREATE FAILED: '$logDir'." -LogPath $LogPath -Level 'WARN' -SensitivePatterns $SensitivePatterns
+            Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'WARN' -SensitivePatterns $SensitivePatterns
+        }
         # リリース元フォルダ
         # YAMLの必須キー検証
         if (-not $Yaml.RELEASE -or -not $Yaml.RELEASE.Contains($ReleaseType)) {
             Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' NOT DEFINED IN YAML." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             return
         }
-        $ReleaseSource = $Yaml.RELEASE.$ReleaseType.FolderBy
-        $ReleaseDestination = $Yaml.RELEASE.$ReleaseType.ReleaseTo
+        $ReleaseSource = Convert-ToLongPath -path $Yaml.RELEASE.$ReleaseType.FolderBy
+        $ReleaseDestination = Convert-ToLongPath -path $Yaml.RELEASE.$ReleaseType.ReleaseTo
+
+        # サマリ用カウンタ
+        $script:SumDeleted = 0
+        $script:SumRenamed = 0
+        $script:SumCopied = 0
+        $script:SumFailed = 0
     }
     process{
         # フォルダ内ファイルのカウント
@@ -105,6 +152,10 @@ function Copy-ItemCustom {
             try {
                 New-Item -ItemType Directory -Path $ReleaseDestination -ErrorAction Stop | Out-Null
                 Write-CommonLog -Message "[INFO] DESTINATION FOLDER CREATED: '$ReleaseDestination'." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            } catch [System.UnauthorizedAccessException] {
+                Write-CommonLog -Message "[ERROR] DESTINATION CREATE PERMISSION DENIED: '$ReleaseDestination'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+                Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+                return
             } catch {
                 Write-CommonLog -Message "[ERROR] DESTINATION FOLDER UNAVAILABLE: '$ReleaseDestination'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
                 Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
@@ -113,9 +164,9 @@ function Copy-ItemCustom {
         }
 
         # リリース実行
-        foreach ($File in (Get-ChildItem -Path $ReleaseSource -Recurse -File)) { # リリース対象ファイルが存在する場合
+        foreach ($File in (Get-ChildItem -Path $ReleaseSource -Recurse -File | Sort-Object FullName)) { # リリース対象ファイルが存在する場合（順序安定化）
             # リリースルールに従い実行
-            Invoke-ReleaseRules -ReleaseTypeName $ReleaseType -FileObject $File -ReleaseDestination $ReleaseDestination -LogPath $LogPath -SensitivePatterns $SensitivePatterns
+            Invoke-ReleaseRules -ReleaseTypeName $ReleaseType -FileObject $File -ReleaseDestination $ReleaseDestination -LogPath $LogPath -SensitivePatterns $SensitivePatterns -OverwritePolicy $OverwritePolicy -RetryCount $RetryCount -RetryDelayMs $RetryDelayMs -EnableLongPath $EnableLongPath
         }
         # リリース完了メッセージ
         [string]$EndMessage = "[MESSAGE] RELEASE TYPE '$ReleaseType' FOLDER COPY COMPLETED."
@@ -125,6 +176,8 @@ function Copy-ItemCustom {
         Write-CommonLog -Message $EndMessageLine -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
         Write-CommonLog -Message $EndMessage -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
         Write-CommonLog -Message $EndMessageLine -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+        # サマリ出力
+        Write-CommonLog -Message "[SUMMARY] TYPE='$ReleaseType' COPIED=$script:SumCopied RENAMED=$script:SumRenamed DELETED=$script:SumDeleted FAILED=$script:SumFailed" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
     }
 }
 # リリースルールのスクリプト化
@@ -167,7 +220,16 @@ function Invoke-ReleaseRules{
         [Parameter(Mandatory=$true)]
         [string]$LogPath,                       # ログファイルパス    
         [Parameter(Mandatory=$false)]
-        [string[]]$SensitivePatterns = @()      # 機密情報キーワード配列
+        [string[]]$SensitivePatterns = @(),      # 機密情報キーワード配列
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('RenameThenCopy','DeleteThenCopy','SkipIfExists')]
+        [string]$OverwritePolicy = 'RenameThenCopy',
+        [Parameter(Mandatory=$false)]
+        [int]$RetryCount = 0,
+        [Parameter(Mandatory=$false)]
+        [int]$RetryDelayMs = 250,
+        [Parameter(Mandatory=$false)]
+        [bool]$EnableLongPath = $false
     )
     # リリース先の既存リネームファイルを削除する
     $FileBaseName = $FileObject.BaseName      # ファイル名
@@ -179,13 +241,15 @@ function Invoke-ReleaseRules{
     foreach($RenamedFileName in $FileNameWithDate){ # リネームファイルが存在する場合
         # リネームファイルの削除処理
         try{
-            Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop
+            Invoke-WithRetry { Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop }
             # 削除結果をログに記述
             Write-CommonLog -Message "[DELETE] '$ReleaseTypeName' -> '$($RenamedFileName.FullName)'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            $script:SumDeleted++
         }catch{
             # 削除に失敗した場合は、エラーメッセージをログに記述
             Write-CommonLog -Message "[ERROR] DELETE FAILED: '$($RenamedFileName.FullName)'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+            $script:SumFailed++
         }
     }
 
@@ -197,18 +261,32 @@ function Invoke-ReleaseRules{
         $FileNameWithDatePath = Join-Path -Path $ReleaseDestination -ChildPath $NewFileNameWithDate
         $FileExist = Get-ChildItem -Path $ReleaseDestination -Filter $FileObject.Name -ErrorAction SilentlyContinue
         if ($FileExist) { # ファイルが存在する場合
-            # リネーム処理
-            Rename-Item -Path $ReleaseToFileName -NewName $NewFileNameWithDate -Force -ErrorAction Stop
-            # リネーム結果をログに記述
-            Write-CommonLog -Message "[RENAME] '$ReleaseTypeName' -> '$FileNameWithDatePath'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            switch ($OverwritePolicy) {
+                'RenameThenCopy' {
+                    Invoke-WithRetry { Rename-Item -Path $ReleaseToFileName -NewName $NewFileNameWithDate -Force -ErrorAction Stop }
+                    Write-CommonLog -Message "[RENAME] '$ReleaseTypeName' -> '$FileNameWithDatePath'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+                    $script:SumRenamed++
+                }
+                'DeleteThenCopy' {
+                    Invoke-WithRetry { Remove-Item -Path $ReleaseToFileName -Force -ErrorAction Stop }
+                    Write-CommonLog -Message "[DELETE] '$ReleaseTypeName' EXISTING -> '$ReleaseToFileName'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+                    $script:SumDeleted++
+                }
+                'SkipIfExists' {
+                    Write-CommonLog -Message "[SKIP] EXISTS: '$ReleaseToFileName' (policy SkipIfExists)" -LogPath $LogPath -Level 'WARN' -SensitivePatterns $SensitivePatterns
+                    return
+                }
+            }
         }
         # コピー処理
-        Copy-Item -Path $FileObject.FullName -Destination $ReleaseDestination -Force -ErrorAction Stop
+        Invoke-WithRetry { Copy-Item -Path $FileObject.FullName -Destination $ReleaseDestination -Force -ErrorAction Stop }
         # コピー結果をログに記述
         Write-CommonLog -Message "[COPY] '$ReleaseTypeName' -> '$($FileObject.Name)'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+        $script:SumCopied++
     }catch{
         # コピーに失敗した場合は、エラーメッセージをログに記述
         Write-CommonLog -Message "[ERROR] COPY FAILED: '$($FileObject.FullName)' -> '$ReleaseDestination'" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
         Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+        $script:SumFailed++
     }
 }
