@@ -144,15 +144,15 @@ function Invoke-Cleanup {
     )
     
     try {
-        if ($FullCleanup) {
+        if ($FullCleanup) { # 完全なクリーンアップを実行する場合
             # 暗号化鍵の削除
-            if ($null -ne $script:EncryptionKey) {
+            if ($null -ne $script:EncryptionKey) { # 鍵情報が存在する場合
                 [Array]::Clear($script:EncryptionKey, 0, $script:EncryptionKey.Length)
                 Clear-Variable -Name EncryptionKey -Scope Script -ErrorAction SilentlyContinue
             }
             
             # SecureString の破棄
-            if ($null -ne $script:SecureString) {
+            if ($null -ne $script:SecureString) { # SecureString が存在する場合
                 $script:SecureString.Dispose()
                 Clear-Variable -Name SecureString -Scope Script -ErrorAction SilentlyContinue
             }
@@ -161,7 +161,7 @@ function Invoke-Cleanup {
             Clear-Variable -Name InputString, EncryptedString, FileName, OutputPath -Scope Script -ErrorAction SilentlyContinue
             
             # COMオブジェクトの解放
-            if ($null -ne $script:obj) {
+            if ($null -ne $script:obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:obj) | Out-Null } catch {}
                 Clear-Variable -Name obj -Scope Script -ErrorAction SilentlyContinue
             }
@@ -171,8 +171,8 @@ function Invoke-Cleanup {
             Clear-Variable -Name noDoubleActivationPath -Scope Script -ErrorAction SilentlyContinue
             
             # ガベージコレクション強制実行
-            [System.GC]::Collect()
-            [System.GC]::WaitForPendingFinalizers()
+            [System.GC]::Collect()                  # ガベージコレクションの実行
+            [System.GC]::WaitForPendingFinalizers() # ファイナライザの完了待機
             
             Write-Host "✓ 機密情報をメモリから削除しました。" -ForegroundColor Green
         }
@@ -206,7 +206,7 @@ try {
 # 二重起動の防止（最優先チェック）
 # ====================================
 # 同じスクリプトが複数同時実行されないようチェック
-if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) {
+if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) { # 二重起動が検出された場合
     # 既に起動中のため処理を終了
     Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
     $script:CanExecuteProcess = $false

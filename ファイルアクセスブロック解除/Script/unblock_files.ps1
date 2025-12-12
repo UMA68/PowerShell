@@ -145,28 +145,30 @@
 #>
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # フォルダ名の検証
+        # フォルダ名としての有効性を検証
         if ([string]::IsNullOrWhiteSpace($_)) { throw "TargetFolder cannot be empty or whitespace." }
         if ($_ -match '[\\/:*?"<>|]') { throw "TargetFolder contains invalid characters." }
         if ($_.Length -gt 255) { throw "TargetFolder exceeds 255 characters." }
         $true
     })]
-    [string]$TargetFolder = "FileAccessBlock",
+    [string]$TargetFolder = "FileAccessBlock",          # 処理対象フォルダ（相対パス）
     
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # ファイル名の検証
+        # ファイル名としての有効性を検証
         if ([string]::IsNullOrWhiteSpace($_)) { throw "LogPrefix cannot be empty or whitespace." }
         if ($_ -match '[\\/:*?"<>|]') { throw "LogPrefix contains invalid characters." }
         if ($_.Length -gt 255) { throw "LogPrefix exceeds 255 characters." }
         $true
     })]
-    [string]$LogPrefix = "unblock_",
+    [string]$LogPrefix = "unblock_",                    # ログファイル名プレフィックス
     
     [Parameter(Mandatory=$false)]
-    [string[]]$ExcludeExtensions = @('.log', '.xlsx'),
+    [string[]]$ExcludeExtensions = @('.log', '.xlsx'),  # 除外する拡張子の配列
     
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # 正規表現として妥当か検証
         try {
             [void]($_ -match $_)
             $true
@@ -174,22 +176,22 @@ param(
             throw "ExcludeFolderPattern is not a valid regular expression: $_"
         }
     })]
-    [string]$ExcludeFolderPattern = '\\Script\\',
+    [string]$ExcludeFolderPattern = '\\Script\\',       # 除外するフォルダパターン（正規表現）
     
     [Parameter(Mandatory=$false)]
-    [switch]$VerboseLogging = $false
+    [switch]$VerboseLogging = $false                    # 詳細ログ出力フラグ
 )
 
 begin{
     # COMオブジェクト管理用スクリプトブロック（relMain.ps1と同様のパターン）
-    $script:ShowPopup = {
+    $script:ShowPopup = { # COMオブジェクトを使ったポップアップ表示
         param([string]$Message, [string]$Title)
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($Message, 0, $Title, 0x30) | Out-Null
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -224,7 +226,7 @@ begin{
     
     # ログディレクトリが存在しなければ作成
     $logDir = Split-Path -Parent $script:logFilePath
-    if (-not (Test-Path -Path $logDir)) {
+    if (-not (Test-Path -Path $logDir)) { # ディレクトリが存在しない場合
         New-Item -ItemType Directory -Path $logDir | Out-Null
     }
     
@@ -248,29 +250,29 @@ process{
     Write-CommonLog -Message "Verbose logging: $VerboseLogging" -LogPath $script:logFilePath -Level "INFO"
 
     # 対象ディレクトリの存在確認
-    if (-not (Test-Path -Path $script:folderPath)) {
+    if (-not (Test-Path -Path $script:folderPath)) { # 対象ディレクトリが存在しない場合
         Write-CommonLog -Message "Target directory does not exist: $script:folderPath" -LogPath $script:logFilePath -Level "ERROR"
         $script:CanExecuteProcess = $false
         return
     }
 
     # Unblock-Fileコマンドレットが存在しなければ終了
-    if (-not (Get-Command -Name Unblock-File -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command -Name Unblock-File -ErrorAction SilentlyContinue)) { # Unblock-Fileコマンドが存在しない場合
         Write-CommonLog -Message "Unblock-File command not found. Please ensure you are running this script in a PowerShell environment that supports it." -LogPath $script:logFilePath -Level "ERROR"
         $script:CanExecuteProcess = $false
         return
     }
     # 対象となるファイルの取得と処理
     Get-ChildItem -Path $script:folderPath -Recurse -File |
-        Where-Object {
+        Where-Object { # 除外パターンに一致しないフォルダと拡張子をフィルタリング
             $_.FullName -notmatch $ExcludeFolderPattern -and
             $_.Extension -notin $ExcludeExtensions
         } |  # 除外パターンに一致するフォルダとファイルを除外
-        ForEach-Object {
+        ForEach-Object { # 各ファイルに対する処理開始
             $script:totalFiles++
             
             # 100ファイルごとに進捗を表示
-            if ($script:totalFiles % 100 -eq 0) {
+            if ($script:totalFiles % 100 -eq 0) { # 100ファイルごとに進捗ログ出力
                 Write-CommonLog -Message "Progress: $script:totalFiles files processed..." -LogPath $script:logFilePath -Level "INFO"
             }
             
@@ -293,7 +295,7 @@ process{
                 return
             }
             # Zone.Identifierストリームが存在する場合、Unblock-Fileを実行
-            if ($hasZoneId) {
+            if ($hasZoneId) { # ストリームが存在する場合
                 try{
                     # Unblock-Fileコマンドレット実行
                     Write-CommonLog -Message "Zone.Identifier found for file: $filePath. Unblocking file." -LogPath $script:logFilePath -Level "WARN"
@@ -308,8 +310,8 @@ process{
                     $script:failedFiles++
                 }
             # Zone.Identifierストリームが存在しない場合
-            } else {
-                if ($VerboseLogging) {
+            } else { # ストリームが存在しない場合
+                if ($VerboseLogging) { # 詳細ログモードの場合のみログ出力
                     Write-CommonLog -Message "No Zone.Identifier found for file: $filePath" -LogPath $script:logFilePath -Level "INFO"
                 }
                 $script:alreadyUnblockedFiles++
@@ -317,7 +319,7 @@ process{
        }
     
     # 処理対象ファイルが0件の場合の通知
-    if ($script:totalFiles -eq 0) {
+    if ($script:totalFiles -eq 0) { # 処理対象ファイルが存在しなかった場合
         Write-CommonLog -Message "No files found in the target directory." -LogPath $script:logFilePath -Level "WARN"
     }
 }
@@ -327,7 +329,7 @@ end{
     $script:elapsedTime = $script:endTime - $script:startTime
     
     # 早期終了の場合はその旨を出力
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # 処理実行フラグ確認
         Write-CommonLog -Message "Script terminated early due to error." -LogPath $script:logFilePath -Level "ERROR"
     }
     

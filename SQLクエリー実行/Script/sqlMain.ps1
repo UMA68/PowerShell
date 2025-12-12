@@ -214,11 +214,11 @@ param(
 begin {
 
     # 共通ポップアップ関数（COM解放を保証）
-    $script:ShowPopup = {
+    $script:ShowPopup = { # ポップアップ表示関数
         param(
-            [string]$Message,
-            [string]$Title,
-            [int]$Icon = 0x30  # 0x10:エラー, 0x20:警告, 0x30:情報
+            [string]$Message,   # ポップアップメッセージ
+            [string]$Title,     # ポップアップタイトル
+            [int]$Icon = 0x30   # 0x10:エラー, 0x20:警告, 0x30:情報
         )
         $obj = $null
         try {
@@ -226,7 +226,7 @@ begin {
             $obj.Popup($Message, 0, $Title, $Icon) | Out-Null
         }
         finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトの解放
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -265,12 +265,12 @@ begin {
     # 実行前の検証
     # ====================================
     # 二重起動防止と必要なコマンドの存在確認
-    if (-not (Test-NoDoubleActivation -Thread "sqlMain")) {
+    if (-not (Test-NoDoubleActivation -Thread "sqlMain")) { # 二重起動チェックで既に起動中の場合
         $script:CanExecuteProcess = $false
         return
     }
     
-    if (-not (Test-Command -ComName "nkf32")) {
+    if (-not (Test-Command -ComName "nkf32")) { # nkf32コマンドが存在しない場合
         & $script:ShowPopup -Message "nkf32コマンドが見つかりません。処理を終了します。" -Title "エラー" -Icon 0x10
         $script:CanExecuteProcess = $false
         return
@@ -281,7 +281,7 @@ begin {
     # ====================================
     # PowerShell-Yaml モジュールがインストールされているか確認
     $YamlModuleCount = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count
-    if ($YamlModuleCount -eq 0) {
+    if ($YamlModuleCount -eq 0) { # モジュール未インストール
         & $script:ShowPopup -Message "PowerShell-Yamlモジュールがインストールされていません。処理を終了します。" -Title "警告" -Icon 0x30
         $script:CanExecuteProcess = $false
         return
@@ -291,7 +291,7 @@ begin {
     # 設定ファイルの読み込み
     # ====================================
     # YAML設定ファイルの存在確認
-    if (-not (Test-Path -Path $YamlPath)) {
+    if (-not (Test-Path -Path $YamlPath)) { # 設定ファイルが存在しない場合
         & $script:ShowPopup -Message ($EnvYaml + "ファイルが見つかりません。処理を終了します。") -Title "エラー" -Icon 0x10
         $script:CanExecuteProcess = $false
         return
@@ -323,7 +323,7 @@ begin {
                 return
             }
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクト解放
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -412,7 +412,7 @@ begin {
 }
 process {
 
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # 実行不可フラグが立っている場合は終了
         return
     }
     
@@ -542,7 +542,7 @@ process {
             # クリーンアップ
             # ====================================
             # 一時ファイル（UTF-8変換後）が存在すれば削除
-            if ($tempFile -and (Test-Path -Path $tempFile)) {   # 一時ファイルの存在チェック
+            if ($tempFile -and (Test-Path -Path $tempFile)) { # 一時ファイルの存在チェック
                 Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
             }
         }
@@ -558,7 +558,7 @@ process {
     Write-Host $summaryMsg -ForegroundColor Cyan
     Write-Output $summaryMsg | Out-File -FilePath $script:LogPath -Append
 
-    if ($totalCount -gt 0) {
+    if ($totalCount -gt 0) { # 成功率計算
         $successRate = [math]::Round((($totalCount - $errorCount) / $totalCount) * 100, 2)
         $rateMsg = "成功率: $successRate%"
         Write-Host $rateMsg -ForegroundColor Cyan
@@ -570,7 +570,7 @@ end {
     $script:EndTime = Get-Date
     $elapsed = $script:EndTime - $script:StartTime
 
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # エラー終了時の処理
         Write-Host "前段のエラーにより処理を完了できませんでした。" -ForegroundColor Yellow
         Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds) -ForegroundColor Yellow
         $script:password = $null

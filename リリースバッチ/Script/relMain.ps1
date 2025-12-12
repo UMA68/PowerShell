@@ -148,33 +148,33 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # ファイル名の検証
         # ファイル名としての有効性を検証
-        if ($_ -match '[\\/:"*?<>|]') {
+        if ($_ -match '[\\/:"*?<>|]') { # ファイル名に使用できない文字を検証
             throw "ファイル名に使用できない文字が含まれています: $_"
         }
-        if ([string]::IsNullOrWhiteSpace($_)) {
+        if ([string]::IsNullOrWhiteSpace($_)) { # 空白文字のみの入力を拒否
             throw "ファイル名は空にできません"
         }
-        if ($_.Length -gt 255) {
+        if ($_.Length -gt 255) { # 255文字制限
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
         $true
     })]
     [string]$DecryptionKey = "Encryption.Key" , # 暗号化鍵ファイル名（現在未使用・将来の暗号化機能用に予約）
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # YAMLファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
-        if ($_ -notmatch '\.(yaml|yml)$') {
+        if ($_ -notmatch '\.(yaml|yml)$') { # 拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
         }
-        if ($_ -match '[\\/:"*?<>|]') {
+        if ($_ -match '[\\/:"*?<>|]') { # ファイル名に使用できない文字を検証
             throw "ファイル名に使用できない文字が含まれています: $_"
         }
-        if ([string]::IsNullOrWhiteSpace($_)) {
+        if ([string]::IsNullOrWhiteSpace($_)) { # 空白文字のみの入力を拒否
             throw "ファイル名は空にできません"
         }
-        if ($_.Length -gt 255) {
+        if ($_.Length -gt 255) { # 255文字制限
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
         $true
@@ -185,7 +185,7 @@ begin{
     # プロセス実行可否フラグ（endブロックの安全なクリーンアップ用）
     $script:CanExecuteProcess = $true
     # エラーメッセージ定数（YAML読み込み前）
-    $ErrorMessages = @{
+    $ErrorMessages = @{ # .NETハッシュテーブル
         ScriptReadError = "I couldn't read the PowerShell file. I'm ending the process."
         ModuleNotInstalled = "Module 'PowerShell-Yaml' is not installed. I'm ending the process."
         ModuleCheckError = "I couldn't execute 'Test-ModuleInstalled'. I'm ending the process."
@@ -227,7 +227,8 @@ begin{
 
     # PowerShell-Yamlモジュールがインストールされていなければ、終了
     try {
-        if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml")) {
+        if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml")) { # モジュールがインストールされていない場合
+            # 警告を表示し終了
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($ErrorMessages.ModuleNotInstalled, 0, "Module Check", 0x30) | Out-Null
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
@@ -259,16 +260,16 @@ begin{
     
     # 機密情報パターンを読み込む
     $script:SensitivePatterns = @()
-    if ($script:Yaml.SECURITY -and $script:Yaml.SECURITY.SensitivePatterns) {
+    if ($script:Yaml.SECURITY -and $script:Yaml.SECURITY.SensitivePatterns) { # 機密情報パターンが定義されている場合
         $script:SensitivePatterns = $script:Yaml.SECURITY.SensitivePatterns
     }
     
     # COM オブジェクト（WScript.Shell）を安全に管理するヘルパー関数
-    $script:ShowPopup = {
+    $script:ShowPopup = { # ポップアップ表示関数
         param(
-            [string]$Message,
-            [int]$Buttons = 0,
-            [string]$Title = "Information"
+            [string]$Message,               # 表示メッセージ
+            [int]$Buttons = 0,              # ボタンとアイコンの組み合わせ（WScript.Popupの仕様に準拠）
+            [string]$Title = "Information"  # ウィンドウタイトル
         )
         $obj = New-Object -ComObject WScript.Shell
         try {
@@ -282,7 +283,7 @@ begin{
     # メッセージ取得関数（YAMLから言語に応じたメッセージを取得）
     $script:GetMessage = {
         param(
-            [string]$Key
+            [string]$Key    # メッセージキー
         )
         # スクリプトブロックの可変長引数は$argsに入る
         $Arguments = $args
@@ -290,7 +291,7 @@ begin{
         $script:Message = $script:Yaml.MESSAGES.$script:Lang.$Key
         
         # メッセージがない場合はキーをそのまま返す
-        if ([string]::IsNullOrEmpty($script:Message)) {
+        if ([string]::IsNullOrEmpty($script:Message)) { # メッセージが存在しない場合
             return $Key
         }
         
@@ -298,7 +299,7 @@ begin{
         $script:Message = $script:Message.Replace('\r\n', "`r`n").Replace('\n', "`n")
         
         # 引数があれば、文字列をフォーマット
-        if ($Arguments -and $Arguments.Count -gt 0) {
+        if ($Arguments -and $Arguments.Count -gt 0) { # 引数がある場合
             try {
                 return ($script:Message -f $Arguments)
             } catch {
@@ -313,7 +314,7 @@ begin{
     $script:LogPath = Join-Path -Path $script:Yaml.LOG.PATH -ChildPath ($script:Yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$script:Yaml.LOG.EXTENSION) # ログの保存先
     # ログファイルのディレクトリが存在しなければ作成
     $script:LogDir = Split-Path -Parent $script:LogPath
-    if (-not (Test-Path -Path $script:LogDir)) {
+    if (-not (Test-Path -Path $script:LogDir)) { # ログディレクトリが存在しない場合
         New-Item -ItemType Directory -Path $script:LogDir | Out-Null
     }
 
@@ -322,14 +323,14 @@ begin{
     $script:ExecutorSid = $identity.User
     $script:UserSidList = @()  # 複数ユーザーのSIDリスト
     
-    if ($script:Yaml.LOG.USERS -and $script:Yaml.LOG.USERS.Count -gt 0) {
-        foreach ($user in $script:Yaml.LOG.USERS) {
+    if ($script:Yaml.LOG.USERS -and $script:Yaml.LOG.USERS.Count -gt 0) { # USERS配列が存在する場合
+        foreach ($user in $script:Yaml.LOG.USERS) { # 各ユーザーごとに処理
             if ([string]::IsNullOrWhiteSpace($user)) { continue }
             try {
                 $ntAccount = New-Object System.Security.Principal.NTAccount($user)
                 $userSid = $ntAccount.Translate([System.Security.Principal.SecurityIdentifier])
                 # 実行ユーザーと同じならスキップ（フル権限なので重複不要）
-                if ($userSid.Value -ne $script:ExecutorSid.Value) {
+                if ($userSid.Value -ne $script:ExecutorSid.Value) { # 重複しない場合のみ追加
                     $script:UserSidList += $userSid
                 }
             } catch {
@@ -350,7 +351,7 @@ begin{
         $ruleExec = New-Object System.Security.AccessControl.FileSystemAccessRule($script:ExecutorSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $logDirAcl.AddAccessRule($ruleExec)
         # 追加ユーザーに読み取り権限を付与
-        foreach ($userSid in $script:UserSidList) {
+        foreach ($userSid in $script:UserSidList) { # 各ユーザーごとに処理
             $ruleUser = New-Object System.Security.AccessControl.FileSystemAccessRule($userSid, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
             $logDirAcl.AddAccessRule($ruleUser)
         }
@@ -363,7 +364,7 @@ begin{
 
     # 二重起動の禁止（早期チェック）
     # 同じスクリプトが複数同時実行されないようチェック
-    if (-not (Test-NoDoubleActivation -Thread "relMain" -ShowDialog)) {
+    if (-not (Test-NoDoubleActivation -Thread "relMain" -ShowDialog)) { # 二重起動している場合
         # 既に起動中のため以降の処理をスキップ（endは実行）
         Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
         $script:CanExecuteProcess = $false
@@ -377,12 +378,13 @@ process{
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if($script:Yaml.PowerShell.Version -ne $PwsVerChk){
+    if($script:Yaml.PowerShell.Version -ne $PwsVerChk){ # PowerShellバージョンが異なる場合
+        # バージョンが異なる場合は、警告を表示
         [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:Yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
         switch($Button){
             6 { break } # OK(Continue)
             7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
-            default { 
+            default { # 未知のボタン
                 Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
                 & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
                 $script:CanExecuteProcess = $false; return
@@ -395,7 +397,7 @@ process{
     switch($Button){
         6 { break } # OK(Continue)
         7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
-        default { 
+        default { # 未知のボタン
             Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
             & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
             $script:CanExecuteProcess = $false; return
@@ -411,23 +413,23 @@ process{
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
     
     # モジュールのインポート
-    foreach($ModuleType in $script:Yaml.Module.Keys){
+    foreach($ModuleType in $script:Yaml.Module.Keys){ # 各モジュールタイプごとに処理
         $ModuleName = $script:Yaml.Module.$ModuleType.Name         # モジュール名
         $ModuleVersion = $script:Yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
         
         # もし、モジュール名かバージョンが空であれば、スキップ
-        if ([string]::IsNullOrWhiteSpace($ModuleName) -or [string]::IsNullOrWhiteSpace($ModuleVersion)) {
+        if ([string]::IsNullOrWhiteSpace($ModuleName) -or [string]::IsNullOrWhiteSpace($ModuleVersion)) { # モジュール名かバージョンが空の場合
             Write-CommonLog -Message (& $script:GetMessage "MODULE_EMPTY_SKIP") -LogPath $script:LogPath -Level 'WARN'
             continue # スキップ
         }
         # モジュールがインストールされているか確認
-        if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) {
+        if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) { # モジュールがインストールされていない場合
             # モジュールがインストールされていない場合は、インストールを促す
             [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName) -Title "Module Check" -Buttons 4
             switch($Button){
                 6 { break } # OK(Continue)
                 7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
-                default { 
+                default { # 未知のボタン
                     Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
                     & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
                     $script:CanExecuteProcess = $false; return
@@ -463,7 +465,7 @@ process{
 
     # リリース処理
     $AllTypeObj = $script:Yaml.RELEASE.Keys # リリースタイプの取得
-    foreach($ReleaseType in $AllTypeObj){
+    foreach($ReleaseType in $AllTypeObj){ # 各リリースタイプごとに処理
         # リリース処理を実行
         Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $script:Yaml -LogPath $script:LogPath -SensitivePatterns $script:SensitivePatterns
     }    } # ここまで時間計測
@@ -474,7 +476,7 @@ end{
     # ログファイルのパーミッション設定（現在のユーザーのみ読み取り可能）
     # 管理者権限がない場合はスキップ
     try {
-        if (Test-Path -Path $script:LogPath) {
+        if (Test-Path -Path $script:LogPath) { # ログファイルが存在する場合
             $logFileAcl = Get-Acl -Path $script:LogPath -ErrorAction Stop
             # 既存の継承権を無効化
             $logFileAcl.SetAccessRuleProtection($true, $false)
@@ -484,7 +486,7 @@ end{
             $ruleExecFile = New-Object System.Security.AccessControl.FileSystemAccessRule($script:ExecutorSid, "FullControl", "None", "None", "Allow")
             $logFileAcl.AddAccessRule($ruleExecFile)
             # 追加ユーザーに読み取り権限を付与
-            foreach ($userSid in $script:UserSidList) {
+            foreach ($userSid in $script:UserSidList) { # YAMLのLOG.USERS配列からのユーザー
                 $ruleUserFile = New-Object System.Security.AccessControl.FileSystemAccessRule($userSid, "Read", "None", "None", "Allow")
                 $logFileAcl.AddAccessRule($ruleUserFile)
             }
@@ -495,11 +497,11 @@ end{
     }
     
     # Measure-Commandの結果をログに出力（未実行時はスキップ）
-    if ($null -ne $TimeLap) {
+    if ($null -ne $TimeLap) { # 時間計測結果が存在する場合
         Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO'
     }
     Write-CommonLog -Message "Release end time: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" -LogPath $script:LogPath -Level 'INFO'
     
-    if (Test-Path -Path $script:LogPath) { Invoke-Item -Path $script:LogPath }
+    if (Test-Path -Path $script:LogPath) { Invoke-Item -Path $script:LogPath } # ログファイルを自動オープン
 }
 

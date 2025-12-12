@@ -185,7 +185,7 @@ begin{
             $scriptName = $_.InvocationInfo.MyCommand.Name
             $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -197,7 +197,7 @@ begin{
     # 二重起動の防止（最優先チェック）
     # ====================================
     # 同じスクリプトが複数同時実行されないようチェック
-    if (-not (Test-NoDoubleActivation -Thread "InstMain" -ShowDialog)) {
+    if (-not (Test-NoDoubleActivation -Thread "InstMain" -ShowDialog)) { # 二重起動検出時
         # 既に起動中のため処理を終了
         Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
         $script:CanExecuteProcess = $false
@@ -230,7 +230,7 @@ begin{
             $scriptName = $_.InvocationInfo.MyCommand.Name
             $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -239,7 +239,7 @@ begin{
 
 }
 Process{
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # エラーまたは二重起動の場合はスキップ
         return  # begin ブロックでエラーが発生した場合はスキップ
     }
     
@@ -263,7 +263,7 @@ Process{
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -277,15 +277,15 @@ Process{
     # 実行中のPowerShellバージョンとYAMLで指定されたバージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $obj = $null
-    if($pwsVerChk -ne $yaml.PowerShell.Version){    # バージョン不一致の場合
+    if($pwsVerChk -ne $yaml.PowerShell.Version){ # バージョン不一致の場合
         # yaml記述のバージョンと違ったら警告表示
         try {
             $obj = New-Object -ComObject WScript.Shell
             [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`nPowerShell "+$yaml.PowerShell.Version+" を前提にインストールを行います。続行しますか？",0,"警告",4)   # はい=6 いいえ=7
             switch($retButton){
                 6 { break } # はい
-                7 {
-                    if ($null -ne $obj) {
+                7 { # いいえ
+                    if ($null -ne $obj) { # COMオブジェクトが存在する場合
                         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                         $obj = $null
                     }
@@ -294,7 +294,7 @@ Process{
                 }
             }
         } finally {
-            if ($null -ne $obj) {
+            if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -342,7 +342,7 @@ end{
         $obj = New-Object -ComObject WScript.Shell
         $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
     } finally {
-        if ($null -ne $obj) {
+        if ($null -ne $obj) { # COMオブジェクトが存在する場合
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
             $obj = $null
         }

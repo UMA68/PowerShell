@@ -119,45 +119,45 @@ function Test-EnvModule {
     $installedModules = Get-Module -ListAvailable -Name $ModuleName
     $isVersionFound = $false
 
-    if ($null -ne $installedModules) {  # モジュール自体が存在する場合
+    if ($null -ne $installedModules) { # モジュール自体が存在する場合
         # ====================================
         # 指定バージョンの確認
         # ====================================
         # 複数バージョンが存在する可能性があるため、全て確認
-        if ($installedModules -is [array]) {    # 複数バージョン存在時
+        if ($installedModules -is [array]) { # 複数バージョン存在時
             # 複数バージョン存在時
-            foreach ($module in $installedModules) {    # 各バージョンを確認
-                if ($module.Version.ToString() -eq $ModuleVersion) {    # 指定バージョンが見つかった場合
+            foreach ($module in $installedModules) { # 各バージョンを確認
+                if ($module.Version.ToString() -eq $ModuleVersion) { # 指定バージョンが見つかった場合
                     # 指定バージョンが見つかった場合
                     $isVersionFound = $true
-                    if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+                    if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                         Write-CommonLog -Message "[EXIST] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO'
                     }
-                } else {    # 異なるバージョンが存在
+                } else { # 異なるバージョンが存在
                     # 異なるバージョンが存在
-                    if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+                    if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                         Write-CommonLog -Message "[OTHER] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO'
                     }
                 }
             }
-        } else {    # 単一バージョンのみ存在時
+        } else { # 単一バージョンのみ存在時
             # 単一バージョンのみ存在時
-            if ($installedModules.Version.ToString() -eq $ModuleVersion) {  # 指定バージョンが見つかった場合
+            if ($installedModules.Version.ToString() -eq $ModuleVersion) { # 指定バージョンが見つかった場合
                 $isVersionFound = $true
-                if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+                if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                     Write-CommonLog -Message "[EXIST] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO'
                 }
-            } else {    # 異なるバージョンが存在
-                if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+            } else { # 異なるバージョンが存在
+                if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                     Write-CommonLog -Message "[OTHER] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO'
                 }
             }
         }
-    } else {    # モジュール自体が存在しない場合
+    } else { # モジュール自体が存在しない場合
         # ====================================
         # モジュール自体が存在しない
         # ====================================
-        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
             Write-CommonLog -Message "[NOTHING] $ModuleName" -LogPath $script:Log -Level 'INFO'
         }
     }
@@ -166,8 +166,8 @@ function Test-EnvModule {
     # インストール処理
     # ====================================
     # 指定バージョンが存在しない場合はインストール
-    if ($isVersionFound -eq $false) {   # 指定バージョンが存在しない場合
-        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+    if ($isVersionFound -eq $false) { # 指定バージョンが存在しない場合
+        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
             Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストール中..." -LogPath $script:Log -Level 'INFO'
         }
 
@@ -176,7 +176,7 @@ function Test-EnvModule {
             Install-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -Scope CurrentUser -ErrorAction Stop
 
             # インストール成功
-            if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+            if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                 Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストールしました" -LogPath $script:Log -Level 'INFO'
             }
             return $true
@@ -184,7 +184,7 @@ function Test-EnvModule {
         } catch {
             # インストール失敗時の処理
             $errorMsg = $_.Exception.Message
-            if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+            if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
                 Write-CommonLog -Message "[ERROR] $ModuleName のインストールに失敗しました。エラー: $errorMsg" -LogPath $script:Log -Level 'ERROR'
             }
 
@@ -194,14 +194,14 @@ function Test-EnvModule {
                 $obj = New-Object -ComObject WScript.Shell
                 $obj.Popup("$ModuleName のインストールに失敗しました。`r`n処理を終了します。`r`n`r`nエラー: $errorMsg", 0, "エラー", 0x30) | Out-Null
             } finally {
-                if ($null -ne $obj) {
+                if ($null -ne $obj) { # COMオブジェクトが存在する場合
                     try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                     $obj = $null
                 }
             }
             exit
         }
-    } else {    # 指定バージョンが既に存在する場合
+    } else { # 指定バージョンが既に存在する場合
         return $true
     }
 }

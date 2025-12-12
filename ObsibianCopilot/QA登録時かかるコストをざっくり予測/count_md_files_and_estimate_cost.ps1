@@ -145,16 +145,16 @@
 param(
     [Parameter(Mandatory=$false)]
     [ValidateNotNullOrEmpty()]
-    [string]$VaultPath = "$HOME\GitHub\obsidian",
+    [string]$VaultPath = "$HOME\GitHub\obsidian",   # Obsidian Vaultのパス
     [Parameter(Mandatory=$false)]
-    [ValidateRange(0.1, [double]::MaxValue)]
-    [double]$CharsPerToken = 2.5,   # 日本語の場合は約2-3文字/トークン
+    [ValidateRange(0.1, [double]::MaxValue)]        # 1トークンあたりの文字数
+    [double]$CharsPerToken = 2.5,                   # 日本語の場合は約2-3文字/トークン
     [Parameter(Mandatory=$false)]
     [ValidateRange(0.0001, [double]::MaxValue)]
-    [double]$CostPerMillionTokens = 2.50,  # GPT-4o入力価格(100万トークンあたり）（2024年時点）
+    [double]$CostPerMillionTokens = 2.50,   # GPT-4o入力価格(100万トークンあたり）（2024年時点）
     [Parameter(Mandatory=$false)]
     [ValidateRange(1, 1000)]
-    [int]$ShowTopFiles = 10,        # 最大表示する大容量ファイル数
+    [int]$ShowTopFiles = 10,                # 最大表示する大容量ファイル数
     [Parameter(Mandatory=$false)]
     [switch]$ShowModelComparison = $false,  # 複数モデル比較表示フラグ
     [Parameter(Mandatory=$false)]
@@ -177,7 +177,7 @@ param(
 begin {
     $script:CanExecuteProcess = $true
     # Vaultパスの存在確認
-    if (-not (Test-Path -Path $VaultPath)) {
+    if (-not (Test-Path -Path $VaultPath)) { # パスが存在しない場合
         Write-Host "Error: Vault path does not exist: $VaultPath" -ForegroundColor Red
         $script:CanExecuteProcess = $false
         return
@@ -188,7 +188,7 @@ begin {
     Write-Host ""
 
     # 価格プリセットの適用（入力トークン単価を上書き）
-    if ($PSBoundParameters.ContainsKey('PricingProfile') -and -not [string]::IsNullOrEmpty($PricingProfile)) {
+    if ($PSBoundParameters.ContainsKey('PricingProfile') -and -not [string]::IsNullOrEmpty($PricingProfile)) { # 価格プリセットが指定されている場合
         switch ($PricingProfile) {
             'gpt-4o'   { $CostPerMillionTokens = 2.50 }
             '4o-mini'  { $CostPerMillionTokens = 0.15 }
@@ -206,7 +206,7 @@ begin {
     $script:skippedFolders = @()
     
     # 除外フォルダのパターン作成
-    if ($ExcludeFolders.Count -gt 0) {
+    if ($ExcludeFolders.Count -gt 0) { # 除外フォルダが指定されている場合
         Write-Host "Excluding folders: $($ExcludeFolders -join ', ')" -ForegroundColor Gray
         Write-Host ""
     }
@@ -218,57 +218,57 @@ process {
         $allMdFiles = Get-ChildItem -Path $VaultPath -Recurse -Filter *.md -File -ErrorAction SilentlyContinue
         
         # 除外フォルダのフィルタリング
-        $mdFiles = $allMdFiles | Where-Object {
-            $filePath = $_.FullName
-            $shouldInclude = $true
-            foreach ($excludeFolder in $ExcludeFolders) {
-                $pattern = "(^|[\\/])" + [regex]::Escape($excludeFolder) + "([\\/]|$)"
-                if ($filePath -match $pattern) {
+        $mdFiles = $allMdFiles | Where-Object { # 各ファイルに対して除外フォルダチェック
+            $filePath = $_.FullName # ファイルのフルパス
+            $shouldInclude = $true  # 初期状態は含む
+            foreach ($excludeFolder in $ExcludeFolders) { # 除外フォルダチェック
+                $pattern = "(^|[\\/])" + [regex]::Escape($excludeFolder) + "([\\/]|$)"  # ディレクトリ境界を考慮した正規表現
+                if ($filePath -match $pattern) { # 除外フォルダに一致
                     $shouldInclude = $false
-                    if ($script:skippedFolders -notcontains $excludeFolder) { $script:skippedFolders += $excludeFolder }
+                    if ($script:skippedFolders -notcontains $excludeFolder) { $script:skippedFolders += $excludeFolder }    # 除外フォルダ記録
                     break
                 }
             }
-            $shouldInclude
+            $shouldInclude  # フィルタ結果を返す
         }
         
         $script:fileCount = $mdFiles.Count  # 合計ファイル数
         
         # ファイルが見つからない場合の警告
-        if ($script:fileCount -eq 0) {
+        if ($script:fileCount -eq 0) { # ファイルがない場合の終了処理
             Write-Host "Warning: No Markdown files found in the specified path." -ForegroundColor Yellow
             return
         }
         
         # 進捗表示
         Write-Host "Processing $script:fileCount files..." -ForegroundColor Cyan
-        if ($ShowProgress) { Write-Host "" }
+        if ($ShowProgress) { Write-Host "" }    # 進捗表示用の空行
         
         # 各ファイルのサイズを取得
         $processedCount = 0
-        foreach ($file in $mdFiles) {
+        foreach ($file in $mdFiles) { # 各ファイル処理
             try {
-                $script:totalSize += $file.Length
-                $script:fileSizes += [PSCustomObject]@{
+                $script:totalSize += $file.Length       # 合計サイズ加算
+                $script:fileSizes += [PSCustomObject]@{ # ファイルサイズ情報オブジェクト
                     Name = $file.FullName
-                    SizeKB = [math]::Round($file.Length / 1KB, 2)
+                    SizeKB = [math]::Round($file.Length / 1KB, 2)   # サイズをKB単位で保存
                 }
                 
                 # ディレクトリ別統計
-                $relativePath = $file.DirectoryName.Replace($VaultPath, "").TrimStart('\', '/')
-                if ([string]::IsNullOrEmpty($relativePath)) {
+                $relativePath = $file.DirectoryName.Replace($VaultPath, "").TrimStart('\', '/') # Vaultからの相対パス
+                if ([string]::IsNullOrEmpty($relativePath)) { # ルート直下の場合
                     $relativePath = "(ルート)"
                 }
                 
                 # 最上位ディレクトリ名を取得
-                $dirName = $relativePath.Split([IO.Path]::DirectorySeparatorChar)[0]
-                if ([string]::IsNullOrEmpty($dirName)) {
+                $dirName = $relativePath.Split([IO.Path]::DirectorySeparatorChar)[0]    # 最上位ディレクトリ
+                if ([string]::IsNullOrEmpty($dirName)) { # ルート直下の場合
                     $dirName = "(ルート)"
                 }
                 
                 # ディレクトリ統計の初期化と更新
-                if (-not $script:dirStats.ContainsKey($dirName)) {
-                    $script:dirStats[$dirName] = @{
+                if (-not $script:dirStats.ContainsKey($dirName)) { # 初期化
+                    $script:dirStats[$dirName] = @{ # ハッシュテーブルで管理
                         FileCount = 0
                         TotalSize = 0
                     }
@@ -279,8 +279,8 @@ process {
                 # 進捗表示
                 $processedCount++
                 if ($ShowProgress -and ($processedCount % 100 -eq 0)) { # 100ファイルごとに表示
-                    $percent = [math]::Floor(($processedCount / [double]$script:fileCount) * 100)
-                    Write-Host "Processed: $processedCount / $script:fileCount files ($percent%)..." -ForegroundColor Gray
+                    $percent = [math]::Floor(($processedCount / [double]$script:fileCount) * 100)                           # パーセント計算
+                    Write-Host "Processed: $processedCount / $script:fileCount files ($percent%)..." -ForegroundColor Gray  # 進捗表示
                 }
                 
             } catch {
@@ -290,9 +290,9 @@ process {
         }
         
         # 最終進捗表示（小規模でも表示）
-        if ($ShowProgress) {
-            $percent = if ($script:fileCount -gt 0) { [math]::Floor(($processedCount / [double]$script:fileCount) * 100) } else { 0 }
-            Write-Host "Completed: $processedCount / $script:fileCount files ($percent%)" -ForegroundColor Green
+        if ($ShowProgress) { # 最終サマリ表示
+            $percent = if ($script:fileCount -gt 0) { [math]::Floor(($processedCount / [double]$script:fileCount) * 100) } else { 0 }   # パーセント計算
+            Write-Host "Completed: $processedCount / $script:fileCount files ($percent%)" -ForegroundColor Green                        # 最終進捗表示
             Write-Host ""
         }
         
@@ -305,16 +305,16 @@ process {
 }
 
 end {
-    if (-not $script:CanExecuteProcess) {
-        if (-not $NoKeyWait) {
+    if (-not $script:CanExecuteProcess) { # 初期エラー時の終了処理
+        if (-not $NoKeyWait) { # 終了時のキー待機
             Write-Host ""; Write-Host "Press any key to exit..." -ForegroundColor Yellow
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         }
         return
     }
     # ファイルが見つからなかった場合は終了
-    if ($script:fileCount -eq 0) {
-        if (-not $NoKeyWait) {
+    if ($script:fileCount -eq 0) { # ファイルがない場合の終了処理
+        if (-not $NoKeyWait) { # 終了時のキー待機
             Write-Host ""; Write-Host "Press any key to exit..." -ForegroundColor Yellow
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         }
@@ -324,16 +324,16 @@ end {
     # トークン数の見積もり（実際のファイルサイズに基づく）
     # ファイルサイズ（バイト）→ 文字数（UTF-8想定で概算）→ トークン数
     $estimatedChars = $script:totalSize / 2  # UTF-8で日本語は平均2-3バイト/文字
-    $estimatedInputTokens = [math]::Ceiling($estimatedChars / $CharsPerToken)
-    $estimatedOutputTokens = [math]::Ceiling($estimatedInputTokens * $OutputTokenRatio)
-    $estimatedTotalTokens = $estimatedInputTokens + $estimatedOutputTokens
+    $estimatedInputTokens = [math]::Ceiling($estimatedChars / $CharsPerToken)           # 入力トークン数の見積もり
+    $estimatedOutputTokens = [math]::Ceiling($estimatedInputTokens * $OutputTokenRatio) # 出力トークン数の見積もり
+    $estimatedTotalTokens = $estimatedInputTokens + $estimatedOutputTokens              # 合計トークン数
     
     # コストの計算（入力トークンのみ、または入力+出力）
-    $estimatedInputCost = ($estimatedInputTokens / 1000000) * $CostPerMillionTokens
-    $estimatedOutputCost = 0
+    $estimatedInputCost = ($estimatedInputTokens / 1000000) * $CostPerMillionTokens # 入力トークンコスト
+    $estimatedOutputCost = 0                                                        # 出力トークンコスト初期化
     
     # 出力トークンがある場合のコスト計算
-    if ($OutputTokenRatio -gt 0) {
+    if ($OutputTokenRatio -gt 0) { # 入力+出力コスト
         # 出力トークンのコストは通常入力の3倍程度
         $outputCostMultiplier = 3
         $estimatedOutputCost = ($estimatedOutputTokens / 1000000) * $CostPerMillionTokens * $outputCostMultiplier
@@ -349,10 +349,10 @@ end {
     Write-Host "Average file size: $([math]::Round($script:totalSize / $script:fileCount / 1KB, 2)) KB"
     
     # エラー数と除外フォルダの表示
-    if ($script:errorCount -gt 0) {
+    if ($script:errorCount -gt 0) { # エラーがあった場合の表示
         Write-Host "Files with errors: $script:errorCount" -ForegroundColor Yellow
     }
-    if ($script:skippedFolders.Count -gt 0) {
+    if ($script:skippedFolders.Count -gt 0) { # 除外フォルダがある場合の表示
         Write-Host "Excluded folders found: $($script:skippedFolders -join ', ')" -ForegroundColor Gray
     }
     
@@ -361,14 +361,15 @@ end {
     Write-Host "Estimated input tokens: $($estimatedInputTokens.ToString('N0'))"
     
     # 出力トークンがある場合の表示
-    if ($OutputTokenRatio -gt 0) {
+    if ($OutputTokenRatio -gt 0) { # 入力+出力トークンの場合
         Write-Host "Estimated output tokens: $($estimatedOutputTokens.ToString('N0'))"
         Write-Host "Estimated total tokens: $($estimatedTotalTokens.ToString('N0'))"
         Write-Host ""
         Write-Host "Estimated input cost (USD): `$$([math]::Round($estimatedInputCost, 4))"
         Write-Host "Estimated output cost (USD): `$$([math]::Round($estimatedOutputCost, 4))"
         Write-Host "Estimated total cost (USD): `$$([math]::Round($estimatedTotalCost, 4))" -ForegroundColor Yellow
-    } else {
+    } else { # 入力トークンのみの場合の表示
+        Write-Host ""
         Write-Host "Estimated cost (USD): `$$([math]::Round($estimatedInputCost, 4))" -ForegroundColor Yellow
     }
     
@@ -376,29 +377,29 @@ end {
     Write-Host ""
     Write-Host "Note: This is a rough estimate based on file size." -ForegroundColor Gray
     Write-Host "Actual token count may vary depending on content and encoding." -ForegroundColor Gray
-    if ($OutputTokenRatio -gt 0) {
+    if ($OutputTokenRatio -gt 0) { # 出力トークンがある場合の注意書き
         Write-Host "Output cost uses 3x multiplier (typical GPT pricing model)." -ForegroundColor Gray
     }
     Write-Host ""
     
     # 複数モデルの比較表示
-    if ($ShowModelComparison) {
+    if ($ShowModelComparison) { # モデル比較表示フラグが有効な場合
         Write-Host "===== Model Cost Comparison =====" -ForegroundColor Green
-        $models = @(
+        $models = @( # GPTモデルの価格情報
             @{Name="GPT-4o"; InputCost=2.50; OutputCost=10.00},
             @{Name="GPT-4o-mini"; InputCost=0.15; OutputCost=0.60},
             @{Name="GPT-3.5-turbo"; InputCost=0.50; OutputCost=1.50}
         )
         
         # 各モデルのコスト計算と表示
-        foreach ($model in $models) {
+        foreach ($model in $models) { # モデルごとに計算
             $modelInputCost = ($estimatedInputTokens / 1000000) * $model.InputCost
             # 出力トークンがある場合の計算
-            if ($OutputTokenRatio -gt 0) {
+            if ($OutputTokenRatio -gt 0) { # 入力+出力コスト
                 $modelOutputCost = ($estimatedOutputTokens / 1000000) * $model.OutputCost
                 $modelTotalCost = $modelInputCost + $modelOutputCost
                 Write-Host "$($model.Name): `$$([math]::Round($modelTotalCost, 4)) (Input: `$$([math]::Round($modelInputCost, 4)) + Output: `$$([math]::Round($modelOutputCost, 4)))" -ForegroundColor Cyan
-            } else {
+            } else { # 入力コストのみ
                 Write-Host "$($model.Name): `$$([math]::Round($modelInputCost, 4))" -ForegroundColor Cyan
             }
         }
@@ -406,11 +407,11 @@ end {
     }
     
     # ディレクトリ別統計を表示
-    if ($script:dirStats.Count -gt 0) {
+    if ($script:dirStats.Count -gt 0) { # ディレクトリ統計が存在する場合
         Write-Host "===== Directory Statistics =====" -ForegroundColor Green
         $sortedDirs = $script:dirStats.GetEnumerator() | Sort-Object {$_.Value.TotalSize} -Descending
         # 各ディレクトリの統計を表示
-        foreach ($dir in $sortedDirs) {
+        foreach ($dir in $sortedDirs) { # ディレクトリ名、ファイル数、合計サイズ(MB)
             $sizeMB = [math]::Round($dir.Value.TotalSize / 1MB, 2)
             Write-Host "  $($dir.Key): $($dir.Value.FileCount) files, $sizeMB MB" -ForegroundColor Gray
         }
@@ -419,45 +420,50 @@ end {
     
     # 最も大きいファイルTop N を表示
     Write-Host "Top $ShowTopFiles largest files:" -ForegroundColor Cyan
+    # 大容量ファイルのリストをサイズ順にソートして表示
     $script:fileSizes | Sort-Object -Property SizeKB -Descending | Select-Object -First $ShowTopFiles | ForEach-Object {
         Write-Host "  $($_.SizeKB) KB - $($_.Name)" -ForegroundColor Gray
     }
     
     # ファイルへの出力
-    if (-not [string]::IsNullOrEmpty($ExportToFile)) {
+    if (-not [string]::IsNullOrEmpty($ExportToFile)) { # ExportToFileが指定されている場合
+        Write-Host ""
+        Write-Host "Exporting results to file..." -ForegroundColor Cyan
         # 拡張子の事前検証
         $ext = [IO.Path]::GetExtension($ExportToFile)
-        if (($ext -ne ".json") -and ($ext -ne ".csv")) {
+        if (($ext -ne ".json") -and ($ext -ne ".csv")) { # サポート外の拡張子
             Write-Host ""; Write-Host "Warning: Unsupported file format. Use .csv or .json extension." -ForegroundColor Yellow
-        } else {
+        } else { # エクスポート処理
         try {
-            $exportData = [PSCustomObject]@{
-                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                VaultPath = $VaultPath
-                FileCount = $script:fileCount
-                ErrorCount = $script:errorCount
-                TotalSizeMB = [math]::Round($script:totalSize / 1MB, 2)
-                AverageFileSizeKB = [math]::Round($script:totalSize / $script:fileCount / 1KB, 2)
-                EstimatedInputTokens = $estimatedInputTokens
-                EstimatedOutputTokens = $estimatedOutputTokens
-                EstimatedTotalTokens = $estimatedTotalTokens
-                EstimatedInputCostUSD = [math]::Round($estimatedInputCost, 4)
-                EstimatedOutputCostUSD = [math]::Round($estimatedOutputCost, 4)
-                EstimatedTotalCostUSD = [math]::Round($estimatedTotalCost, 4)
-                CharsPerToken = $CharsPerToken
-                CostPerMillionTokens = $CostPerMillionTokens
-                OutputTokenRatio = $OutputTokenRatio
-                ExcludedFolders = ($ExcludeFolders -join ',')
+            $exportData = [PSCustomObject]@{ # エクスポート用オブジェクトの作成
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"  # タイムスタンプ
+                VaultPath = $VaultPath  # Vaultパス
+                FileCount = $script:fileCount   # ファイル数
+                ErrorCount = $script:errorCount # エラー数
+                TotalSizeMB = [math]::Round($script:totalSize / 1MB, 2) # 合計サイズ(MB)
+                AverageFileSizeKB = [math]::Round($script:totalSize / $script:fileCount / 1KB, 2) # 平均ファイルサイズ(KB)
+                EstimatedInputTokens = $estimatedInputTokens    # 推定入力トークン数
+                EstimatedOutputTokens = $estimatedOutputTokens  # 推定出力トークン数
+                EstimatedTotalTokens = $estimatedTotalTokens    # 推定合計トークン数
+                EstimatedInputCostUSD = [math]::Round($estimatedInputCost, 4)   # 推定入力コスト(USD)
+                EstimatedOutputCostUSD = [math]::Round($estimatedOutputCost, 4) # 推定出力コスト(USD)
+                EstimatedTotalCostUSD = [math]::Round($estimatedTotalCost, 4)   # 推定合計コスト(USD)
+                CharsPerToken = $CharsPerToken                  # 1トークンあたりの文字数
+                CostPerMillionTokens = $CostPerMillionTokens    # 100万トークンあたりのコスト(USD)
+                OutputTokenRatio = $OutputTokenRatio            # 出力トークン比率
+                ExcludedFolders = ($ExcludeFolders -join ',')   # 除外フォルダ
+                # 追加情報 - Top 5ディレクトリ
                 TopDirectories = ($script:dirStats.GetEnumerator() | Sort-Object {$_.Value.TotalSize} -Descending | Select-Object -First 5 | ForEach-Object {"$($_.Key):$($_.Value.FileCount)files"}) -join ','
+                # 追加情報 - Top Nファイル
                 TopFiles = ($script:fileSizes | Sort-Object -Property SizeKB -Descending | Select-Object -First $ShowTopFiles | ForEach-Object {"$($_.SizeKB)KB:$($_.Name)"}) -join ','
             }
             
             # エクスポート形式に応じた出力
-            if ($ext -eq ".json") {
+            if ($ext -eq ".json") { # JSON形式
                 $exportData | ConvertTo-Json | Out-File -FilePath $ExportToFile -Encoding utf8
                 Write-Host ""
                 Write-Host "Results exported to: $ExportToFile" -ForegroundColor Green
-            } elseif ($ext -eq ".csv") {
+            } elseif ($ext -eq ".csv") { # CSV形式
                 $exportData | Export-Csv -Path $ExportToFile -NoTypeInformation -Encoding utf8
                 Write-Host ""
                 Write-Host "Results exported to: $ExportToFile" -ForegroundColor Green
@@ -471,7 +477,7 @@ end {
     }
     
     # 終了前に一時停止
-    if (-not $NoKeyWait) {
+    if (-not $NoKeyWait) { # 非対話環境でない場合
         Write-Host ""
         Write-Host "Press any key to exit..." -ForegroundColor Yellow
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

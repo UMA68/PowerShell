@@ -78,16 +78,16 @@ function Copy-ItemCustom {
 
         # ロングパス変換ヘルパー
         function Convert-ToLongPath([string]$path){
-            if (-not $EnableLongPath) { return $path }
-            if ($path -like "\\?\*") { return $path }
-            if ($path -match '^[A-Za-z]:\\') { return "\\\\?\\$path" }
+            if (-not $EnableLongPath) { return $path }  # 無効時はそのまま返す
+            if ($path -like "\\?\*") { return $path }   # 既にロングパス形式の場合はそのまま返す
+            if ($path -match '^[A-Za-z]:\\') { return "\\\\?\\$path" } # ドライブレター形式
             return $path
         }
 
         # リトライヘルパー
         function Invoke-WithRetry([scriptblock]$Action){
             $attempt = 0
-            while ($true) {
+            while ($true) { # 無限ループ（成功または例外で抜ける）
                 try { & $Action; return $true }
                 catch {
                     if ($attempt -ge $RetryCount) { throw }
@@ -99,7 +99,7 @@ function Copy-ItemCustom {
         # ログディレクトリの事前作成（ログ出力失敗防止）
         try {
             $logDir = Split-Path -Parent $LogPath
-            if ($logDir -and -not (Test-Path -Path $logDir)) {
+            if ($logDir -and -not (Test-Path -Path $logDir)) { # ディレクトリが存在しない場合
                 New-Item -ItemType Directory -Path $logDir -ErrorAction Stop | Out-Null
             }
         } catch {
@@ -109,7 +109,7 @@ function Copy-ItemCustom {
         }
         # リリース元フォルダ
         # YAMLの必須キー検証
-        if (-not $Yaml.RELEASE -or -not $Yaml.RELEASE.Contains($ReleaseType)) {
+        if (-not $Yaml.RELEASE -or -not $Yaml.RELEASE.Contains($ReleaseType)) { # リリースタイプが存在しない場合
             Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' NOT DEFINED IN YAML." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             return
         }
@@ -220,16 +220,16 @@ function Invoke-ReleaseRules{
         [Parameter(Mandatory=$true)]
         [string]$LogPath,                       # ログファイルパス    
         [Parameter(Mandatory=$false)]
-        [string[]]$SensitivePatterns = @(),      # 機密情報キーワード配列
+        [string[]]$SensitivePatterns = @(),     # 機密情報キーワード配列
         [Parameter(Mandatory=$false)]
-        [ValidateSet('RenameThenCopy','DeleteThenCopy','SkipIfExists')]
-        [string]$OverwritePolicy = 'RenameThenCopy',
+        [ValidateSet('RenameThenCopy','DeleteThenCopy','SkipIfExists')] # 既存ファイル処理ポリシー
+        [string]$OverwritePolicy = 'RenameThenCopy',                    # 既存ファイル処理ポリシー
         [Parameter(Mandatory=$false)]
-        [int]$RetryCount = 0,
+        [int]$RetryCount = 0,               # リトライ回数
         [Parameter(Mandatory=$false)]
-        [int]$RetryDelayMs = 250,
+        [int]$RetryDelayMs = 250,           # リトライ待機時間（ミリ秒）
         [Parameter(Mandatory=$false)]
-        [bool]$EnableLongPath = $false
+        [bool]$EnableLongPath = $false      # ロングパス対応有効フラグ
     )
     # リリース先の既存リネームファイルを削除する
     $FileBaseName = $FileObject.BaseName      # ファイル名
@@ -261,18 +261,18 @@ function Invoke-ReleaseRules{
         $FileNameWithDatePath = Join-Path -Path $ReleaseDestination -ChildPath $NewFileNameWithDate
         $FileExist = Get-ChildItem -Path $ReleaseDestination -Filter $FileObject.Name -ErrorAction SilentlyContinue
         if ($FileExist) { # ファイルが存在する場合
-            switch ($OverwritePolicy) {
-                'RenameThenCopy' {
+            switch ($OverwritePolicy) { # 既存ファイル処理ポリシー
+                'RenameThenCopy' { # リネームしてからコピー
                     Invoke-WithRetry { Rename-Item -Path $ReleaseToFileName -NewName $NewFileNameWithDate -Force -ErrorAction Stop }
                     Write-CommonLog -Message "[RENAME] '$ReleaseTypeName' -> '$FileNameWithDatePath'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
                     $script:SumRenamed++
                 }
-                'DeleteThenCopy' {
+                'DeleteThenCopy' { # 削除してからコピー
                     Invoke-WithRetry { Remove-Item -Path $ReleaseToFileName -Force -ErrorAction Stop }
                     Write-CommonLog -Message "[DELETE] '$ReleaseTypeName' EXISTING -> '$ReleaseToFileName'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
                     $script:SumDeleted++
                 }
-                'SkipIfExists' {
+                'SkipIfExists' { # 存在する場合はスキップ
                     Write-CommonLog -Message "[SKIP] EXISTS: '$ReleaseToFileName' (policy SkipIfExists)" -LogPath $LogPath -Level 'WARN' -SensitivePatterns $SensitivePatterns
                     return
                 }

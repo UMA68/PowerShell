@@ -149,7 +149,7 @@ begin {
     # 二重起動の防止（最優先チェック）
     # ====================================
     # 同じスクリプトが複数同時実行されないようチェック
-    if (-not (Test-NoDoubleActivation -Thread "MakeEncrypted" -ShowDialog)) {
+    if (-not (Test-NoDoubleActivation -Thread "MakeEncrypted" -ShowDialog)) { # 二重起動が検出された場合
         # 既に起動中のため処理を終了
         Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
         $script:CanExecuteProcess = $false
@@ -179,7 +179,7 @@ begin {
 }
 
 process {
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # begin ブロックでエラーが発生した場合はスキップ
         return  # begin ブロックでエラーが発生した場合はスキップ
     }
     
