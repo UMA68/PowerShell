@@ -50,12 +50,16 @@
 #>
 
 function Copy-ItemCustom {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
         [string]$ReleaseType,               # リリースタイプ名
         [Parameter(Mandatory=$true)]
-        [object]$Yaml,                      # YAML設定オブジェクト
+        [ValidateNotNull()]
+        [object]$Yaml,                      # YAML設定オブジェクト（OrderedDictionary推奨）
         [Parameter(Mandatory=$true)]
+        [ValidateScript({ if ([string]::IsNullOrWhiteSpace($_)) { throw 'LogPath is empty' } $true })]
         [string]$LogPath,                   # ログファイルパス
         [Parameter(Mandatory=$false)]
         [string[]]$SensitivePatterns = @()  # 機密情報キーワード配列
@@ -63,15 +67,21 @@ function Copy-ItemCustom {
     
     begin{
         # リリース元フォルダ
+        # YAMLの必須キー検証
+        if (-not $Yaml.RELEASE -or -not $Yaml.RELEASE.Contains($ReleaseType)) {
+            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' NOT DEFINED IN YAML." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+            return
+        }
         $ReleaseSource = $Yaml.RELEASE.$ReleaseType.FolderBy
+        $ReleaseDestination = $Yaml.RELEASE.$ReleaseType.ReleaseTo
     }
     process{
         # フォルダ内ファイルのカウント
         try{
-            $FileCount = (Get-ChildItem -Path $ReleaseSource -Recurse -File | Measure-Object).Count
+            $FileCount = (Get-ChildItem -Path $ReleaseSource -Recurse -File -ErrorAction Stop | Measure-Object).Count
         }catch{
             # フォルダ内ファイルのカウントに失敗した場合は、エラーメッセージを表示
-            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseSource' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+            Write-CommonLog -Message "[ERROR] SOURCE FOLDER NOT FOUND: '$ReleaseSource'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             return # YAML記述が間違っている場合は、Functionを抜ける
         }
@@ -90,12 +100,16 @@ function Copy-ItemCustom {
         Write-CommonLog -Message $StartMessage -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
         Write-CommonLog -Message $StartMessageLine -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
 
-        # リリース先フォルダ
-        $ReleaseDestination = $Yaml.RELEASE.$ReleaseType.ReleaseTo
-        # リリース先フォルダが存在しない場合は、エラーをログに記述
-        if(-not (Test-Path -Path $ReleaseDestination)) { # リリース先フォルダが存在しない場合
-            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseType' FOLDER NOT FOUND!." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
-            return
+        # リリース先フォルダの存在確認（なければ作成を試みる）
+        if(-not (Test-Path -Path $ReleaseDestination)) {
+            try {
+                New-Item -ItemType Directory -Path $ReleaseDestination -ErrorAction Stop | Out-Null
+                Write-CommonLog -Message "[INFO] DESTINATION FOLDER CREATED: '$ReleaseDestination'." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            } catch {
+                Write-CommonLog -Message "[ERROR] DESTINATION FOLDER UNAVAILABLE: '$ReleaseDestination'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+                Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+                return
+            }
         }
 
         # リリース実行
@@ -167,12 +181,10 @@ function Invoke-ReleaseRules{
         try{
             Remove-Item -Path $RenamedFileName.FullName -Force -ErrorAction Stop
             # 削除結果をログに記述
-            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FILE DELETE STARTED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FILE DELETE TO '$($RenamedFileName.FullName)'." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-            Write-CommonLog -Message "[DELETE] RELEASE TYPE '$ReleaseTypeName' FILE DELETE COMPLETED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            Write-CommonLog -Message "[DELETE] '$ReleaseTypeName' -> '$($RenamedFileName.FullName)'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
         }catch{
             # 削除に失敗した場合は、エラーメッセージをログに記述
-            Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FILE DELETE FAILED!." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+            Write-CommonLog -Message "[ERROR] DELETE FAILED: '$($RenamedFileName.FullName)'." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
             Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
         }
     }
@@ -188,19 +200,15 @@ function Invoke-ReleaseRules{
             # リネーム処理
             Rename-Item -Path $ReleaseToFileName -NewName $NewFileNameWithDate -Force -ErrorAction Stop
             # リネーム結果をログに記述
-            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FILE RENAME STARTED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FILE RENAME TO '$FileNameWithDatePath'." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-            Write-CommonLog -Message "[RENAME] RELEASE TYPE '$ReleaseTypeName' FILE RENAME COMPLETED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+            Write-CommonLog -Message "[RENAME] '$ReleaseTypeName' -> '$FileNameWithDatePath'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
         }
         # コピー処理
         Copy-Item -Path $FileObject.FullName -Destination $ReleaseDestination -Force -ErrorAction Stop
         # コピー結果をログに記述
-        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FILE COPY STARTED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FILE COPY TO $($FileObject.Name)." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
-        Write-CommonLog -Message "[COPY] RELEASE TYPE '$ReleaseTypeName' FILE COPY COMPLETED." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
+        Write-CommonLog -Message "[COPY] '$ReleaseTypeName' -> '$($FileObject.Name)'" -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
     }catch{
         # コピーに失敗した場合は、エラーメッセージをログに記述
-        Write-CommonLog -Message "[ERROR] RELEASE TYPE '$ReleaseTypeName' FILE COPY TO $($FileObject.Name) FAILED!." -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
+        Write-CommonLog -Message "[ERROR] COPY FAILED: '$($FileObject.FullName)' -> '$ReleaseDestination'" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
         Write-CommonLog -Message "[MESSAGE] $($_.Exception.Message)" -LogPath $LogPath -Level 'ERROR' -SensitivePatterns $SensitivePatterns
     }
 }

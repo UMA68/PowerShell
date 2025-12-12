@@ -167,6 +167,8 @@ param(
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
 begin{
+    # プロセス実行可否フラグ（endブロックの安全なクリーンアップ用）
+    $script:CanExecuteProcess = $true
     # エラーメッセージ定数（YAML読み込み前）
     $ErrorMessages = @{
         ScriptReadError = "I couldn't read the PowerShell file. I'm ending the process."
@@ -229,7 +231,8 @@ begin{
 
     # YAMLファイルの読み込み
     try{
-        $script:Yaml = Get-Content $script:YamlPath -Delimiter "`0" | ConvertFrom-Yaml -Ordered -ErrorAction Stop
+        # YAMLは-Rawで読み込み、ConvertFrom-Yamlへ渡す
+        $script:Yaml = Get-Content -Path $script:YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered -ErrorAction Stop
     }catch{
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
@@ -241,8 +244,8 @@ begin{
     
     # 機密情報パターンを読み込む
     $script:SensitivePatterns = @()
-    if ($script:yaml.SECURITY.SensitivePatterns) {
-        $script:SensitivePatterns = $script:yaml.SECURITY.SensitivePatterns
+    if ($script:Yaml.SECURITY -and $script:Yaml.SECURITY.SensitivePatterns) {
+        $script:SensitivePatterns = $script:Yaml.SECURITY.SensitivePatterns
     }
     
     # COM オブジェクト（WScript.Shell）を安全に管理するヘルパー関数
@@ -321,13 +324,14 @@ begin{
     # 二重起動の禁止（早期チェック）
     # 同じスクリプトが複数同時実行されないようチェック
     if (-not (Test-NoDoubleActivation -Thread "relMain" -ShowDialog)) {
-        # 既に起動中のため処理を終了
+        # 既に起動中のため以降の処理をスキップ（endは実行）
         Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
-        exit
+        $script:CanExecuteProcess = $false
     }
 
 }
 process{
+    if (-not $script:CanExecuteProcess) { return }
     # スクリプトバージョン情報をログに記録（デバッグ用）
     Write-Host "[INFO] Script version: 1.2.0, Configuration version: $($script:yaml.Version)" -ForegroundColor Gray
 
@@ -337,11 +341,11 @@ process{
         [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:Yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
         switch($Button){
             6 { break } # OK(Continue)
-            7 { exit }  # Cancel(End)
+            7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
             default { 
                 Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
                 & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
-                exit
+                $script:CanExecuteProcess = $false; return
             }
         }
     }
@@ -350,11 +354,11 @@ process{
     [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "EXECUTE_CONFIRM") -Title "INQUIRY" -Buttons 4
     switch($Button){
         6 { break } # OK(Continue)
-        7 { exit }  # Cancel(End)
+        7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
         default { 
             Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
             & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
-            exit
+            $script:CanExecuteProcess = $false; return
         }
     }
 
@@ -382,11 +386,11 @@ process{
             [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName) -Title "Module Check" -Buttons 4
             switch($Button){
                 6 { break } # OK(Continue)
-                7 { exit }  # Cancel(End)
+                7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
                 default { 
                     Write-CommonLog -Message (& $script:GetMessage "UNKNOWN_BUTTON") -LogPath $script:LogPath -Level 'ERROR'
                     & $script:ShowPopup -Message (& $script:GetMessage "UNKNOWN_BUTTON") -Title "Unknown" -Buttons 0x30 | Out-Null
-                    exit
+                    $script:CanExecuteProcess = $false; return
                 }
             }
         }
@@ -400,7 +404,7 @@ process{
             # モジュールのインポートに失敗した場合は警告を表示し終了
             $msg = & $script:GetMessage "MODULE_IMPORT_ERROR" $ModuleName $ModuleVersion
             & $script:ShowPopup -Message ($msg + "`r`n`r`n" + $_.Exception.Message) -Title "Module Check" -Buttons 0x30 | Out-Null
-            exit # 終了
+            $script:CanExecuteProcess = $false; return
         }
     }
 
@@ -426,6 +430,7 @@ process{
 
 }
 end{
+    # 実行フラグがfalseでも最終ログは安全に出力
     # ログファイルのパーミッション設定（現在のユーザーのみ読み取り可能）
     # 管理者権限がない場合はスキップ
     try {
@@ -445,10 +450,12 @@ end{
         Write-CommonLog -Message "[WARNING] Could not set ACL on log file (requires administrator privilege). Continuing without ACL configuration." -LogPath $script:LogPath -Level 'WARN'
     }
     
-    # Measure-Commandの結果をログに出力
-    Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO' # リリース処理の経過時間をログに出力
-    Write-CommonLog -Message "Release end time: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" -LogPath $script:LogPath -Level 'INFO'   # リリース終了時間をログに出力
+    # Measure-Commandの結果をログに出力（未実行時はスキップ）
+    if ($null -ne $TimeLap) {
+        Write-CommonLog -Message ("Elapsed time for release: {0:D2}:Min {1:D2}:Sec" -f $TimeLap.Minutes, $TimeLap.Seconds) -LogPath $script:LogPath -Level 'INFO'
+    }
+    Write-CommonLog -Message "Release end time: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" -LogPath $script:LogPath -Level 'INFO'
     
-    Invoke-Item -Path $script:LogPath   # ログファイルを開く
+    if (Test-Path -Path $script:LogPath) { Invoke-Item -Path $script:LogPath }
 }
 
