@@ -82,11 +82,11 @@ param(
     [Parameter(Mandatory=$false)]
     [ValidateScript({ # ファイル名の検証
         # ファイル名としての有効性を検証
-        if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
-            throw "ファイル名に使用できない文字が含まれています: $_"
-        }
         if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
             throw "ファイル名は空にできません"
+        }
+        if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
+            throw "ファイル名に使用できない文字が含まれています: $_"
         }
         if ($_.Length -gt 255) { # ファイル名長さ制限チェック
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
@@ -97,14 +97,14 @@ param(
     [Parameter(Mandatory=$false)]
     [ValidateScript({ # yamlファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
+            throw "ファイル名は空にできません"
+        }
         if ($_ -notmatch '\.(yaml|yml)$') { # YAML拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
         }
         if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
             throw "ファイル名に使用できない文字が含まれています: $_"
-        }
-        if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
-            throw "ファイル名は空にできません"
         }
         if ($_.Length -gt 255) { # ファイル名長さ制限チェック
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
@@ -115,6 +115,29 @@ param(
 )
 
 begin {
+
+    # 共通ポップアップ関数（COM解放を保証）
+    $script:ShowPopup = {
+        param(
+            [string]$Message,
+            [string]$Title,
+            [int]$Icon = 0x30  # 0x10:エラー, 0x20:警告, 0x30:情報
+        )
+        $obj = $null
+        try {
+            $obj = New-Object -ComObject WScript.Shell
+            $obj.Popup($Message, 0, $Title, $Icon) | Out-Null
+        }
+        finally {
+            if ($null -ne $obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                $obj = $null
+            }
+        }
+    }
+
+    $script:CanExecuteProcess = $true
+    $script:StartTime = Get-Date
 
     # ====================================
     # ディレクトリとパスの初期化
@@ -136,80 +159,55 @@ begin {
         . (Join-Path -Path $script:ComPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop   # 二重起動防止スクリプト読み込み
         . (Join-Path -Path $script:ComPath -ChildPath "CheckCommand.ps1") -ErrorAction Stop         # コマンド検証スクリプト読み込み
     } catch {
-        $obj = $null
-        try {
-            $obj = New-Object -ComObject WScript.Shell
-            $scriptName = $_.InvocationInfo.MyCommand.Name
-            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
-        } finally {
-            if ($null -ne $obj) { # スクリプト読み込みエラー
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                $obj = $null
-            }
-        }
-        exit
+        & $script:ShowPopup -Message ("$($_.InvocationInfo.MyCommand.Name) の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message) -Title "エラー" -Icon 0x30
+        $script:CanExecuteProcess = $false
+        return
     }
     
     # ====================================
     # 実行前の検証
     # ====================================
     # 二重起動防止と必要なコマンドの存在確認
-    Test-NoDoubleActivation -Thread "sqlMain"  # 二重起動チェック
-    Test-Command -ComName "nkf32"              # nkf32コマンド確認
+    if (-not (Test-NoDoubleActivation -Thread "sqlMain")) {
+        $script:CanExecuteProcess = $false
+        return
+    }
+    
+    if (-not (Test-Command -ComName "nkf32")) {
+        & $script:ShowPopup -Message "nkf32コマンドが見つかりません。処理を終了します。" -Title "エラー" -Icon 0x10
+        $script:CanExecuteProcess = $false
+        return
+    }
 
     # ====================================
     # モジュール検証
     # ====================================
     # PowerShell-Yaml モジュールがインストールされているか確認
     $YamlModuleCount = ((Get-Module -ListAvailable -Name PowerShell-Yaml).Name).Count
-    $obj = $null
-    if ($YamlModuleCount -eq 0) { # モジュール未インストール
-        try {
-            $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup("PowerShell-Yamlモジュールがインストールされていません。処理を終了します。", 0, "警告", 0x30) | Out-Null
-        } finally {
-            if ($null -ne $obj) { # モジュール未インストール
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                $obj = $null
-            }
-        }
-        exit
+    if ($YamlModuleCount -eq 0) {
+        & $script:ShowPopup -Message "PowerShell-Yamlモジュールがインストールされていません。処理を終了します。" -Title "警告" -Icon 0x30
+        $script:CanExecuteProcess = $false
+        return
     }
     
     # ====================================
     # 設定ファイルの読み込み
     # ====================================
     # YAML設定ファイルの存在確認
-    if (-not (Test-Path -Path $YamlPath)) { # YAMLファイル無し
-        $obj = $null
-        try {
-            $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($EnvYaml + "ファイルが見つかりません。処理を終了します。", 0, "エラー", 0x10) | Out-Null
-        } finally {
-            if ($null -ne $obj) { # YAMLファイル無し
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                $obj = $null
-            }
-        }
-        exit
+    if (-not (Test-Path -Path $YamlPath)) {
+        & $script:ShowPopup -Message ($EnvYaml + "ファイルが見つかりません。処理を終了します。") -Title "エラー" -Icon 0x10
+        $script:CanExecuteProcess = $false
+        return
     }
 
     # YAML設定ファイルを読み込む
     try {
-        $script:YamlOBJ = Get-Content $script:YamlPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered 
+        $script:YamlOBJ = Get-Content $script:YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered 
     }
     catch {
-        $obj = $null
-        try {
-            $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($EnvYaml + "ファイルが読み込めませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
-        } finally {
-            if ($null -ne $obj) { # YAML読み込みエラー
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                $obj = $null
-            }
-        }
-        exit
+        & $script:ShowPopup -Message ($EnvYaml + "ファイルが読み込めませんでした。処理を終了します。`r`n`r`n" + $_.Exception.Message) -Title "警告" -Icon 0x30
+        $script:CanExecuteProcess = $false
+        return
     }
 
     # ====================================
@@ -218,23 +216,17 @@ begin {
     # YAML設定のバージョンと実行バージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $pwsAssumVer = $script:YamlOBJ.PowerShell.Version
-    $obj = $null
     if ($pwsVerChk -ne $pwsAssumVer) {  # バージョン不一致
+        $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
             [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`n必要なモジュールは PowerShell " + $script:YamlOBJ.PowerShell.Version + " を前提にインストールを行います。`r`n`r`n続行しますか？", 0, "警告", 0x31)
-            switch ($retButton) {
-                1 { break }  # OK
-                2 { # キャンセル
-                    if ($null -ne $obj) { # バージョン不一致
-                        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                        $obj = $null
-                    }
-                    exit  # キャンセル
-                }
+            if ($retButton -eq 2) { # キャンセル
+                $script:CanExecuteProcess = $false
+                return
             }
         } finally {
-            if ($null -ne $obj) { # バージョン不一致
+            if ($null -ne $obj) {
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
                 $obj = $null
             }
@@ -250,17 +242,9 @@ begin {
             Import-Module $script:YamlOBJ.Module.$module.Name -RequiredVersion $script:YamlOBJ.Module.$module.Version -ErrorAction Stop
         }
         catch {
-            $obj = $null
-            try {
-                $obj = New-Object -ComObject WScript.Shell
-                $obj.Popup($script:YamlOBJ.Module.$module.Name + "：" + $script:YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。", 0, "警告", 0x30) | Out-Null
-            } finally {
-                if ($null -ne $obj) { # モジュールインポートエラー
-                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                    $obj = $null
-                }
-            }
-            exit
+            & $script:ShowPopup -Message ($script:YamlOBJ.Module.$module.Name + "：" + $script:YamlOBJ.Module.$module.Version + " モジュールがインポートできませんでした。処理を終了します。") -Title "警告" -Icon 0x30
+            $script:CanExecuteProcess = $false
+            return
         }
     }
 
@@ -302,17 +286,9 @@ begin {
         }
     } catch {
         Write-Host $_.Exception.Message -ForegroundColor Red
-        $obj = $null
-        try {
-            $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$($script:ComPath)`" へ置いてください。", 0, "エラー", 0x10)
-        } finally {
-            if ($null -ne $obj) { # 鍵ファイルエラー
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
-                $obj = $null
-            }
-        }
-        exit
+        & $script:ShowPopup -Message ($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$($script:ComPath)`" へ置いてください。") -Title "エラー" -Icon 0x10
+        $script:CanExecuteProcess = $false
+        return
     }
 
     # ====================================
@@ -323,7 +299,7 @@ begin {
         if (-not (Test-Path -Path $script:PwFilePath)) { # パスワードファイルが存在しない場合
             throw "パスワードファイル『$pwFile』が見つかりません。"
         }
-        $password = Get-Content -Path $script:PwFilePath | ConvertTo-SecureString -Key $script:EncryptedKey -ErrorAction Stop
+        $script:password = Get-Content -Path $script:PwFilePath | ConvertTo-SecureString -Key $script:EncryptedKey -ErrorAction Stop
     }
     catch {
         Write-Host "パスワードの復号化に失敗しました。" -ForegroundColor Yellow
@@ -331,12 +307,27 @@ begin {
         Write-Host "パスワードファイル『$pwFile』と鍵ファイル『$DecryptionKey』が正しいことを確認してください。" -ForegroundColor Yellow
         Write-Host "何かキーを押してください。" -ForegroundColor Yellow
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
-        exit
+        $script:CanExecuteProcess = $false
+        return
     }
-    $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($password))
+    $script:password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($script:password))
 
 }
 process {
+
+    if (-not $script:CanExecuteProcess) {
+        return
+    }
+    
+    # ====================================
+    # 開始ログ出力
+    # ====================================
+    Write-Output "Script started." | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+    Write-Output "HOST: $env:COMPUTERNAME" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+    Write-Output "USER: $env:USERNAME" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+    Write-Output "Server: $script:ServerInstance" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+    Write-Output "Database: $script:Database" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+    Write-Output "" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
     
     # ====================================
     # SQLファイルの検出と準備
@@ -350,7 +341,8 @@ process {
         $errorMsg = "SQLフォルダ『$YamlSQL』が見つかりません。処理を終了します。"
         Write-Host $errorMsg -ForegroundColor Red
         Write-Output $errorMsg | Out-File -FilePath $script:LogPath -Append
-        exit
+        $script:CanExecuteProcess = $false
+        return
     }
     
     # SQLファイルをファイル名順でソート取得
@@ -361,7 +353,8 @@ process {
         $warnMsg = "SQLフォルダ内に.sqlファイルが見つかりません。"
         Write-Host $warnMsg -ForegroundColor Yellow
         Write-Output $warnMsg | Out-File -FilePath $script:LogPath -Append
-        exit
+        $script:CanExecuteProcess = $false
+        return
     }
 
     # ====================================
@@ -414,7 +407,7 @@ process {
                 ServerInstance  = $script:ServerInstance
                 Database        = $script:Database
                 Username        = $script:Username
-                Password        = $password
+                Password        = $script:password
                 QueryTimeout    = 0
             }
             
@@ -443,6 +436,7 @@ process {
             # ====================================
             # SQL実行エラーをログに記録
             Write-Output "///エラーが発生しました。///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
+            Write-Output "Error Type: $($_.Exception.GetType().FullName)" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             Write-Output $_.Exception.Message | Tee-Object -FilePath $script:LogPath -Append | Out-Default
             $errorCount++
         }
@@ -466,4 +460,37 @@ process {
     $summaryMsg = "`n実行完了: 合計 $totalCount 件 (成功: $successCount 件, エラー: $errorCount 件)"
     Write-Host $summaryMsg -ForegroundColor Cyan
     Write-Output $summaryMsg | Out-File -FilePath $script:LogPath -Append
+
+    if ($totalCount -gt 0) {
+        $successRate = [math]::Round((($totalCount - $errorCount) / $totalCount) * 100, 2)
+        $rateMsg = "成功率: $successRate%"
+        Write-Host $rateMsg -ForegroundColor Cyan
+        Write-Output $rateMsg | Out-File -FilePath $script:LogPath -Append
+    }
+}
+
+end {
+    $script:EndTime = Get-Date
+    $elapsed = $script:EndTime - $script:StartTime
+
+    if (-not $script:CanExecuteProcess) {
+        Write-Host "前段のエラーにより処理を完了できませんでした。" -ForegroundColor Yellow
+        Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds) -ForegroundColor Yellow
+        $script:password = $null
+        # エラー時も何かキーを押すまで待機
+        Write-Host "何かキーを押してください。" -ForegroundColor Yellow
+        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
+        return
+    }
+
+    Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds) -ForegroundColor Cyan
+    $script:password = $null
+
+    # 何かキーを押して終了
+    Write-Host "何かキーを押してください。" -ForegroundColor Cyan   
+    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
+
+    # ログを表示
+    Invoke-Item -Path $script:LogPath
+
 }
