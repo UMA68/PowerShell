@@ -114,30 +114,39 @@
 #>
 param(
     [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$VaultPath = "$HOME\GitHub\obsidian",
     [Parameter(Mandatory=$false)]
+    [ValidateRange(0.1, [double]::MaxValue)]
     [double]$CharsPerToken = 2.5,   # 日本語の場合は約2-3文字/トークン
     [Parameter(Mandatory=$false)]
+    [ValidateRange(0.0001, [double]::MaxValue)]
     [double]$CostPerMillionTokens = 2.50,  # GPT-4o入力価格(100万トークンあたり）（2024年時点）
     [Parameter(Mandatory=$false)]
+    [ValidateRange(1, 1000)]
     [int]$ShowTopFiles = 10,        # 最大表示する大容量ファイル数
     [Parameter(Mandatory=$false)]
     [switch]$ShowModelComparison = $false,  # 複数モデル比較表示フラグ
     [Parameter(Mandatory=$false)]
     [string]$ExportToFile = "",     # 結果をエクスポートするファイル名（CSVまたはJSON）
     [Parameter(Mandatory=$false)]
+    [ValidateRange(0, 10)]
     [double]$OutputTokenRatio = 0,  # 出力トークン数の入力トークン数に対する比率
     [Parameter(Mandatory=$false)]
     [string[]]$ExcludeFolders = @(".obsidian", ".git", ".trash"),   # 除外フォルダ
     [Parameter(Mandatory=$false)]
-    [switch]$ShowProgress = $false  # 進捗表示フラグ
+    [switch]$ShowProgress = $false,  # 進捗表示フラグ
+    [Parameter(Mandatory=$false)]
+    [switch]$NoKeyWait = $false      # 非対話環境でキー待機を無効化
 )
 
 begin {
+    $script:CanExecuteProcess = $true
     # Vaultパスの存在確認
     if (-not (Test-Path -Path $VaultPath)) {
         Write-Host "Error: Vault path does not exist: $VaultPath" -ForegroundColor Red
-        exit 1
+        $script:CanExecuteProcess = $false
+        return
     }
     
     Write-Host "Analyzing Obsidian Vault..." -ForegroundColor Cyan
@@ -168,19 +177,15 @@ process {
         $mdFiles = $allMdFiles | Where-Object {
             $filePath = $_.FullName
             $shouldInclude = $true
-            # 除外フォルダの判定
             foreach ($excludeFolder in $ExcludeFolders) {
-                # フォルダ名がパスに含まれているかチェック
-                if ($filePath -like "*\$excludeFolder\*" -or $filePath -like "*/$excludeFolder/*") {
+                $pattern = "(^|[\\/])" + [regex]::Escape($excludeFolder) + "([\\/]|$)"
+                if ($filePath -match $pattern) {
                     $shouldInclude = $false
-                    # 除外フォルダリストに追加
-                    if ($script:skippedFolders -notcontains $excludeFolder) {
-                        $script:skippedFolders += $excludeFolder
-                    }
+                    if ($script:skippedFolders -notcontains $excludeFolder) { $script:skippedFolders += $excludeFolder }
                     break
                 }
             }
-            $shouldInclude  # trueなら含める
+            $shouldInclude
         }
         
         $script:fileCount = $mdFiles.Count  # 合計ファイル数
@@ -193,9 +198,7 @@ process {
         
         # 進捗表示
         Write-Host "Processing $script:fileCount files..." -ForegroundColor Cyan
-        if ($ShowProgress) {
-            Write-Host ""
-        }
+        if ($ShowProgress) { Write-Host "" }
         
         # 各ファイルのサイズを取得
         $processedCount = 0
@@ -232,7 +235,8 @@ process {
                 # 進捗表示
                 $processedCount++
                 if ($ShowProgress -and ($processedCount % 100 -eq 0)) { # 100ファイルごとに表示
-                    Write-Host "Processed: $processedCount / $script:fileCount files..." -ForegroundColor Gray
+                    $percent = [math]::Floor(($processedCount / [double]$script:fileCount) * 100)
+                    Write-Host "Processed: $processedCount / $script:fileCount files ($percent%)..." -ForegroundColor Gray
                 }
                 
             } catch {
@@ -241,22 +245,36 @@ process {
             }
         }
         
-        # 最終進捗表示
-        if ($ShowProgress -and $processedCount -gt 0) {
-            Write-Host "Completed: $processedCount files processed." -ForegroundColor Green
+        # 最終進捗表示（小規模でも表示）
+        if ($ShowProgress) {
+            $percent = if ($script:fileCount -gt 0) { [math]::Floor(($processedCount / [double]$script:fileCount) * 100) } else { 0 }
+            Write-Host "Completed: $processedCount / $script:fileCount files ($percent%)" -ForegroundColor Green
             Write-Host ""
         }
         
     } catch {
         Write-Host "Error accessing files: $($_.Exception.Message)" -ForegroundColor Red
-        exit 1
+        Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+        $script:CanExecuteProcess = $false
+        return
     }
 }
 
 end {
+    if (-not $script:CanExecuteProcess) {
+        if (-not $NoKeyWait) {
+            Write-Host ""; Write-Host "Press any key to exit..." -ForegroundColor Yellow
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        }
+        return
+    }
     # ファイルが見つからなかった場合は終了
     if ($script:fileCount -eq 0) {
-        exit 0
+        if (-not $NoKeyWait) {
+            Write-Host ""; Write-Host "Press any key to exit..." -ForegroundColor Yellow
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        }
+        return
     }
     
     # トークン数の見積もり（実際のファイルサイズに基づく）
@@ -363,6 +381,11 @@ end {
     
     # ファイルへの出力
     if (-not [string]::IsNullOrEmpty($ExportToFile)) {
+        # 拡張子の事前検証
+        $ext = [IO.Path]::GetExtension($ExportToFile)
+        if (($ext -ne ".json") -and ($ext -ne ".csv")) {
+            Write-Host ""; Write-Host "Warning: Unsupported file format. Use .csv or .json extension." -ForegroundColor Yellow
+        } else {
         try {
             $exportData = [PSCustomObject]@{
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -382,29 +405,31 @@ end {
                 OutputTokenRatio = $OutputTokenRatio
                 ExcludedFolders = ($ExcludeFolders -join ',')
                 TopDirectories = ($script:dirStats.GetEnumerator() | Sort-Object {$_.Value.TotalSize} -Descending | Select-Object -First 5 | ForEach-Object {"$($_.Key):$($_.Value.FileCount)files"}) -join ','
+                TopFiles = ($script:fileSizes | Sort-Object -Property SizeKB -Descending | Select-Object -First $ShowTopFiles | ForEach-Object {"$($_.SizeKB)KB:$($_.Name)"}) -join ','
             }
             
             # エクスポート形式に応じた出力
-            if ($ExportToFile -like "*.json") {
+            if ($ext -eq ".json") {
                 $exportData | ConvertTo-Json | Out-File -FilePath $ExportToFile -Encoding utf8
                 Write-Host ""
                 Write-Host "Results exported to: $ExportToFile" -ForegroundColor Green
-            } elseif ($ExportToFile -like "*.csv") {
+            } elseif ($ext -eq ".csv") {
                 $exportData | Export-Csv -Path $ExportToFile -NoTypeInformation -Encoding utf8
                 Write-Host ""
                 Write-Host "Results exported to: $ExportToFile" -ForegroundColor Green
-            } else {
-                Write-Host ""
-                Write-Host "Warning: Unsupported file format. Use .csv or .json extension." -ForegroundColor Yellow
             }
         } catch {
             Write-Host ""
             Write-Host "Error exporting to file: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+        }
         }
     }
     
     # 終了前に一時停止
-    Write-Host ""
-    Write-Host "Press any key to exit..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    if (-not $NoKeyWait) {
+        Write-Host ""
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
 }
