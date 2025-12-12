@@ -9,13 +9,18 @@
     主な機能:
     - 複数のリリースタイプ（TYPE_A, TYPE_B など）をサポート
     - 既存ファイルのバージョニング（タイムスタンプ付きリネーム）
+    - 上書きポリシー切替（RenameThenCopy/DeleteThenCopy/SkipIfExists）
+    - ファイル操作の再試行機能（回数・待機時間をYAMLで設定）
+    - 長パス対応（\\?\プレフィックス、YAMLで有効化）
     - マルチ言語対応メッセージ（日本語/英語）
     - ログファイルの自動生成と機密情報マスキング
+    - 複数ユーザーへのログアクセス権限設定（LOG.USERS配列）
     - 二重起動防止機能（早期チェック）
     - ファイルシステムパーミッション管理（ログディレクトリ・ファイル）
     - PowerShellバージョン検証
     - 必須モジュールの自動インポート
     - スクリプトスコープによる一貫した変数管理
+    - リリース結果のサマリ出力（コピー/リネーム/削除/失敗件数）
 
 .PARAMETER DecryptionKey
     暗号化用鍵ファイル名。デフォルト値: "Encryption.Key"
@@ -62,9 +67,9 @@
 .NOTES
     File Name      : relMain.ps1
     Author         : UMA68
-    Version        : 1.2.0
-    Release Date   : 2025-12-10
-    Last Modified  : 2025-12-10
+    Version        : 1.3.0
+    Release Date   : 2025-12-12
+    Last Modified  : 2025-12-12
     
     前提条件:
     - PowerShell 7.3.9 以上
@@ -98,6 +103,16 @@
             └── relMain_YYYYMMDD-HHmmss.log
     
     変更履歴:
+    v1.3.0 (2025-12-12)
+        - LOG.USERS配列による複数ユーザーへのログアクセス権付与機能
+        - ユーザーSID解決時の実行ユーザー重複検出（実行ユーザーとUSERS配列の重複を自動スキップ）
+        - 無効なユーザー名の警告ログ出力
+        - 上書きポリシー切替機能統合（RenameThenCopy/DeleteThenCopy/SkipIfExists）
+        - ファイル操作リトライ機能統合（回数・待機時間をYAMLで設定）
+        - 長パス対応機能統合（\\?\プレフィックス、YAMLで有効化）
+        - リリース結果サマリ出力統合（コピー/リネーム/削除/失敗件数）
+        - CopyItemCustom.ps1 Phase2機能の完全統合
+    
     v1.2.0 (2025-12-10)
         - 変数スコープの統一（$script: プレフィックス）
         - パラメータ検証の強化（ValidateScript属性）
@@ -301,8 +316,29 @@ begin{
     if (-not (Test-Path -Path $script:LogDir)) {
         New-Item -ItemType Directory -Path $script:LogDir | Out-Null
     }
+
+    # ログACL用のユーザー解決
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $script:ExecutorSid = $identity.User
+    $script:UserSidList = @()  # 複数ユーザーのSIDリスト
     
-    # ログディレクトリのパーミッション設定（現在のユーザーのみアクセス可能）
+    if ($script:Yaml.LOG.USERS -and $script:Yaml.LOG.USERS.Count -gt 0) {
+        foreach ($user in $script:Yaml.LOG.USERS) {
+            if ([string]::IsNullOrWhiteSpace($user)) { continue }
+            try {
+                $ntAccount = New-Object System.Security.Principal.NTAccount($user)
+                $userSid = $ntAccount.Translate([System.Security.Principal.SecurityIdentifier])
+                # 実行ユーザーと同じならスキップ（フル権限なので重複不要）
+                if ($userSid.Value -ne $script:ExecutorSid.Value) {
+                    $script:UserSidList += $userSid
+                }
+            } catch {
+                Write-Host "[WARNING] Could not resolve YAML LOG.USERS user '$user'. Skipping." -ForegroundColor Yellow
+            }
+        }
+    }
+    
+    # ログディレクトリのパーミッション設定（実行ユーザー: フル、USERS: 読み取り）
     # 管理者権限がない場合はスキップ
     try {
         $logDirAcl = Get-Acl -Path $script:LogDir -ErrorAction Stop
@@ -310,10 +346,14 @@ begin{
         $logDirAcl.SetAccessRuleProtection($true, $false)
         # すべての権限を削除
         $logDirAcl.Access | ForEach-Object { $logDirAcl.RemoveAccessRule($_) } | Out-Null
-        # 現在のユーザーにフルアクセス権を付与
-        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $logDirAcl.AddAccessRule($rule)
+        # 実行ユーザーにフルアクセス権を付与
+        $ruleExec = New-Object System.Security.AccessControl.FileSystemAccessRule($script:ExecutorSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $logDirAcl.AddAccessRule($ruleExec)
+        # 追加ユーザーに読み取り権限を付与
+        foreach ($userSid in $script:UserSidList) {
+            $ruleUser = New-Object System.Security.AccessControl.FileSystemAccessRule($userSid, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+            $logDirAcl.AddAccessRule($ruleUser)
+        }
         Set-Acl -Path $script:LogDir -AclObject $logDirAcl -ErrorAction Stop
     } catch {
         # ACL設定に失敗した場合は警告を表示するが、処理を続行
@@ -440,10 +480,14 @@ end{
             $logFileAcl.SetAccessRuleProtection($true, $false)
             # すべての権限を削除
             $logFileAcl.Access | ForEach-Object { $logFileAcl.RemoveAccessRule($_) } | Out-Null
-            # 現在のユーザーにフルアクセス権を付与
-            $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity.User, "FullControl", "None", "None", "Allow")
-            $logFileAcl.AddAccessRule($rule)
+            # 実行ユーザーにフルアクセス権を付与
+            $ruleExecFile = New-Object System.Security.AccessControl.FileSystemAccessRule($script:ExecutorSid, "FullControl", "None", "None", "Allow")
+            $logFileAcl.AddAccessRule($ruleExecFile)
+            # 追加ユーザーに読み取り権限を付与
+            foreach ($userSid in $script:UserSidList) {
+                $ruleUserFile = New-Object System.Security.AccessControl.FileSystemAccessRule($userSid, "Read", "None", "None", "Allow")
+                $logFileAcl.AddAccessRule($ruleUserFile)
+            }
             Set-Acl -Path $script:LogPath -AclObject $logFileAcl -ErrorAction Stop
         }
     } catch {

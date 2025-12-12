@@ -184,6 +184,24 @@ Messages:
 
 ログファイルは `LOG/` ディレクトリに自動生成されます。
 
+#### LOG設定例
+
+```yaml
+LOG:
+  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG
+  FILENAME: release(DEV)
+  EXTENSION: .log
+  USERS:                     # 追加閲覧ユーザー（配列、省略可）
+    - "DOMAIN\\AuditUser"    # 監査ユーザー
+    - "DOMAIN\\ReviewUser"   # レビュアー
+```
+
+#### アクセス権ポリシー
+
+- ログディレクトリ: 実行ユーザー=フル、`USERS`=読み取り
+- ログファイル: 実行ユーザー=読み書き、`USERS`=読み取り
+- `USERS` に実行ユーザーと同一のユーザーが含まれる場合は、重複付与を避け読み取りのみ
+
 **ファイル名形式:** `relMain_YYYYMMDD-HHmmss.log`
 
 **例:** `relMain_20251210-143025.log`

@@ -58,6 +58,8 @@ LOG:
  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
  FILENAME: release(DEV)     # ログファイル名
  EXTENSION: .log            # ログファイル拡張子
+ USERS:                      # 追加閲覧ユーザー（配列、省略可）
+                             # 例: "DOMAIN\\AuditUser", "DOMAIN\\ReviewUser"
 
 # -----------------
 # セキュリティ設定
