@@ -24,10 +24,16 @@ Copilot Pluginで、OpenAIをAPI越しに利用している。
   `.obsidian`、`.git`、`.trash`などのメタデータフォルダーを除外
   
 - **CSV/JSON形式でのエクスポート**  
-  結果を保存して時系列で追跡可能
+  結果を保存して時系列で追跡可能（TopDirectories/TopFilesも含む）
   
 - **進捗表示とエラー耐性**  
-  大規模なVaultでも安心して実行可能
+  100ファイルごとに件数＋パーセンテージ表示、終了時は必ず総括を表示
+
+- **非対話実行オプション**  
+  `-NoKeyWait`で終了時のキー待機を無効化（タスクスケジューラ向け）
+
+- **除外フォルダー判定の精度向上**  
+  ディレクトリ境界を考慮した正規表現で誤検知を防止
 
 ## 使用例
 
@@ -75,6 +81,8 @@ Top 10 largest files:
   245.67 KB - C:\Users\...\技術メモ\データベース設計.md
   198.34 KB - C:\Users\...\プロジェクト\要件定義.md
   ...
+
+エクスポート（JSON/CSV）には、Top 5のディレクトリ統計とTop Nファイル（サイズとパス）も含まれます。
 ```
 
 ## コスト見積もりの精度
@@ -107,4 +115,48 @@ Top 10 largest files:
 ```PowerShell
 Get-Help .\count_md_files_and_estimate_cost.ps1 -Full
 ```
+
+### よく使うオプション例
+
+```PowerShell
+# 非対話（キー待機なし）で実行
+.\count_md_files_and_estimate_cost.ps1 -NoKeyWait
+
+# JSONで詳細を書き出し（TopFiles/TopDirectories含む）
+.\count_md_files_and_estimate_cost.ps1 -ExportToFile .\result.json -NoKeyWait
+
+# モデル比較＋出力トークン30%想定＋CSV出力
+.\count_md_files_and_estimate_cost.ps1 -ShowModelComparison -OutputTokenRatio 0.3 -ExportToFile .\result.csv
+```
+
+### プリセット（価格プロファイル）
+
+スクリプトは柔軟に価格を指定できます（`-CostPerMillionTokens`）。よく使うモデル別のプリセット値は以下です。
+
+- GPT-4o: 入力 `$2.50/1M tokens`、出力 `$10.00/1M tokens`
+- GPT-4o-mini: 入力 `$0.15/1M tokens`、出力 `$0.60/1M tokens`
+- GPT-3.5-turbo: 入力 `$0.50/1M tokens`、出力 `$1.50/1M tokens`
+
+モデル別の簡易指定例（入力価格プリセットを使用し、出力は`-OutputTokenRatio`に応じて自動算出）:
+
+```PowerShell
+# GPT-4o（入力$2.50）で試算（PricingProfile推奨）
+.\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-4o -OutputTokenRatio 0.5
+
+# GPT-4o-mini（入力$0.15）で試算
+.\count_md_files_and_estimate_cost.ps1 -PricingProfile 4o-mini -OutputTokenRatio 0.5 -ShowModelComparison
+
+# GPT-3.5-turbo（入力$0.50）で試算
+.\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-3.5 -OutputTokenRatio 0.3
+```
+
+補足:
+
+- `-ShowModelComparison`を有効にすると、各モデルの入力・出力価格テーブル（固定）を使って合計コストを同時比較します。
+- 個別（単一モデル）での試算は、`-CostPerMillionTokens`と`-OutputTokenRatio`で調整してください。
+
+### 制約事項
+
+- エクスポート拡張子は`.csv`または`.json`のみ対応
+- トークン推定はファイルサイズ基準の概算であり、内容や言語で±10%程度の誤差が生じる可能性があります
 

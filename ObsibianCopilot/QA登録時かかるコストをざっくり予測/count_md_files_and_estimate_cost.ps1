@@ -12,9 +12,10 @@
     - 複数GPTモデルのコスト比較（GPT-4o、GPT-4o-mini、GPT-3.5-turbo）
     - ディレクトリ別統計表示
     - 不要フォルダの自動除外
-    - CSV/JSON形式でのエクスポート
-    - 処理進捗のリアルタイム表示
+    - CSV/JSON形式でのエクスポート（TopFiles/TopDirectories含む）
+    - 処理進捗のリアルタイム表示（件数＋パーセント）
     - エラー耐性のある処理（個別ファイルエラーをスキップ）
+    - 非対話運用オプション（キー待機の無効化）
 
 .PARAMETER VaultPath
     Obsidian Vaultのパス。デフォルトは "$HOME\GitHub\obsidian" です。
@@ -40,7 +41,8 @@
 
 .PARAMETER ExportToFile
     結果をファイルに出力します。CSVまたはJSON形式を指定できます（例: "result.csv" または "result.json"）。
-    タイムスタンプ、トークン数、コスト、Top 5ディレクトリなどの詳細情報を含みます。
+    タイムスタンプ、トークン数、コスト、Top 5ディレクトリ、Top Nファイルなどの詳細情報を含みます。
+    拡張子は .csv または .json のみサポートします。
 
 .PARAMETER OutputTokenRatio
     出力トークン数の入力トークン数に対する比率。デフォルトは 0（出力コストを計算しない）です。
@@ -50,10 +52,21 @@
 .PARAMETER ExcludeFolders
     除外するフォルダ名の配列。デフォルトは @(".obsidian", ".git", ".trash") です。
     メタデータや一時ファイルを含むフォルダを除外することで、より正確な見積もりが可能です。
+    ディレクトリ境界を考慮した安全な判定を行います（正規表現）。
 
 .PARAMETER ShowProgress
     ファイル処理中に進捗を表示します（100ファイルごと）。
+    進捗は件数とパーセンテージで表示され、最後に必ず総括が表示されます。
     大規模なVaultで処理状況を把握したい場合に有効です。
+
+.PARAMETER NoKeyWait
+    終了時のキー入力待機を無効化します（非対話・スケジューラ運用向け）。
+    既定では終了時に「Press any key to exit...」で待機します。
+
+.PARAMETER PricingProfile
+    価格プリセットを指定します。入力トークン単価（CostPerMillionTokens）を上書きします。
+    指定可能な値: `gpt-4o`, `4o-mini`, `gpt-3.5`
+    例: `-PricingProfile gpt-4o` は入力 $2.50/1M tokens を適用します。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1
@@ -87,6 +100,14 @@
     - Top 20の大容量ファイルを表示
     - 出力トークン比率30%を想定
 
+.EXAMPLE
+    .\count_md_files_and_estimate_cost.ps1 -NoKeyWait
+    タスクスケジューラなどの非対話実行時に、終了時のキー待機を無効化します。
+
+.EXAMPLE
+    .\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-4o -OutputTokenRatio 0.5
+    GPT-4oの入力価格プリセット（$2.50/1M tokens）を適用し、出力トークン比率50%で試算します。
+
 .NOTES
     File Name      : count_md_files_and_estimate_cost.ps1
     Author         : UMA
@@ -97,12 +118,12 @@
     - ディレクトリ別統計表示（サイズ順にソート）
     - 複数モデルのコスト比較（GPT-4o、GPT-4o-mini、GPT-3.5-turbo）
     - 入力・出力トークンの個別・合計コスト計算
-    - CSV/JSON形式でのエクスポート（詳細統計含む）
+    - CSV/JSON形式でのエクスポート（TopFiles/TopDirectoriesを含む詳細統計）
     - 最大ファイルサイズTop N表示（デフォルト10件）
     - 不要フォルダの自動除外（.obsidian、.git、.trash）
-    - 進捗表示機能（100ファイルごと）
+    - 進捗表示機能（100ファイルごと／パーセンテージ付き）
     - エラー耐性処理（個別ファイルエラーをスキップ）
-    - 実行終了時の一時停止機能
+    - 実行終了時の一時停止機能（-NoKeyWaitで無効化可能）
     
     価格情報（2024年時点）:
     GPT-4o        : 入力 $2.50/1M tokens, 出力 $10.00/1M tokens
@@ -111,6 +132,15 @@
     
     トークン推定方法:
     ファイルサイズ(bytes) ÷ 2 (UTF-8推定) ÷ CharsPerToken = トークン数
+
+    変更履歴:
+    - v1.1.0 (2025-12-12)
+      * exitを廃止し安全な終了フローへ移行（endブロックの後処理を保証）
+      * 正確な除外フォルダ判定（ディレクトリ境界を考慮した正規表現）
+      * 例外型のログ出力を追加（原因調査の精度向上）
+      * 進捗表示を強化（パーセンテージ追加と最終サマリの常時表示）
+      * 非対話運用オプション -NoKeyWait を追加
+      * エクスポートの拡張子検証とTopFilesの出力を追加
 #>
 param(
     [Parameter(Mandatory=$false)]
@@ -138,6 +168,10 @@ param(
     [switch]$ShowProgress = $false,  # 進捗表示フラグ
     [Parameter(Mandatory=$false)]
     [switch]$NoKeyWait = $false      # 非対話環境でキー待機を無効化
+    ,
+    [Parameter(Mandatory=$false)]
+    [ValidateSet('gpt-4o','4o-mini','gpt-3.5')]
+    [string]$PricingProfile          # 価格プリセット（入力トークン単価を上書き）
 )
 
 begin {
@@ -152,6 +186,16 @@ begin {
     Write-Host "Analyzing Obsidian Vault..." -ForegroundColor Cyan
     Write-Host "Vault Path: $VaultPath" -ForegroundColor Gray
     Write-Host ""
+
+    # 価格プリセットの適用（入力トークン単価を上書き）
+    if ($PSBoundParameters.ContainsKey('PricingProfile') -and -not [string]::IsNullOrEmpty($PricingProfile)) {
+        switch ($PricingProfile) {
+            'gpt-4o'   { $CostPerMillionTokens = 2.50 }
+            '4o-mini'  { $CostPerMillionTokens = 0.15 }
+            'gpt-3.5'  { $CostPerMillionTokens = 0.50 }
+        }
+        Write-Host "Pricing profile applied: $PricingProfile (Input: `$$CostPerMillionTokens per 1M tokens)" -ForegroundColor Gray
+    }
     
     # 統計情報の初期化
     $script:totalSize = 0
