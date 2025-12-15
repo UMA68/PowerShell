@@ -332,8 +332,8 @@ c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 
 **推奨 PowerShell バージョン:**
 
-- PowerShell 7.3.9 以上
-- PowerShell 7.4.x 推奨
+- PowerShell 7.3.9以上
+- PowerShell 7.4.x推奨
 
 ---
 

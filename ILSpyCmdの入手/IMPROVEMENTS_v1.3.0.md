@@ -81,6 +81,7 @@ try {
 #### 1-4. End ブロックの改善
 
 **置換前:**
+
 ```powershell
 end {
     if ($script:comObject -ne $null) {

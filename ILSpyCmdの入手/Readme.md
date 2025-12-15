@@ -203,7 +203,7 @@ end {}                # クリーンアップ（COM解放、ログ表示）
 - `$script:CanExecuteProcess` - プロセス実行フラグ（false=エラー状態）
 - `$script:ExitCode` - スクリプト終了コード
 - `$script:Log` - ログファイルパス
-- `$script:comObject` - WScript.Shell COM オブジェクト
+- `$script:comObject` - WScript.Shell COMオブジェクト
 
 ### エラーハンドリングパターン
 
