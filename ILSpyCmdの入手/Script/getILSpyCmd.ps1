@@ -96,16 +96,61 @@ param (
         }
         $true
     })]
-    [string]$EnvYaml = "getILSpyCmd.yaml"   # デフォルトのYAMLファイル名
+    [string]$EnvYaml = "getILSpyCmd.yaml",   # デフォルトのYAMLファイル名
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$NoKeyWait = $false      # 非対話環境でキー待機を無効化
 )
 
 begin{
+    $script:CanExecuteProcess = $true
+    $script:ExitCode = 0
+    
+    # ヘルパー関数: 例外タイプに基づくログレベル決定 (#3改善)
+    function Get-ExceptionLogLevel {
+        param([Exception]$Exception)
+        $exceptionType = $Exception.GetType().FullName
+        switch -regex ($exceptionType) {
+            'FileNotFoundException' { return 'ERROR' }
+            'DirectoryNotFoundException' { return 'ERROR' }
+            'UnauthorizedAccessException' { return 'ERROR' }
+            'ParsingException' { return 'ERROR' }
+            'InvalidOperationException' { return 'ERROR' }
+            'TimeoutException' { return 'WARN' }
+            'WebException' { return 'ERROR' }
+            'IOException' { return 'ERROR' }
+            'ArgumentException' { return 'ERROR' }
+            default { return 'ERROR' }
+        }
+    }
+    
+    # パラメータ検証 #4: EnvYaml パラメータの相対パス対応とデフォルト構築
+    $script:EnvYamlResolved = $EnvYaml
+    if (-not [System.IO.Path]::IsPathRooted($script:EnvYamlResolved)) {
+        if ($script:EnvYamlResolved -notmatch '[/\\]') {
+            # ファイル名のみ → YAML フォルダ配下を想定
+            $script:EnvYamlResolved = Join-Path -Path "YAML" -ChildPath $script:EnvYamlResolved
+        }
+    }
+    
     # スクリプトの実行環境を取得
     $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
     $script:UpperPath = Split-Path -Parent $script:ScriptPath                     # スクリプトの親パスを取得
     $script:PowerShellDir = Split-Path -Parent $script:UpperPath                  # スクリプトの親パスの親パスを取得
     $script:YamlDir = Join-Path -Path $script:UpperPath -ChildPath "YAML"         # YAMLフォルダのパスを取得
-    $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml        # YAMLファイルのパスを取得
+    
+    # YAML ファイルパスの解決（相対パス対応）
+    if ([System.IO.Path]::IsPathRooted($script:EnvYamlResolved)) {
+        # 絶対パス → そのまま使用
+        $script:YamlPath = $script:EnvYamlResolved
+    } else {
+        # 相対パス → スクリプトディレクトリを基準に解決
+        $script:YamlPath = Join-Path -Path $script:ScriptPath -ChildPath ".." | Join-Path -ChildPath $script:EnvYamlResolved | Resolve-Path -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path
+        if (-not $script:YamlPath) {
+            # デフォルトパスを使用
+            $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml
+        }
+    }
     $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
     $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
     
@@ -115,7 +160,10 @@ begin{
         $script:comObject = New-Object -ComObject WScript.Shell
     } catch {
         Write-Error "COMオブジェクトの作成に失敗しました: $_"
-        exit 1
+        Write-Error "Exception Type: $($_.Exception.GetType().FullName)"
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
 
     # 共通スクリプトのインポート
@@ -123,16 +171,27 @@ begin{
     try{
         . $commonLogPath -ErrorAction Stop
     }catch{
-        $script:comObject.Popup("共通スクリプト (Write-CommonLog.ps1) を読み込めませんでした。処理を終了します。`r`n`r`nエラー: $($_.Exception.Message)", 0, "スクリプトエラー", 0x10) | Out-Null
+        if (-not $NoKeyWait) {
+            $script:comObject.Popup("共通スクリプト (Write-CommonLog.ps1) を読み込めませんでした。処理を終了します。`r`n`r`nエラー: $($_.Exception.Message)", 0, "スクリプトエラー", 0x10) | Out-Null
+        }
         Write-Error "Exit Code 1: Common script import failed - $($_.Exception.Message)"
-        exit 1
+        # 改善 #3: 例外タイプに基づくログレベル決定
+        $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+        Write-Error "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]"
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
 
     # YAMLファイルの存在チェック
     if (-not (Test-Path -Path $script:YamlPath)) {
-        $script:comObject.Popup("YAMLファイルが存在しません。`r`n`r`nパス: $($script:YamlPath)",0,"ファイルエラー",0x10) | Out-Null
+        if (-not $NoKeyWait) {
+            $script:comObject.Popup("YAMLファイルが存在しません。`r`n`r`nパス: $($script:YamlPath)",0,"ファイルエラー",0x10) | Out-Null
+        }
         Write-Error "Exit Code 1: YAML file not found - $($script:YamlPath)"
-        exit 1
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
     
     # YAMLファイルの読み込み（まず基本的なYAML読み込みのみ）
@@ -140,9 +199,16 @@ begin{
         Import-Module -Name "powershell-yaml" -ErrorAction Stop
         $script:Yaml = Get-Content -Path $script:YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
     } catch {
-        $script:comObject.Popup("YAMLファイルの読み込みに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)",0,"YAML読み込みエラー",0x10) | Out-Null
+        if (-not $NoKeyWait) {
+            $script:comObject.Popup("YAMLファイルの読み込みに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)",0,"YAML読み込みエラー",0x10) | Out-Null
+        }
         Write-Error "Exit Code 1: YAML parse failed - $($_.Exception.Message)"
-        exit 1
+        # 改善 #3: 例外タイプに基づくログレベル決定
+        $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+        Write-Error "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]"
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
     
     # YAMLファイルにバージョン指定があれば、指定バージョンで再インポート
@@ -151,9 +217,16 @@ begin{
         try {
             Import-Module -Name "powershell-yaml" -RequiredVersion $PowershellYamlVersion -Force -ErrorAction Stop
         } catch {
-            $script:comObject.Popup("powershell-yaml (v$PowershellYamlVersion) モジュールのインポートに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)",0,"モジュールエラー",0x10) | Out-Null
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup("powershell-yaml (v$PowershellYamlVersion) モジュールのインポートに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)",0,"モジュールエラー",0x10) | Out-Null
+            }
             Write-Error "Exit Code 1: Module import failed - powershell-yaml v$PowershellYamlVersion"
-            exit 1
+            # 改善 #3: 例外タイプに基づくログレベル決定
+            $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+            Write-Error "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]"
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 1
+            return
         }
     }
     
@@ -218,9 +291,13 @@ begin{
     # 不足フィールドがあればエラーメッセージを表示して終了
     if ($missingFields.Count -gt 0) {
         $errorMsg = "YAMLファイルに必須フィールドが不足しています。`r`n`r`n不足フィールド:`r`n" + ($missingFields -join "`r`n")
-        $script:comObject.Popup($errorMsg,0,"YAML検証エラー",0x10) | Out-Null
+        if (-not $NoKeyWait) {
+            $script:comObject.Popup($errorMsg,0,"YAML検証エラー",0x10) | Out-Null
+        }
         Write-Error "Exit Code 2: YAML validation failed - Missing required fields"
-        exit 2
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 2
+        return
     }
 
     # ログディレクトリが作成されていなければ作成
@@ -228,9 +305,16 @@ begin{
         try {
             New-Item -Path $LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
         } catch {
-            $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)",0,"ディレクトリエラー",0x10) | Out-Null
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)",0,"ディレクトリエラー",0x10) | Out-Null
+            }
             Write-Error "Exit Code 1: Log directory creation failed - $LogDir"
-            exit 1
+            # 改善 #3: 例外タイプに基づくログレベル決定
+            $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+            Write-Error "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]"
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 1
+            return
         }
     }
     
@@ -297,8 +381,13 @@ process{
         }
 
         # ログファイルを開いて終了
-        Invoke-Item -Path $script:Log
-        exit 0
+        if (-not $NoKeyWait) {
+            Invoke-Item -Path $script:Log
+        }
+        Write-CommonLog -Message "ILSpyCmd already installed. Exit Code 0." -LogPath $script:Log -Level "INFO"
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 0
+        return
     } else {
         Write-CommonLog -Message "ILSpyCmd is not installed. Proceeding with installation..." -LogPath $script:Log -Level "INFO"
     }
@@ -315,10 +404,16 @@ process{
         # 管理者権限の確認
         if (-not $script:isAdmin) {
             Write-CommonLog -Message "Administrator privileges required for SDK installation." -LogPath $script:Log -Level "WARN"
-            $script:comObject.Popup(".NET SDKのインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。",0,"管理者権限が必要",0x30) | Out-Null
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup(".NET SDKのインストールには管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。",0,"管理者権限が必要",0x30) | Out-Null
+            }
             Write-CommonLog -Message "Exit Code 3: Insufficient privileges - Administrator rights required" -LogPath $script:Log -Level "ERROR"
-            Invoke-Item -Path $script:Log
-            exit 3
+            if (-not $NoKeyWait) {
+                Invoke-Item -Path $script:Log
+            }
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 3
+            return
         }
         
         # ユーザーにSDKインストールの確認
@@ -335,9 +430,15 @@ process{
                 # インストーラーの存在確認
                 if (-not (Test-Path -Path $installerPath)) {
                     Write-CommonLog -Message ".NET SDK installer not found: $installerPath" -LogPath $script:Log -Level "ERROR"
-                    $script:comObject.Popup("SDKインストーラーが見つかりません。`r`n`r`nパス: $installerPath`r`n`r`nプログラムを終了します。",0,"ファイルエラー",0x10) | Out-Null
-                    Invoke-Item -Path $script:Log
-                    exit 1
+                    if (-not $NoKeyWait) {
+                        $script:comObject.Popup("SDKインストーラーが見つかりません。`r`n`r`nパス: $installerPath`r`n`r`nプログラムを終了します。",0,"ファイルエラー",0x10) | Out-Null
+                    }
+                    if (-not $NoKeyWait) {
+                        Invoke-Item -Path $script:Log
+                    }
+                    $script:CanExecuteProcess = $false
+                    $script:ExitCode = 1
+                    return
                 }
                 
                 # インストーラーファイルの検証
@@ -349,13 +450,16 @@ process{
                     # ファイルサイズが異常に小さい場合は警告（通常50MB以上）
                     if ($installerFile.Length -lt 10MB) {
                         Write-CommonLog -Message "Warning: Installer file size is unusually small ($installerSizeMB MB). File may be corrupted." -LogPath $script:Log -Level "WARN"
-                        [int]$continueButton = $script:comObject.Popup("警告：インストーラーのファイルサイズが異常に小さいです ($installerSizeMB MB)。`r`n`r`nファイルが破損している可能性があります。`r`n`r`n続行しますか？",0,"ファイル検証警告",52)
-                        # ユーザーが「いいえ」を選択した場合は終了
-                        if ($continueButton -eq 7) {
-                            Write-CommonLog -Message "User chose not to continue with potentially corrupted installer." -LogPath $script:Log -Level "INFO"
-                            Write-CommonLog -Message "Exit Code 5: Installer validation warning - User declined to continue" -LogPath $script:Log -Level "WARN"
-                            Invoke-Item -Path $script:Log
-                            exit 5
+                        if (-not $NoKeyWait) {
+                            [int]$continueButton = $script:comObject.Popup("警告：インストーラーのファイルサイズが異常に小さいです ($installerSizeMB MB)。`r`n`r`nファイルが破損している可能性があります。`r`n`r`n続行しますか？",0,"ファイル検証警告",52)
+                            # ユーザーが「いいえ」を選択した場合は終了
+                            if ($continueButton -eq 7) {
+                                Write-CommonLog -Message "User chose not to continue with potentially corrupted installer." -LogPath $script:Log -Level "INFO"
+                                Write-CommonLog -Message "Exit Code 5: Installer validation warning - User declined to continue" -LogPath $script:Log -Level "WARN"
+                                $script:CanExecuteProcess = $false
+                                $script:ExitCode = 5
+                                return
+                            }
                         }
                     }
                     
@@ -366,14 +470,22 @@ process{
                 } catch {
                     Write-CommonLog -Message "Installer file validation failed: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
                     Write-CommonLog -Message "Exit Code 5: Installer validation failed - $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
-                    $script:comObject.Popup("インストーラーファイルの検証に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。",0,"ファイル検証エラー",0x10) | Out-Null
-                    Invoke-Item -Path $script:Log
-                    exit 5
+                    # 改善 #3: 例外タイプに基づくログレベル決定と記録
+                    $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+                    Write-CommonLog -Message "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]" -LogPath $script:Log -Level $logLevel
+                    if (-not $NoKeyWait) {
+                        $script:comObject.Popup("インストーラーファイルの検証に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。",0,"ファイル検証エラー",0x10) | Out-Null
+                    }
+                    $script:CanExecuteProcess = $false
+                    $script:ExitCode = 5
+                    return
                 }
 
                 # dotnet SDKのインストール
                 Write-CommonLog -Message "Starting .NET SDK ($verSDK) installation..." -LogPath $script:Log -Level "INFO"
-                $script:comObject.Popup("dotnet SDK ($verSDK) のインストールを開始します。`r`n`r`nインストールウィンドウが表示されます。`r`n完了まで数分かかる場合があります。",0,"インストール開始",0x40) | Out-Null
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup("dotnet SDK ($verSDK) のインストールを開始します。`r`n`r`nインストールウィンドウが表示されます。`r`n完了まで数分かかる場合があります。",0,"インストール開始",0x40) | Out-Null
+                }
 
                 # インストール前の状態を記録（ロールバック用）
                 $preSdks = if (Get-Command "dotnet" -ErrorAction SilentlyContinue) { & dotnet --list-sdks 2>$null } else { @() }
@@ -397,11 +509,17 @@ process{
                             $installProcess.Kill()
                             Write-CommonLog -Message "Installation process terminated." -LogPath $script:Log -Level "WARN"
                         } catch {
-                            Write-CommonLog -Message "Failed to terminate installation process: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
+                            # 改善 #3: 例外タイプに基づくログレベル決定
+                            $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+                            Write-CommonLog -Message "Failed to terminate installation process: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
+                            Write-CommonLog -Message "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]" -LogPath $script:Log -Level $logLevel
                         }
-                        $script:comObject.Popup("SDKのインストールがタイムアウトしました（${timeoutSeconds}秒）。`r`n`r`nインストールプロセスを中断しました。`r`n`r`nプログラムを終了します。",0,"タイムアウトエラー",0x10) | Out-Null
-                        Invoke-Item -Path $script:Log
-                        exit 6
+                        if (-not $NoKeyWait) {
+                            $script:comObject.Popup("SDKのインストールがタイムアウトしました（${timeoutSeconds}秒）。`r`n`r`nインストールプロセスを中断しました。`r`n`r`nプログラムを終了します。",0,"タイムアウトエラー",0x10) | Out-Null
+                        }
+                        $script:CanExecuteProcess = $false
+                        $script:ExitCode = 6
+                        return
                     }
                     
                     # インストール完了後の処理
@@ -420,7 +538,9 @@ process{
                             Write-CommonLog -Message "✅ .NET SDK installed successfully. Version: $dotnetVersion" -LogPath $script:Log -Level "INFO"
                         } else {
                             Write-CommonLog -Message "Warning: dotnet command not found after installation. May require system restart." -LogPath $script:Log -Level "WARN"
-                            $script:comObject.Popup("SDKのインストールは完了しましたが、`r`nコマンドが認識されません。`r`n`r`nシステムの再起動が必要な場合があります。",0,"警告",0x30) | Out-Null
+                            if (-not $NoKeyWait) {
+                                $script:comObject.Popup("SDKのインストールは完了しましたが、`r`nコマンドが認識されません。`r`n`r`nシステムの再起動が必要な場合があります。",0,"警告",0x30) | Out-Null
+                            }
                         }
                     } else {
                         # インストール失敗時のロールバック試行
@@ -446,24 +566,36 @@ process{
                             }
                         }
                         
-                        $script:comObject.Popup("dotnet SDKのインストールに失敗しました。`r`n`r`n終了コード: $($installProcess.ExitCode)`r`n`r`nプログラムを終了します。",0,"インストールエラー",0x10) | Out-Null
-                        Invoke-Item -Path $script:Log   # ログを開く
-                        exit 1
+                        if (-not $NoKeyWait) {
+                            $script:comObject.Popup("dotnet SDKのインストールに失敗しました。`r`n`r`n終了コード: $($installProcess.ExitCode)`r`n`r`nプログラムを終了します。",0,"インストールエラー",0x10) | Out-Null
+                        }
+                        $script:CanExecuteProcess = $false
+                        $script:ExitCode = 1
+                        return
                     }
             
                 } catch {
                     Write-CommonLog -Message "Failed to start .NET SDK installation: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
-                    $script:comObject.Popup("SDKインストーラーの起動に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。",0,"起動エラー",0x10) | Out-Null
-                    Invoke-Item -Path $script:Log
-                    exit 1
+                    # 改善 #3: 例外タイプに基づくログレベル決定
+                    $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+                    Write-CommonLog -Message "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]" -LogPath $script:Log -Level $logLevel
+                    if (-not $NoKeyWait) {
+                        $script:comObject.Popup("SDKインストーラーの起動に失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`nプログラムを終了します。",0,"起動エラー",0x10) | Out-Null
+                    }
+                    $script:CanExecuteProcess = $false
+                    $script:ExitCode = 1
+                    return
                 }
             }                
             # いいえ(スクリプト終了)
             7 {
                 Write-CommonLog -Message "User declined .NET SDK installation. Exiting script." -LogPath $script:Log -Level "INFO"
-                $script:comObject.Popup(".NET SDKのインストールがキャンセルされました。`r`n`r`nプログラムを終了します。",0,"キャンセル",0x40) | Out-Null
-                Invoke-Item -Path $script:Log
-                exit 0
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup(".NET SDKのインストールがキャンセルされました。`r`n`r`nプログラムを終了します。",0,"キャンセル",0x40) | Out-Null
+                }
+                $script:CanExecuteProcess = $false
+                $script:ExitCode = 0
+                return
             }
         }
 
@@ -507,16 +639,24 @@ process{
         if (-not $testConnection) {
             Write-CommonLog -Message "Network connectivity check failed. Cannot reach NuGet.org." -LogPath $script:Log -Level "ERROR"
             Write-CommonLog -Message "Exit Code 4: Network connectivity error - Unable to reach NuGet.org" -LogPath $script:Log -Level "ERROR"
-            $script:comObject.Popup("インターネット接続が確認できません。`r`n`r`nILSpyCmdのインストールにはインターネット接続が必要です。`r`n`r`nネットワーク接続を確認してください。",0,"ネットワークエラー",0x10) | Out-Null
-            Invoke-Item -Path $script:Log
-            exit 4
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup("インターネット接続が確認できません。`r`n`r`nILSpyCmdのインストールにはインターネット接続が必要です。`r`n`r`nネットワーク接続を確認してください。",0,"ネットワークエラー",0x10) | Out-Null
+            }
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 4
+            return
         }
     } catch {
-        Write-CommonLog -Message "Network connectivity check encountered an error: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
+        # 改善 #3: ネットワーク例外でも WARN レベルとして記録
+        $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+        Write-CommonLog -Message "Network connectivity check encountered an error: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
+        Write-CommonLog -Message "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]" -LogPath $script:Log -Level $logLevel
         Write-CommonLog -Message "Proceeding with installation attempt..." -LogPath $script:Log -Level "INFO"
     }
     
-    $script:comObject.Popup("ILSpyCmdをインストールします。`r`n`r`nコマンドプロンプトウィンドウが表示されます。`r`n完了まで数分かかる場合があります。",0,"インストール開始",0x40) | Out-Null
+    if (-not $NoKeyWait) {
+        $script:comObject.Popup("ILSpyCmdをインストールします。`r`n`r`nコマンドプロンプトウィンドウが表示されます。`r`n完了まで数分かかる場合があります。",0,"インストール開始",0x40) | Out-Null
+    }
     
     try {
         # dotnet tool install --global ilspycmd をコマンドプロンプトで実行
@@ -533,27 +673,53 @@ process{
             if ($ilspyCheck) {
                 Write-CommonLog -Message "✅ ILSpyCmd installed successfully." -LogPath $script:Log -Level "INFO"
                 Write-CommonLog -Message "ILSpyCmd Path: $($ilspyCheck.Source)" -LogPath $script:Log -Level "INFO"
-                $script:comObject.Popup("ILSpyCmdのインストールが完了しました。`r`n`r`nインストール先: $($ilspyCheck.Source)",0,"インストール完了",0x40) | Out-Null
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup("ILSpyCmdのインストールが完了しました。`r`n`r`nインストール先: $($ilspyCheck.Source)",0,"インストール完了",0x40) | Out-Null
+                }
             } else {
                 Write-CommonLog -Message "Warning: ilspycmd command not found after installation." -LogPath $script:Log -Level "WARN"
-                $script:comObject.Popup("インストールは完了しましたが、`r`nコマンドが認識されません。`r`n`r`nターミナルの再起動が必要な場合があります。",0,"警告",0x30) | Out-Null
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup("インストールは完了しましたが、`r`nコマンドが認識されません。`r`n`r`nターミナルの再起動が必要な場合があります。",0,"警告",0x30) | Out-Null
+                }
             }
         } else {
             Write-CommonLog -Message "ILSpyCmd installation failed (Exit Code: $($installProcess.ExitCode))." -LogPath $script:Log -Level "ERROR"
-            $script:comObject.Popup("ILSpyCmdのインストールに失敗しました。`r`n`r`n終了コード: $($installProcess.ExitCode)`r`n`r`n詳細はログを確認してください。",0,"インストールエラー",0x10) | Out-Null
-            Invoke-Item -Path $script:Log
-            exit 1
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup("ILSpyCmdのインストールに失敗しました。`r`n`r`n終了コード: $($installProcess.ExitCode)`r`n`r`n詳細はログを確認してください。",0,"インストールエラー",0x10) | Out-Null
+            }
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 1
+            return
         }
     } catch {
         Write-CommonLog -Message "Failed to install ILSpyCmd: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
-        $script:comObject.Popup("ILSpyCmdのインストールに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`n詳細はログを確認してください。",0,"インストールエラー",0x10) | Out-Null
-        Invoke-Item -Path $script:Log
-        exit 1
+        # 改善 #3: 例外タイプに基づくログレベル決定
+        $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+        Write-CommonLog -Message "Exception Type: $($_.Exception.GetType().FullName) [Log Level: $logLevel]" -LogPath $script:Log -Level $logLevel
+        if (-not $NoKeyWait) {
+            $script:comObject.Popup("ILSpyCmdのインストールに失敗しました。`r`n`r`nエラー: $($_.Exception.Message)`r`n`r`n詳細はログを確認してください。",0,"インストールエラー",0x10) | Out-Null
+        }
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
 }
 end{
     # スクリプトの終了メッセージをログに出力
     Write-CommonLog -Message "Script completed successfully." -LogPath $script:Log -Level "INFO"
+    
+    # プロセス実行フラグに基づいてクリーンアップを実行
+    if (-not $script:CanExecuteProcess) {
+        # エラー状態: ログにメッセージを出力
+        if ($script:Log -and (Test-Path $script:Log)) {
+            Add-Content -Path $script:Log -Value "`n=== Script ended with error (Exit Code: $script:ExitCode) ==="
+        }
+    } else {
+        # 正常完了
+        if ($script:Log -and (Test-Path $script:Log)) {
+            Add-Content -Path $script:Log -Value "`n=== Script completed successfully (Exit Code: 0) ==="
+        }
+    }
     
     # COMオブジェクトの解放
     if ($script:comObject) {
@@ -566,6 +732,15 @@ end{
         }
     }
     
-    # ログファイルを開く
-    Invoke-Item -Path $script:Log
+    # ログファイルを開く（非対話モードを除く）
+    if ((-not $NoKeyWait) -and ($script:Log -and (Test-Path $script:Log))) {
+        try {
+            Invoke-Item -Path $script:Log
+        } catch {
+            # ログを開けない場合は無視
+        }
+    }
+    
+    # スクリプト終了コードを返す
+    exit $script:ExitCode
 }
