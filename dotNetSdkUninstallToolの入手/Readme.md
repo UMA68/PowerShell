@@ -22,6 +22,10 @@ English: [Readme.en.md](./Readme.en.md)
   - [終了コード](#終了コード)
   - [トラブルシューティング](#トラブルシューティング)
   - [手動インストール（参考）](#手動インストール参考)
+  - [エラーハンドリング（v1.1.0）](#エラーハンドリングv110)
+    - [CanExecuteProcess フラグによるフロー制御](#canexecuteprocess-フラグによるフロー制御)
+    - [Get-ExceptionLogLevel 関数](#get-exceptionloglevel-関数)
+    - [Helper 関数](#helper-関数)
   - [ライセンス / リンク](#ライセンス--リンク)
 
 ---
@@ -43,11 +47,12 @@ English: [Readme.en.md](./Readme.en.md)
 ## v1.1.0 の改善
 
 ✅ **安全性の大幅強化:**
-- exit 文を廃止、return 文に統一（スクリプト呼び出し対応）
+
+- exit文を廃止、return文に統一（スクリプト呼び出し対応）
 - **CanExecuteProcess フラグ** による統一的なエラーフロー制御
 - **Get-ExceptionLogLevel** 関数による例外型の自動分類（9パターン対応）
 - **Helper 関数** の追加（Open-LogIfNeeded, Stop-ProcessTree）
-- **end ブロック** の強化（COM オブジェクト確実解放、ログ自動オープン）
+- **end ブロック** の強化（COMオブジェクト確実解放、ログ自動オープン）
 
 詳細は以下の「エラーハンドリング」セクションを参照。
 
@@ -223,9 +228,9 @@ dotnet-core-uninstall list
 
 スクリプト内部で `$script:CanExecuteProcess` フラグを使用して統一的なエラーハンドリングを実現：
 
-- **初期化時**（begin ブロック）: `$true` で初期化
+- **初期化時**（beginブロック）: `$true` で初期化
 - **エラー発生時**: `$false` に設定 + `$script:ExitCode` に終了コード格納 + `return`
-- **クリーンアップ時**（end ブロック）: フラグが `false` の場合のみ終了コード付きで exit
+- **クリーンアップ時**（endブロック）: フラグが `false` の場合のみ終了コード付きでexit
 
 このパターンにより、エラー発生時でも確実にリソースがクリーンアップされます。
 
@@ -255,5 +260,3 @@ dotnet-core-uninstall list
 
 - リポジトリ: <https://github.com/UMA68/PowerShell>
 - ライセンス: 本リポジトリの `LICENSE` に従います
-
-

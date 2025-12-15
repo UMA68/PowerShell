@@ -146,23 +146,23 @@ begin {
     function Get-ExceptionLogLevel {
         param([Exception]$Exception)
         $exceptionType = $Exception.GetType().FullName
-        switch -regex ($exceptionType) {
-            'FileNotFoundException|DirectoryNotFoundException' { return 'ERROR' }
-            'UnauthorizedAccessException' { return 'ERROR' }
-            'ParsingException|XmlException' { return 'ERROR' }
-            'InvalidOperationException|IOException' { return 'ERROR' }
-            'TimeoutException' { return 'WARN' }
-            'OperationCanceledException' { return 'WARN' }
-            'ArgumentException|ArgumentNullException' { return 'WARN' }
-            'WebException|HttpRequestException' { return 'ERROR' }
-            default { return 'DEBUG' }
+        switch -regex ($exceptionType) { # 正規表現マッチング
+            'FileNotFoundException|DirectoryNotFoundException' { return 'ERROR' }   # ファイル/ディレクトリ未検出
+            'UnauthorizedAccessException' { return 'ERROR' }                        # アクセス拒否
+            'ParsingException|XmlException' { return 'ERROR' }                      # 構文解析エラー
+            'InvalidOperationException|IOException' { return 'ERROR' }              # 無効操作/入出力エラー
+            'TimeoutException' { return 'WARN' }                                    # タイムアウト
+            'OperationCanceledException' { return 'WARN' }                          # 操作キャンセル  
+            'ArgumentException|ArgumentNullException' { return 'WARN' }             # 引数エラー
+            'WebException|HttpRequestException' { return 'ERROR' }                  # ネットワーク関連エラー
+            default { return 'DEBUG' }                                              # その他の例外は DEBUG レベル
         }
     }
     
     # ===== Helper 関数: ログファイルの条件付きオープン =====
     function Open-LogIfNeeded {
         param([string]$LogPath)
-        if ($LogPath -and (Test-Path -Path $LogPath)) {
+        if ($LogPath -and (Test-Path -Path $LogPath)) { # ログファイルが存在する場合
             try {
                 Invoke-Item -Path $LogPath -ErrorAction SilentlyContinue
             } catch {}
@@ -174,7 +174,7 @@ begin {
         param([int]$ProcessId)
         try {
             $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-            if ($process) {
+            if ($process) { # プロセスが存在する場合
                 Get-CimInstance -ClassName Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue | 
                     ForEach-Object { Stop-ProcessTree -ProcessId $_.ProcessId }
                 $process.Kill()
@@ -193,7 +193,7 @@ begin {
     
     # YAML設定ファイルの読み込み
     try {
-        if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {   # powershell-yamlモジュールがインストールされていない場合
+        if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # powershell-yamlモジュールがインストールされていない場合
             Write-Error "powershell-yamlモジュールがインストールされていません。"
             $script:CanExecuteProcess = $false
             $script:ExitCode = 1
@@ -204,7 +204,7 @@ begin {
         $yamlContent = Get-Content -Path $yamlPath -Raw -Encoding UTF8
         $script:config = ConvertFrom-Yaml -Yaml $yamlContent
         
-        if (-not $script:config) {  # YAMLの読み込みに失敗した場合
+        if (-not $script:config) { # YAMLの読み込みに失敗した場合
             Write-Error "YAML設定ファイルの読み込みに失敗しました。"
             $script:CanExecuteProcess = $false
             $script:ExitCode = 1
@@ -242,7 +242,7 @@ begin {
     }
 
     # ログディレクトリの作成
-    if (-not (Test-Path -Path $LogDir)) {
+    if (-not (Test-Path -Path $LogDir)) { # ログディレクトリが存在しない場合
         try {   # ログディレクトリの作成
             New-Item -Path $LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
         } catch {
@@ -257,19 +257,19 @@ begin {
     
     # 古いログファイルのクリーンアップ
     try {   # 古いログファイルの削除処理
-        $logRetentionDays = $script:config.LogCleanup.RetentionDays
-        $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)
-        $logFileName = $script:config.LOG.FILENAME
-        $logExtension = $script:config.LOG.EXTENSION
+        $logRetentionDays = $script:config.LogCleanup.RetentionDays # ログ保持日数を取得
+        $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)        # 保持日数を過ぎた日付を計算
+        $logFileName = $script:config.LOG.FILENAME                  # ログファイル名を取得    
+        $logExtension = $script:config.LOG.EXTENSION                # 古いログファイルを取得
         $oldLogs = Get-ChildItem -Path $LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
-                   Where-Object { $_.LastWriteTime -lt $cutoffDate }
+                   Where-Object { $_.LastWriteTime -lt $cutoffDate }    # 保持日数を過ぎたログファイルをフィルタリング
         
-        if ($oldLogs -and $oldLogs.Count -gt 0) {   # 古いログファイルが存在する場合
-            foreach ($oldLog in $oldLogs) {
+        if ($oldLogs -and $oldLogs.Count -gt 0) { # 古いログファイルが存在する場合
+            foreach ($oldLog in $oldLogs) { # 古いログファイルを削除
                 Remove-Item -Path $oldLog.FullName -Force -ErrorAction SilentlyContinue
             }
             $script:CleanedLogCount = $oldLogs.Count # 削除されたログファイルの数
-        } else {
+        } else { # 古いログファイルが存在しない場合
             $script:CleanedLogCount = 0 # 削除されたログファイルはない
         }
     } catch {
@@ -295,7 +295,7 @@ begin {
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     $script:isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     
-    if (-not $script:isAdmin -and -not $SkipAdminCheck) {   # 管理者権限がない場合
+    if (-not $script:isAdmin -and -not $SkipAdminCheck) { # 管理者権限がない場合
         Write-CommonLog -Message "Administrator privileges required." -LogPath $script:Log -Level "ERROR"
         $iconWarning = [int]$script:config.PopupIcon.Warning
         $exitCodePriv = $script:config.ExitCode.InsufficientPrivileges
@@ -303,13 +303,13 @@ begin {
         Write-Error "Exit Code ${exitCodePriv}: Insufficient privileges"
         $script:CanExecuteProcess = $false
         $script:ExitCode = $exitCodePriv
-        if (Test-Path -Path $script:Log) {    # ログファイルが存在する場合
+        if (Test-Path -Path $script:Log) { # ログファイルが存在する場合
             Invoke-Item -Path $script:Log -WhatIf:$false
         }
         return
     }
 
-    if ($SkipAdminCheck) {  # 管理者権限チェックをスキップ（デバッグモード）
+    if ($SkipAdminCheck) { # 管理者権限チェックをスキップ（デバッグモード）
         Write-CommonLog -Message "⚠️ WARNING: Admin check skipped (Debug mode)" -LogPath $script:Log -Level "WARN"
     }
     
@@ -317,7 +317,7 @@ begin {
     $mutexName = "Global\DotNetUninstallToolScript"
     $script:mutex = New-Object System.Threading.Mutex($false, $mutexName)
     
-    if (-not $script:mutex.WaitOne(0)) {    # すでに他のインスタンスが実行中
+    if (-not $script:mutex.WaitOne(0)) { # すでに他のインスタンスが実行中
         Write-CommonLog -Message "Another instance is already running." -LogPath $script:Log -Level "ERROR"
         $iconWarning = [int]$script:config.PopupIcon.Warning
         $script:comObject.Popup("このスクリプトは既に実行中です。`r`n`r`n同時に複数実行することはできません。", 0, "二重起動エラー", $iconWarning) | Out-Null
@@ -329,7 +329,7 @@ begin {
     
     # PowerShell終了時にMutexを解放
     $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
-        if ($script:mutex) {    # Mutexが存在する場合
+        if ($script:mutex) { # Mutexが存在する場合
             $script:mutex.ReleaseMutex()
             $script:mutex.Dispose()
         }
@@ -346,17 +346,17 @@ process {
     Write-CommonLog -Message "Running as Administrator: $script:isAdmin" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "Running PowerShell Version: $($PSVersionTable.PSVersion)" -LogPath $script:Log -Level "INFO"
     
-    if ($script:CleanedLogCount -gt 0) {    # ログローテーションで古いログファイルを削除した場合
+    if ($script:CleanedLogCount -gt 0) { # ログローテーションで古いログファイルを削除した場合
         Write-CommonLog -Message "Log rotation: Cleaned up $script:CleanedLogCount old log file(s)" -LogPath $script:Log -Level "INFO"
     }
     
-    if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {  # 詳細モードの確認
+    if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { # 詳細モードの確認
         Write-CommonLog -Message "Verbose mode enabled" -LogPath $script:Log -Level "INFO"
         Write-Verbose "Log file: $script:Log"
         Write-Verbose "Script version: $($script:config.Project.ScriptVersion)"
     }
     
-    if ($WhatIfPreference) {    # WhatIfモードの確認
+    if ($WhatIfPreference) { # WhatIfモードの確認
         Write-CommonLog -Message "⚠️ WhatIf mode enabled - No actual changes will be made" -LogPath $script:Log -Level "INFO"
         Write-Host "`n⚠️ ドライランモード: 実際の処理は実行されません（ログのみ）" -ForegroundColor Yellow
     }
@@ -386,7 +386,7 @@ process {
         $msiPath = Join-Path -Path $dotNetSdkUninstallToolPath -ChildPath $msiFileName
         
         # MSIファイルの存在確認
-        if (-not (Test-Path $msiPath)) {
+        if (-not (Test-Path $msiPath)) { # MSIファイルが存在しない場合
             Write-CommonLog -Message "MSI file not found: $msiPath" -LogPath $script:Log -Level "ERROR"
             $iconError = [int]$script:config.PopupIcon.Error
             $exitCodeFile = $script:config.ExitCode.FileNotFound
@@ -399,10 +399,10 @@ process {
         
         # ファイルのブロック解除
         try {
-            if ($PSCmdlet.ShouldProcess($msiPath, "Unblock file")) {
+            if ($PSCmdlet.ShouldProcess($msiPath, "Unblock file")) { # WhatIfモードでない場合
                 Unblock-File -Path $msiPath -ErrorAction Stop
                 Write-CommonLog -Message "File unblocked successfully" -LogPath $script:Log -Level "INFO"
-            } else {
+            } else { # WhatIfモードの場合
                 Write-CommonLog -Message "[WhatIf] Would unblock file: $msiPath" -LogPath $script:Log -Level "INFO"
             }
         } catch {
@@ -414,22 +414,22 @@ process {
         Write-CommonLog -Message "Executing MSI installation..." -LogPath $script:Log -Level "INFO"
         
         # WhatIfモードの確認
-        if (-not $PSCmdlet.ShouldProcess($msiPath, "Install MSI package")) {
+        if (-not $PSCmdlet.ShouldProcess($msiPath, "Install MSI package")) { # WhatIfモードの場合
             Write-CommonLog -Message "[WhatIf] Would execute: msiexec.exe /i `"$msiPath`" /passive /norestart" -LogPath $script:Log -Level "INFO"
             Write-Host "[WhatIf] インストール処理はスキップされました" -ForegroundColor Cyan
             return $script:config.ExitCode.Success
         }
         
         try {   # インストール実行処理
-            $timeoutSeconds = $script:config.Timeout.InstallSeconds
-            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-            $processInfo.FileName = "msiexec.exe"
-            $processInfo.Arguments = "/i `"$msiPath`" /passive /norestart"
-            $processInfo.RedirectStandardOutput = $true
-            $processInfo.RedirectStandardError = $true
-            $processInfo.UseShellExecute = $false
-            $processInfo.CreateNoWindow = $true
-            $processInfo.Verb = "RunAs"
+            $timeoutSeconds = $script:config.Timeout.InstallSeconds         # タイムアウト秒数の取得
+            $processInfo = New-Object System.Diagnostics.ProcessStartInfo   # プロセス情報オブジェクトの作成
+            $processInfo.FileName = "msiexec.exe"                           # msiexec.exe の指定
+            $processInfo.Arguments = "/i `"$msiPath`" /passive /norestart"  # サイレントインストール
+            $processInfo.RedirectStandardOutput = $true         # 標準出力のリダイレクト
+            $processInfo.RedirectStandardError = $true          # 標準エラー出力のリダイレクト
+            $processInfo.UseShellExecute = $false               # シェル機能を使用しない
+            $processInfo.CreateNoWindow = $true                 # ウィンドウを表示しない
+            $processInfo.Verb = "RunAs"                         # 管理者権限で実行
             
             $process = New-Object System.Diagnostics.Process
             $process.StartInfo = $processInfo
@@ -439,7 +439,7 @@ process {
             
             $completed = $process.WaitForExit($timeoutSeconds * 1000)
             
-            if (-not $completed) {  # タイムアウト発生
+            if (-not $completed) { # タイムアウト発生
                 Write-CommonLog -Message "Installation timed out after $timeoutSeconds seconds" -LogPath $script:Log -Level "ERROR"
                 try {
                     $process.Kill()
@@ -452,7 +452,7 @@ process {
             $exitCode = $process.ExitCode
             Write-CommonLog -Message "Installation process exited with code: $exitCode" -LogPath $script:Log -Level "INFO"
             
-            if ($exitCode -ne 0) {  # インストール失敗
+            if ($exitCode -ne 0) { # インストール失敗
                 Write-CommonLog -Message "Installation failed with exit code: $exitCode" -LogPath $script:Log -Level "ERROR"
                 Write-Host "❌ インストールに失敗しました (Exit Code: $exitCode)" -ForegroundColor Red
                 return $script:config.ExitCode.InstallFailed
@@ -472,7 +472,7 @@ process {
         
         # インストール検証
         $commandName = $script:config.Installation.CommandName
-        if (Get-Command $commandName -ErrorAction SilentlyContinue) {
+        if (Get-Command $commandName -ErrorAction SilentlyContinue) { # コマンドが認識された場合
             Write-CommonLog -Message "✅ Installation completed successfully" -LogPath $script:Log -Level "INFO"
             Write-Host "✅ インストールが完了しました。" -ForegroundColor Green
             
@@ -485,7 +485,7 @@ process {
                 Write-CommonLog -Message "Failed to display tool help: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
             }
             return $script:config.ExitCode.Success
-        } else {
+        } else { # コマンドが認識されなかった場合
             Write-CommonLog -Message "⚠️ Command not recognized after installation" -LogPath $script:Log -Level "WARN"
             Write-Host "⚠️ インストール後にコマンドが認識されていません。PowerShellを再起動して確認してください。" -ForegroundColor Yellow
             return $script:config.ExitCode.Success
@@ -506,7 +506,7 @@ process {
             (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName -like $productPattern
         }
         # アンインストール対象が見つからなかった場合
-        if (-not $keys) {
+        if (-not $keys) { # 製品が見つからなかった場合
             Write-CommonLog -Message "Product not found in registry" -LogPath $script:Log -Level "INFO"
             Write-Host "✅ .NET Uninstall Tool はインストールされていません。" -ForegroundColor Green
             return $script:config.ExitCode.Success
@@ -532,7 +532,7 @@ process {
         Write-CommonLog -Message "Executing MSI uninstallation..." -LogPath $script:Log -Level "INFO"
         
         # WhatIfモードの確認
-        if (-not $PSCmdlet.ShouldProcess($productCode, "Uninstall MSI package")) {
+        if (-not $PSCmdlet.ShouldProcess($productCode, "Uninstall MSI package")) { # WhatIfモード
             Write-CommonLog -Message "[WhatIf] Would execute: msiexec.exe /x $productCode /passive /norestart" -LogPath $script:Log -Level "INFO"
             Write-Host "[WhatIf] アンインストール処理はスキップされました" -ForegroundColor Cyan
             if ($installLocation) { # 残存フォルダ削除のWhatIfログ
@@ -543,25 +543,25 @@ process {
         
         # アンインストール処理
         try {
-            $timeoutSeconds = $script:config.Timeout.UninstallSeconds
-            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-            $processInfo.FileName = "msiexec.exe"
-            $processInfo.Arguments = "/x $productCode /passive /norestart"
-            $processInfo.RedirectStandardOutput = $true
-            $processInfo.RedirectStandardError = $true
-            $processInfo.UseShellExecute = $false
-            $processInfo.CreateNoWindow = $true
-            $processInfo.Verb = "RunAs"
+            $timeoutSeconds = $script:config.Timeout.UninstallSeconds       # タイムアウト秒数取得
+            $processInfo = New-Object System.Diagnostics.ProcessStartInfo   # プロセス情報オブジェクト作成
+            $processInfo.FileName = "msiexec.exe"                           # ファイル名設定
+            $processInfo.Arguments = "/x $productCode /passive /norestart"  # 引数設定
+            $processInfo.RedirectStandardOutput = $true             # 標準出力リダイレクト設定  
+            $processInfo.RedirectStandardError = $true              # 標準エラーリダイレクト設定
+            $processInfo.UseShellExecute = $false                   # シェル実行設定  
+            $processInfo.CreateNoWindow = $true                     # ウィンドウ非表示設定  
+            $processInfo.Verb = "RunAs"                             # 管理者権限で実行設定
             
-            $process = New-Object System.Diagnostics.Process
-            $process.StartInfo = $processInfo
+            $process = New-Object System.Diagnostics.Process        # プロセスオブジェクト作成
+            $process.StartInfo = $processInfo                       # プロセス情報設定
             
             Write-CommonLog -Message "Command: msiexec.exe /x $productCode /passive /norestart (Timeout: ${timeoutSeconds}s)" -LogPath $script:Log -Level "INFO"
             $process.Start() | Out-Null
             
-            $completed = $process.WaitForExit($timeoutSeconds * 1000)
+            $completed = $process.WaitForExit($timeoutSeconds * 1000)   # タイムアウト付きで終了待機
             
-            if (-not $completed) {  # タイムアウト発生
+            if (-not $completed) { # タイムアウト発生
                 Write-CommonLog -Message "Uninstallation timed out after $timeoutSeconds seconds" -LogPath $script:Log -Level "ERROR"
                 try {
                     $process.Kill()
@@ -574,7 +574,7 @@ process {
             $exitCode = $process.ExitCode   # アンインストールの終了コードを取得
             Write-CommonLog -Message "Uninstallation process exited with code: $exitCode" -LogPath $script:Log -Level "INFO"
             
-            if ($exitCode -ne 0) {  # アンインストール失敗
+            if ($exitCode -ne 0) { # アンインストール失敗
                 Write-CommonLog -Message "Uninstallation failed with exit code: $exitCode" -LogPath $script:Log -Level "ERROR"
                 Write-Host "❌ アンインストールに失敗しました (Exit Code: $exitCode)" -ForegroundColor Red
                 return $script:config.ExitCode.UninstallFailed
@@ -593,7 +593,8 @@ process {
         Start-Sleep -Seconds $sleepSeconds
         
         # 残存フォルダの削除
-        if ($installLocation -and (Test-Path $installLocation)) {
+        if ($installLocation -and (Test-Path $installLocation)) { # インストール場所が存在する場合
+            Write-CommonLog -Message "Removing remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
             try {
                 Remove-Item $installLocation -Recurse -Force -ErrorAction Stop
                 Write-CommonLog -Message "Removed remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
@@ -606,12 +607,12 @@ process {
         
         # アンインストール検証
         $commandName = $script:config.Installation.CommandName
-        if (Get-Command $commandName -ErrorAction SilentlyContinue) {
+        if (Get-Command $commandName -ErrorAction SilentlyContinue) { # コマンドがまだ存在する場合
             # コマンドがまだ存在する場合
             Write-CommonLog -Message "⚠️ Command still recognized after uninstallation" -LogPath $script:Log -Level "WARN"
             Write-Host "⚠️ アンインストール後もコマンドが残っています。PowerShellを再起動して確認してください。" -ForegroundColor Yellow
             return $script:config.ExitCode.Success
-        } else {
+        } else { # コマンドが存在しない場合
             # コマンドが存在しない場合
             Write-CommonLog -Message "✅ Uninstallation completed successfully" -LogPath $script:Log -Level "INFO"
             Write-Host "✅ アンインストールが完了しました。" -ForegroundColor Green
@@ -622,34 +623,34 @@ process {
     # メインループ
     $exitFlag = $false
     
-    do {
+    do { # メニュー表示とユーザー入力
         Show-Menu
         $choice = Read-Host "操作を選択してください (1/2/Q)"
         
         Write-CommonLog -Message "User selected: $choice" -LogPath $script:Log -Level "INFO"
         
-        switch ($choice) {
-            "1" { 
+        switch ($choice) { # ユーザーの選択に基づく処理
+            "1" { # インストール
                 $result = Install-UninstallTool
-                if ($result -ne $script:config.ExitCode.Success) {
+                if ($result -ne $script:config.ExitCode.Success) { # インストール失敗
                     Write-CommonLog -Message "Installation operation failed with code: $result" -LogPath $script:Log -Level "ERROR"
                 }
             }
-            "2" { 
+            "2" { # アンインストール
                 $result = Uninstall-UninstallTool
-                if ($result -ne $script:config.ExitCode.Success) {
+                if ($result -ne $script:config.ExitCode.Success) { # アンインストール失敗
                     Write-CommonLog -Message "Uninstallation operation failed with code: $result" -LogPath $script:Log -Level "ERROR"
                 }
             }
-            "Q" { 
+            "Q" { # 大文字のQで終了
                 $exitFlag = $true
                 Write-CommonLog -Message "User selected exit" -LogPath $script:Log -Level "INFO"
             }
-            "q" { 
+            "q" { # 小文字のqも許可
                 $exitFlag = $true
                 Write-CommonLog -Message "User selected exit" -LogPath $script:Log -Level "INFO"
             }
-            default { 
+            default { # 無効な選択肢
                 Write-Host "⚠️ 無効な選択です。もう一度入力してください。" -ForegroundColor Red
                 Write-CommonLog -Message "Invalid selection: $choice" -LogPath $script:Log -Level "WARN"
             }
@@ -664,7 +665,7 @@ end {
     # リソースクリーンアップと最終処理
     
     # Mutexの解放
-    if ($script:mutex) {
+    if ($script:mutex) { # Mutexが存在する場合
         try {
             $script:mutex.ReleaseMutex()
             $script:mutex.Dispose()
@@ -672,7 +673,7 @@ end {
     }
     
     # COMオブジェクトのクリーンアップ
-    if ($script:comObject) {
+    if ($script:comObject) { # COMオブジェクトが存在する場合
         try {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
             $script:comObject = $null
@@ -680,14 +681,14 @@ end {
     }
     
     # ログファイルの自動オープン（常に実行）
-    if ($script:Log -and (Test-Path -Path $script:Log)) {
+    if ($script:Log -and (Test-Path -Path $script:Log)) { # ログファイルが存在する場合
         try {
             Open-LogIfNeeded -LogPath $script:Log
         } catch {}
     }
     
     # 最終的な exit コード処理
-    if (-not $script:CanExecuteProcess) {
+    if (-not $script:CanExecuteProcess) { # CanExecuteProcess が false の場合のみ exit
         exit $script:ExitCode
     }
 }
