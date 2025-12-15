@@ -179,18 +179,18 @@
 [CmdletBinding(SupportsShouldProcess=$true)]
 param (
     [Parameter(Mandatory=$false)]
-    [ValidateScript({
+    [ValidateScript({ # YAMLファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
-        if ($_ -notmatch '\.(yaml|yml)$') {
+        if ($_ -notmatch '\.(yaml|yml)$') { # 拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
         }
-        if ($_ -match '[\\/:"*?<>|]') {
+        if ($_ -match '[\\/:"*?<>|]') { # ファイル名に使用できない文字をチェック
             throw "ファイル名に使用できない文字が含まれています: $_"
         }
-        if ([string]::IsNullOrWhiteSpace($_)) {
+        if ([string]::IsNullOrWhiteSpace($_)) { # ファイル名が空白または空文字かどうかをチェック
             throw "ファイル名は空にできません"
         }
-        if ($_.Length -gt 255) {
+        if ($_.Length -gt 255) { # ファイル名長の制限
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
         $true
@@ -292,7 +292,7 @@ begin{
         $success = $false   # 成功フラグ
         $lastError = $null  # 最後のエラーメッセージ
         
-        while ($attempt -lt $MaxAttempts -and -not $success) {  # リトライループ
+        while ($attempt -lt $MaxAttempts -and -not $success) { # リトライループ
             $attempt++  # 試行回数をインクリメント
             
             try {
@@ -304,38 +304,38 @@ begin{
                 )
                 
                 # タイムアウト付きプロセス実行
-                $job = Start-Job -ScriptBlock {
+                $job = Start-Job -ScriptBlock { # ジョブスクリプトブロック
                     param($FilePath, [string[]]$ArgList)
                     $process = Start-Process -FilePath $FilePath `
                         -ArgumentList $ArgList `
                         -NoNewWindow -Wait -PassThru -ErrorAction Stop
                     return $process.ExitCode
-                } -ArgumentList "ILSpyCmd", $ilspyArgs
+                } -ArgumentList "ILSpyCmd", $ilspyArgs  # ジョブ開始
                 
-                $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds
+                $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds    # ジョブ完了待機
                 
-                if ($completed) {   # 正常終了
-                    $exitCode = Receive-Job -Job $job
-                    Remove-Job -Job $job -Force
+                if ($completed) { # 正常終了
+                    $exitCode = Receive-Job -Job $job   # 終了コード取得
+                    Remove-Job -Job $job -Force         # ジョブ削除
                     
-                    if ($exitCode -eq 0) {    # 成功した場合
+                    if ($exitCode -eq 0) { # 成功した場合
                         $success = $true
                         if ($LogFunction) { # ログ関数が指定されている場合
                             & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 逆コンパイル成功 (試行: $attempt/$MaxAttempts)" "SUCCESS"
                         }
-                    } else {    # 失敗した場合
+                    } else { # 失敗した場合
                         $lastError = "ILSpyCmd終了コード: $exitCode"
-                        if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
+                        if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
                             if ($LogFunction) { # ログ関数が指定されている場合
                                 & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
                             }
                             Start-Sleep -Seconds $DelaySeconds
                         }
                     }
-                } else {    # タイムアウト
+                } else { # タイムアウト
                     Remove-Job -Job $job -Force
                     $lastError = "タイムアウト (${TimeoutSeconds}秒)"
-                    if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
+                    if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
                         if ($LogFunction) { # ログ関数が指定されている場合
                             & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
                         }
@@ -344,7 +344,7 @@ begin{
                 }
             } catch {
                 $lastError = $_.Exception.Message
-                if ($attempt -lt $MaxAttempts) {    # リトライ可能な場合
+                if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
                     if ($LogFunction) { # ログ関数が指定されている場合
                         & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARNING"
                     }
@@ -353,7 +353,7 @@ begin{
             }
         }
         
-        return @{   # 結果ハッシュテーブルを返す
+        return @{ # 結果ハッシュテーブルを返す
             Success = $success  # true/false
             Attempts = $attempt # 試行回数
             Error = $lastError  # 最後のエラーメッセージ
@@ -375,14 +375,14 @@ begin{
     Write-Verbose "出力フォルダー: $outputFolder"
     
     # powershell-yamlモジュールの確認(終了コードは固定値)
-    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {   # モジュールが存在しない場合
+    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # モジュールが存在しない場合
         Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
         exit 4  # YAML読み込み前なので固定値
     }
     Import-Module powershell-yaml -ErrorAction Stop
 
     # YAMLファイルの存在チェック(終了コードは固定値)
-    if (-not (Test-Path $YamlPath)) {   # YAML設定ファイルが存在しない場合
+    if (-not (Test-Path $YamlPath)) { # YAML設定ファイルが存在しない場合
         Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
         exit 4  # YAML読み込み前なので固定値
     }
@@ -425,7 +425,7 @@ begin{
     Write-Verbose "リトライ設定: MaxAttempts=$script:retryMaxAttempts, Delay=$script:retryDelaySeconds秒, Timeout=$script:retryTimeoutSeconds秒"
     
     # YAML構造の検証
-    if (-not $config.InstWinMerge) {    # InstWinMergeセクションがない場合
+    if (-not $config.InstWinMerge) { # InstWinMergeセクションがない場合
         Show-ErrorPopup "YAMLに'InstWinMerge'セクションがありません。`r`n設定ファイルを確認してください。"
         exit $exitGeneralError
     }
@@ -436,15 +436,15 @@ begin{
     
     Write-Verbose "OS: $($osInfo.Caption) (Build: $osBuild)"
     
-    if ($osBuild -ge $win11MinBuild) {    # Windows 11 (YAML設定のビルド番号以降)
+    if ($osBuild -ge $win11MinBuild) { # Windows 11 (YAML設定のビルド番号以降)
         # Windows 11 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win11 -replace '\$HOME', $HOME
         Write-Verbose "Windows 11を検出しました (Build: $osBuild >= $win11MinBuild)"
-    } elseif ($osBuild -ge $win10MinBuild) {    # Windows 10 (YAML設定のビルド番号以降)
+    } elseif ($osBuild -ge $win10MinBuild) { # Windows 10 (YAML設定のビルド番号以降)
         # Windows 10 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win10
         Write-Verbose "Windows 10を検出しました (Build: $osBuild >= $win10MinBuild)"
-    } else {    # 対応OS以外
+    } else { # 対応OS以外
         Show-ErrorPopup "このスクリプトはWindows 10またはWindows 11でのみ動作します。`r`n現在のビルド: $osBuild (Win10最小: $win10MinBuild)`r`n異なるバージョンで使用する場合はYAMLのOSDetection設定を調整してください。"
         exit $exitOSNotSupported
     }
@@ -453,25 +453,25 @@ begin{
 
     # ILSpyCmd(逆コンパイルコマンド)の存在チェック
     $ilspyCmd = Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue
-    if (-not $ilspyCmd) {   # ILSpyCmdが見つからない場合
+    if (-not $ilspyCmd) { # ILSpyCmdが見つからない場合
         Show-ErrorPopup $script:MSG_NO_ILSPYCMD
         exit $script:exitFileNotFound
     }
     Write-Verbose "ILSpyCmd場所: $($ilspyCmd.Source)"
     
     # 必要なフォルダーの存在確認
-    if (-not (Test-Path $oldDllFolder)) {   # Oldフォルダーが存在しない場合
+    if (-not (Test-Path $oldDllFolder)) { # Oldフォルダーが存在しない場合
         Show-ErrorPopup "Oldフォルダーが存在しません。`r`n`r`n$oldDllFolder`r`nを作成してDLLファイルを配置してください。"
         exit $script:exitFileNotFound
     }
     
-    if (-not (Test-Path $newDllFolder)) {   # Newフォルダーが存在しない場合
+    if (-not (Test-Path $newDllFolder)) { # Newフォルダーが存在しない場合
         Show-ErrorPopup "Newフォルダーが存在しません。`r`n`r`n$newDllFolder`r`nを作成してDLLファイルを配置してください。"
         exit $script:exitFileNotFound
     }
     
     # 出力フォルダーの作成(存在しない場合)
-    if (-not (Test-Path $outputFolder)) {   # 出力フォルダーが存在しない場合
+    if (-not (Test-Path $outputFolder)) { # 出力フォルダーが存在しない場合
         try {
             New-Item -Path $outputFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
             Write-Verbose "出力フォルダーを作成しました: $outputFolder"
@@ -482,7 +482,8 @@ begin{
     }
     
     # CleanOutput オプション: 出力フォルダーのクリーンアップ
-    if ($CleanOutput) {
+    if ($CleanOutput) { # 出力フォルダーのクリア
+        Write-Verbose "出力フォルダーのクリアを実行します。"
         $oldOutputPath = Join-Path $outputFolder $folderOld
         $newOutputPath = Join-Path $outputFolder $folderNew
         
@@ -514,7 +515,7 @@ process{
     Write-Verbose "古いDLLフォルダーをスキャン: $oldDllFolder"
     $oldDlls = Get-ChildItem $oldDllFolder -Filter *.dll -ErrorAction SilentlyContinue
     
-    if (-not $oldDlls) {    # DLLファイルが存在しない場合
+    if (-not $oldDlls) { # DLLファイルが存在しない場合
         Show-ErrorPopup ($script:MSG_NO_OLD_DLL -f $oldDllFolder)
         exit $script:exitFileNotFound
     }
@@ -530,15 +531,15 @@ process{
     $processStartTime = Get-Date
     
     Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $script:colorInfo
-    if ($Parallel) {    # 並列処理モード
+    if ($Parallel) { # 並列処理モード
         Write-Host "並列処理モード: 最大 $ThrottleLimit スレッド" -ForegroundColor $script:colorInfo
         Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (並列処理: $ThrottleLimit スレッド)" "INFO"
-    } else {    # 順次処理モード
+    } else { # 順次処理モード
         Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (順次処理)" "INFO"
     }
     
     # 並列処理用の同期変数
-    $syncHash = [hashtable]::Synchronized(@{    # 同期ハッシュテーブル
+    $syncHash = [hashtable]::Synchronized(@{ # 同期ハッシュテーブル
         TotalCount = $totalCount    # 総ファイル数
         SuccessCount = 0            # 成功カウント
         FailCount = 0               # 失敗カウント
@@ -553,7 +554,7 @@ process{
     # 並列処理または順次処理
     if ($Parallel) {    # 並列処理
         # 並列処理
-        $oldDlls | ForEach-Object -Parallel {
+        $oldDlls | ForEach-Object -Parallel { # 並列スクリプトブロック
             $oldDll = $_                                                # 現在のDLLファイル
             $baseName = $oldDll.BaseName                                # DLLのベース名取得 (拡張子なし)
             
@@ -599,7 +600,7 @@ process{
                 $success = $false   # 成功フラグ
                 $lastError = $null  # 最終エラーメッセージ
                 
-                while ($attempt -lt $MaxAttempts -and -not $success) {
+                while ($attempt -lt $MaxAttempts -and -not $success) { # リトライループ
                     $attempt++
                     
                     try {
@@ -611,48 +612,48 @@ process{
                         )
                         
                         # タイムアウト付きプロセス実行
-                        $job = Start-Job -ScriptBlock {
+                        $job = Start-Job -ScriptBlock { # ジョブスクリプトブロック
                             param($FilePath, [string[]]$ArgList)
                             $process = Start-Process -FilePath $FilePath `
                                 -ArgumentList $ArgList `
                                 -NoNewWindow -Wait -PassThru -ErrorAction Stop
                             return $process.ExitCode
-                        } -ArgumentList "ILSpyCmd", $ilspyArgs
+                        } -ArgumentList "ILSpyCmd", $ilspyArgs # 引数渡し
                         
                         $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds
                         
-                        if ($completed) {   # ジョブ完了
+                        if ($completed) { # ジョブ完了
                             $exitCode = Receive-Job -Job $job
                             Remove-Job -Job $job -Force
                             
-                            if ($exitCode -eq 0) {    # 成功
+                            if ($exitCode -eq 0) { # 成功
                                 $success = $true
-                            } else {                   # 失敗
+                            } else { # 失敗
                                 $lastError = "ILSpyCmd終了コード: $exitCode"
-                                if ($attempt -lt $MaxAttempts) {    # リトライ可能
+                                if ($attempt -lt $MaxAttempts) { # リトライ可能
                                     Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
                                     Start-Sleep -Seconds $DelaySeconds
                                 }
                             }
-                        } else {    # タイムアウト
+                        } else { # タイムアウト
                             # タイムアウト
                             Remove-Job -Job $job -Force
                             $lastError = "タイムアウト (${TimeoutSeconds}秒)"
-                            if ($attempt -lt $MaxAttempts) {    # リトライ可能
+                            if ($attempt -lt $MaxAttempts) { # リトライ可能
                                 Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
                                 Start-Sleep -Seconds $DelaySeconds
                             }
                         }
                     } catch {
                         $lastError = $_.Exception.Message
-                        if ($attempt -lt $MaxAttempts) {    # リトライ可能
+                        if ($attempt -lt $MaxAttempts) { # リトライ可能
                             Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARNING"
                             Start-Sleep -Seconds $DelaySeconds
                         }
                     }
                 }
                 
-                return @{   # 結果ハッシュテーブルを返す
+                return @{ # 結果ハッシュテーブルを返す
                     Success = $success  # 成功フラグ
                     Attempts = $attempt # 試行回数
                     Error = $lastError  # 最終エラーメッセージ
@@ -666,7 +667,7 @@ process{
                 # 部分一致で最新のDLLを取得
                 $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" -ErrorAction SilentlyContinue |
                           Sort-Object LastWriteTime | Select-Object -Last 1
-                if ($newDll) {  # 部分一致が見つかった場合
+                if ($newDll) { # 部分一致が見つかった場合
                     Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
                 }
             }
@@ -677,8 +678,8 @@ process{
             Write-Progress -Activity $using:script:PROGRESS_ACTIVITY_PARALLEL -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress -Id $oldDll.GetHashCode()  # 進捗バー更新
 
             # 逆コンパイル
-            if ($newDll) {
-                if (-not $WhatIfPreference) {   # WhatIfモードでない場合
+            if ($newDll) { # 新しいDLLが見つかった場合
+                if (-not $WhatIfPreference) { # WhatIfモードでない場合
                     # 古いDLLの逆コンパイル（リトライあり）
                     $oldOutput = Join-Path $outputFolder "$folderOld\$baseName"
                     $oldResult = Invoke-DecompileWithRetryParallel -DllPath $oldDll.FullName `
@@ -688,10 +689,10 @@ process{
                         -DelaySeconds $retryDelaySeconds `
                         -TimeoutSeconds $retryTimeoutSeconds
                     
-                    if (-not $oldResult.Success) {  # 古いDLLの逆コンパイル失敗
+                    if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
                         [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount)
                         Write-ThreadSafeLog "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))" "ERROR"
-                        $syncHash.ErrorList.Add([PSCustomObject]@{  # エラー詳細を追加
+                        $syncHash.ErrorList.Add([PSCustomObject]@{ # エラー詳細を追加
                             DllName = $oldDll.Name                  # DLL名
                             Type = "Old"                            # エラータイプ
                             Error = "$($oldResult.Error) (試行: $($oldResult.Attempts)回)"  # エラーメッセージと試行回数
@@ -707,10 +708,10 @@ process{
                         -DelaySeconds $retryDelaySeconds `
                         -TimeoutSeconds $retryTimeoutSeconds
                     
-                    if (-not $newResult.Success) {  # 新しいDLLの逆コンパイル失敗
+                    if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
                         [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount) # 失敗カウント増加
                         Write-ThreadSafeLog "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))" "ERROR" # エラーログ出力
-                        $syncHash.ErrorList.Add([PSCustomObject]@{  # エラー詳細を追加
+                        $syncHash.ErrorList.Add([PSCustomObject]@{ # エラー詳細を追加
                             DllName = $newDll.Name                # DLL名
                             Type = "New"                          # エラータイプ
                             Error = "$($newResult.Error) (試行: $($newResult.Attempts)回)"  # エラーメッセージと試行回数
@@ -718,16 +719,16 @@ process{
                     }
                     
                     # 両方成功した場合のみ成功カウント
-                    if ($oldResult.Success -and $newResult.Success) {
+                    if ($oldResult.Success -and $newResult.Success) { # 両方成功
                         [System.Threading.Interlocked]::Increment([ref]$syncHash.SuccessCount)  # 成功カウント増加
                         Write-ThreadSafeLog "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" "SUCCESS"   # 成功ログ出力
                     }
                 }
-            } else {    # 新しいDLLが見つからない場合
+            } else { # 新しいDLLが見つからない場合
                 [System.Threading.Interlocked]::Increment([ref]$syncHash.SkipCount)  # スキップカウント増加
                 $skipReason = if (-not $newDll) { "対応する新しいDLLが見つかりません" } else { "WhatIfモードのためスキップ" }   # スキップ理由設定
                 Write-ThreadSafeLog "[$($oldDll.Name)] スキップ: $skipReason" "WARNING" # スキップログ出力
-                $syncHash.SkipReasons.Add([PSCustomObject]@{    # スキップ理由リストに追加
+                $syncHash.SkipReasons.Add([PSCustomObject]@{ # スキップ理由リストに追加
                     DllName = $oldDll.Name  # DLL名
                     Reason = $skipReason    # スキップ理由
                 }) | Out-Null
@@ -741,7 +742,7 @@ process{
         $script:errorList = $syncHash.ErrorList     # エラー詳細リスト
         $script:skipReasons = $syncHash.SkipReasons # スキップ理由リスト
         
-    } else {    # 順次処理
+    } else { # 順次処理
         # 順次処理（既存のコード）
         $currentCount = 0
         foreach ($oldDll in $oldDlls) { # 古い各DLLファイルを処理
@@ -752,7 +753,7 @@ process{
                 # 部分一致で最新のDLLを取得
                 $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" -ErrorAction SilentlyContinue | 
                           Select-Object -Last 1
-                if ($newDll) {  # 部分一致が見つかった場合
+                if ($newDll) { # 部分一致が見つかった場合
                     Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
                 }
             }
@@ -762,13 +763,13 @@ process{
             
             # 完了予定時刻（ETA）の計算
             $elapsed = (Get-Date) - $processStartTime   # 経過時間計算
-            if ($currentCount -gt 1) {  # 2つ以上処理済みの場合に完了予定(ETA)計算
+            if ($currentCount -gt 1) { # 2つ以上処理済みの場合に完了予定(ETA)計算
                 $avgTimePerItem = $elapsed.TotalSeconds / ($currentCount - 1)   # 平均処理時間計算
                 $remainingItems = $totalCount - $currentCount                   # 残りアイテム数計算  
                 $etaSeconds = [Math]::Round($avgTimePerItem * $remainingItems)  # 完了予定(ETA)秒数計算
                 $etaTimeSpan = [TimeSpan]::FromSeconds($etaSeconds)             # TimeSpanオブジェクト作成
                 $etaDisplay = "完了予定(ETA): {0:hh\:mm\:ss}" -f $etaTimeSpan   # 完了予定(ETA)表示文字列作成
-            } else {    # 1つ目のアイテム処理中は計算不可
+            } else { # 1つ目のアイテム処理中は計算不可
                 $etaDisplay = "完了予定(ETA): 計算中..."
             }
             
@@ -779,7 +780,7 @@ process{
             
             Write-Verbose "処理中: $baseName"                 # 処理中DLL表示   
 
-            if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) {   # 新しいDLLが見つかり、WhatIfモードでない場合
+            if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) { # 新しいDLLが見つかり、WhatIfモードでない場合
                 # 古いDLLの逆コンパイル（リトライあり）
                 $oldOutput = Join-Path $outputFolder "$script:folderOld\$baseName"      # 古いDLLの出力パス
                 
@@ -794,16 +795,16 @@ process{
                     -TimeoutSeconds $script:retryTimeoutSeconds `
                     -LogFunction $logFunc  
                 
-                if (-not $oldResult.Success) {  # 古いDLLの逆コンパイル失敗
+                if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
                     $failCount++
                     Write-Warning "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))"
                     Write-Log "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行: $($oldResult.Attempts)回)" "ERROR"
-                    $script:errorList += [PSCustomObject]@{  # エラーリストに追加
+                    $script:errorList += [PSCustomObject]@{ # エラーリストに追加
                         DllName = $oldDll.Name  # DLL名
                         Type = "Old"            # エラータイプ
                         Error = "$($oldResult.Error) (試行: $($oldResult.Attempts)回)"  # エラーメッセージ  
                     }
-                } else {    # 古いDLLの逆コンパイル成功
+                } else { # 古いDLLの逆コンパイル成功
                     Write-Verbose "✓ $($oldDll.Name) (Old) 逆コンパイル成功 (試行: $($oldResult.Attempts)回)"
                 }
                 
@@ -818,34 +819,34 @@ process{
                     -TimeoutSeconds $script:retryTimeoutSeconds `
                     -LogFunction $logFunc  
                 
-                if (-not $newResult.Success) {  # 新しいDLLの逆コンパイル失敗
+                if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
                     $failCount++
                     Write-Warning "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))"
                     Write-Log "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行: $($newResult.Attempts)回)" "ERROR"
-                    $script:errorList += [PSCustomObject]@{  # エラーリストに追加
+                    $script:errorList += [PSCustomObject]@{ # エラーリストに追加
                         DllName = $newDll.Name  # DLL名
                         Type = "New"            # エラータイプ
                         Error = "$($newResult.Error) (試行: $($newResult.Attempts)回)"  # エラーメッセージ
                     }
-                } else {    # 新しいDLLの逆コンパイル成功
+                } else { # 新しいDLLの逆コンパイル成功
                     Write-Verbose "✓ $($newDll.Name) (New) 逆コンパイル成功 (試行: $($newResult.Attempts)回)"
                 }
                 
                 # 両方成功した場合のみ成功カウント
-                if ($oldResult.Success -and $newResult.Success) {   # 両方の逆コンパイル成功
+                if ($oldResult.Success -and $newResult.Success) { # 両方の逆コンパイル成功
                     $successCount++
                     Write-Log "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" "SUCCESS"
                 }
-            } else {    # 新しいDLLが見つからない、またはWhatIfモードの場合
+            } else { # 新しいDLLが見つからない、またはWhatIfモードの場合
                 # スキップ理由を記録
-                $skipReason = if (-not $newDll) {   # 新しいDLLが見つからない場合
+                $skipReason = if (-not $newDll) { # 新しいDLLが見つからない場合
                     "対応する新しいDLLが見つかりません"
-                } else {    # WhatIfモードの場合
+                } else { # WhatIfモードの場合
                     "WhatIfモードのためスキップ"
                 }
                 Write-Warning "'$($oldDll.Name)' をスキップ: $skipReason"
                 Write-Log "[$($oldDll.Name)] スキップ: $skipReason" "WARNING"
-                $script:skipReasons += [PSCustomObject]@{   # スキップ理由リストに追加
+                $script:skipReasons += [PSCustomObject]@{ # スキップ理由リストに追加
                     DllName = $oldDll.Name  # DLL名
                     Reason = $skipReason    # スキップ理由
                 }
@@ -868,13 +869,13 @@ end{
     Write-Host "失敗:           " -NoNewline
     if ($failCount -gt 0) { # 失敗がある場合
         Write-Host "$failCount" -ForegroundColor $script:colorError
-    } else {    # 失敗がない場合
+    } else { # 失敗がない場合
         Write-Host "$failCount"
     }
     Write-Host "スキップ:       " -NoNewline
-    if ($skipCount -gt 0) {   # スキップがある場合
+    if ($skipCount -gt 0) { # スキップがある場合
         Write-Host "$skipCount" -ForegroundColor $script:colorWarning
-    } else {    # スキップがない場合
+    } else { # スキップがない場合
         Write-Host "$skipCount"
     }
     Write-Host "========================================`n" -ForegroundColor $script:colorInfo
@@ -883,23 +884,23 @@ end{
     Write-Log "──────── 処理結果 ────────" "INFO"
     Write-Log "処理DLL数: $totalCount" "INFO"
     Write-Log "成功: $successCount" "SUCCESS"
-    if ($failCount -gt 0) {   # 失敗がある場合
+    if ($failCount -gt 0) { # 失敗がある場合
         Write-Log "失敗: $failCount" "ERROR"
-    } else {    # 失敗がない場合
+    } else { # 失敗がない場合
         Write-Log "失敗: $failCount" "INFO"
     }
-    if ($skipCount -gt 0) {  # スキップがある場合
+    if ($skipCount -gt 0) { # スキップがある場合
         Write-Log "スキップ: $skipCount" "WARNING"
-    } else {    # スキップがない場合
+    } else { # スキップがない場合
         Write-Log "スキップ: $skipCount" "INFO"
     }
     
     # エラーレポートの表示(エラーがある場合)
-    if ($script:errorList.Count -gt 0) {    # エラーがある場合
+    if ($script:errorList.Count -gt 0) { # エラーがある場合
         Write-Host "========================================" -ForegroundColor $script:colorError
         Write-Host "         エラー詳細" -ForegroundColor $script:colorError
         Write-Host "========================================" -ForegroundColor $script:colorError
-        foreach ($errorItem in $errorList) {    # エラー詳細の表示
+        foreach ($errorItem in $errorList) { # エラー詳細の表示
             Write-Host "DLL: " -NoNewline
             Write-Host "$($errorItem.DllName)" -ForegroundColor $script:colorWarning -NoNewline
             Write-Host " [$($errorItem.Type)]"
@@ -916,11 +917,11 @@ end{
     }
     
     # スキップレポートの表示(スキップがある場合)
-    if ($script:skipReasons.Count -gt 0) {   # スキップがある場合
+    if ($script:skipReasons.Count -gt 0) { # スキップがある場合
         Write-Host "========================================" -ForegroundColor $script:colorWarning
         Write-Host "       スキップ詳細" -ForegroundColor $script:colorWarning
         Write-Host "========================================" -ForegroundColor $script:colorWarning
-        foreach ($skipItem in $script:skipReasons) {    # スキップ詳細の表示
+        foreach ($skipItem in $script:skipReasons) { # スキップ詳細の表示
             Write-Host "DLL: " -NoNewline                                                   # スキップDLL名表示
             Write-Host "$($skipItem.DllName)" -ForegroundColor $script:colorInfo -NoNewline # スキップDLL名
             Write-Host ""
@@ -945,7 +946,7 @@ end{
     Write-Verbose "比較先: $newFile"
     
     # 並列処理の場合は差分ツールを自動起動しない（複数の比較が発生するため）
-    if ($Parallel) {    # 並列処理モードの場合
+    if ($Parallel) { # 並列処理モードの場合
         Write-Host "`n並列処理モードのため、差分ツールは自動起動しません。" -ForegroundColor $script:colorInfo
         Write-Host "手動で以下のパスを比較してください:" -ForegroundColor $script:colorInfo
         Write-Host "Old: " -NoNewline
@@ -957,10 +958,10 @@ end{
     }
     
     # 差分ツールの選択と起動（順次処理のみ）
-    if ($DiffTool -eq "VSCode") {    # VSCodeモードの場合
+    if ($DiffTool -eq "VSCode") { # VSCodeモードの場合
         Write-Host "`nVSCodeを起動しています..." -ForegroundColor $script:colorInfo
         Write-Log "VSCodeで差分比較を起動" "INFO"
-        if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) {    # VSCode起動
+        if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) { # VSCode起動
             try {
                 Start-Process -FilePath "code" -ArgumentList "--diff","`"$oldFile`"","`"$newFile`"" -ErrorAction Stop
                 Write-Host "VSCodeを起動しました。" -ForegroundColor $script:colorSuccess
@@ -971,18 +972,18 @@ end{
                 Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor $script:colorWarning
             }
         }
-    } elseif ($DiffTool -eq "Custom") {    # カスタム差分ツールモードの場合
+    } elseif ($DiffTool -eq "Custom") { # カスタム差分ツールモードの場合
         Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor $script:colorInfo
         Write-Log "カスタム差分ツールモード" "INFO"
         Write-Host "Old: " -NoNewline
         Write-Host "$oldFile" -ForegroundColor $colorWarning
         Write-Host "New: " -NoNewline
         Write-Host "$newFile" -ForegroundColor $colorWarning
-    } else {    # WinMergeモード（デフォルト）
+    } else { # WinMergeモード（デフォルト）
         # WinMerge (デフォルト)
         # WinMergeの実行パスの確認
         $ExecWinMerge = Join-Path -Path $winMergePath -ChildPath "WinMergeU.exe"
-        if (-not (Test-Path -Path $ExecWinMerge)) {  # WinMergeが見つからない場合
+        if (-not (Test-Path -Path $ExecWinMerge)) { # WinMergeが見つからない場合
             Show-ErrorPopup "WinMergeが見つかりませんでした。`r`n`r`n$ExecWinMerge`r`nを確認してください。"
             exit $script:exitFileNotFound
         }
@@ -992,9 +993,9 @@ end{
         # WinMergeの実行
         Write-Host "`nWinMergeを起動しています..." -ForegroundColor $script:colorInfo
         Write-Log "WinMergeで差分比較を起動" "INFO"
-        if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) {   # WinMerge起動
+        if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) { # WinMerge起動
             try {
-                $winMergeArgs = @(
+                $winMergeArgs = @( # WinMerge引数リスト
                     "/r",           # 再帰的に比較
                     "/u",           # ユニコードモード
                     "/dl", "Old",   # ラベル設定
@@ -1016,22 +1017,22 @@ end{
     
     # 処理の完了メッセージ
     Write-Host "`n処理が完了しました。" -ForegroundColor $script:colorSuccess
-    if (-not $WhatIfPreference) {   # WhatIfモードでない場合
-        if ($DiffTool -ne "Custom") {   # カスタム差分ツールモードでない場合
+    if (-not $WhatIfPreference) { # WhatIfモードでない場合
+        if ($DiffTool -ne "Custom") { # カスタム差分ツールモードでない場合
             Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor $script:colorInfo
         }
     }
     
     # ログ完了
-    if ($failCount -gt 0) {   # 失敗があった場合
+    if ($failCount -gt 0) { # 失敗があった場合
         Write-Log "DLL逆コンパイルスクリプトを終了（一部失敗）" "WARNING"
-    } else {    # 失敗がなかった場合
+    } else { # 失敗がなかった場合
         Write-Log "DLL逆コンパイルスクリプトを正常終了" "SUCCESS"
     }
     Write-Log "────────────────────────────────────────" "INFO"
     
     # 失敗があった場合は適切な終了コードを返す
-    if ($failCount -gt 0) {   # 失敗があった場合
+    if ($failCount -gt 0) { # 失敗があった場合
         Write-Warning "一部のDLL処理に失敗しました。詳細はログを確認してください。"
     }
     
@@ -1040,14 +1041,14 @@ end{
     $parentProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $PID" | 
                      ForEach-Object { Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue }    # 親プロセス取得
     
-    if ($parentProcess.ProcessName -eq 'explorer') {    # 親プロセスがexplorer.exeの場合（ショートカットからの実行）
+    if ($parentProcess.ProcessName -eq 'explorer') { # 親プロセスがexplorer.exeの場合（ショートカットからの実行）
         Write-Host "`n" -NoNewline
         Write-Host "続行するには何かキーを押してください..." -ForegroundColor $script:colorInfo
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') # キー入力待機
     }
     
     # 終了コードを設定
-    if ($failCount -gt 0) {  # 失敗があった場合
+    if ($failCount -gt 0) { # 失敗があった場合
         exit $script:exitDecompileFailed
     }
 }
