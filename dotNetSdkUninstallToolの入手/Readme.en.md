@@ -47,6 +47,7 @@ This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet
 ## v1.1.0 Improvements
 
 ✅ **Enhanced Safety:**
+
 - Removed all exit statements, unified to return statements (script invocation compatible)
 - **CanExecuteProcess flag** for unified error flow control
 - **Get-ExceptionLogLevel** function for automatic exception type classification (9 patterns)
