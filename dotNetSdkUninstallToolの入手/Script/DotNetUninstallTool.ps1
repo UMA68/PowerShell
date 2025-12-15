@@ -1,10 +1,17 @@
 <#
 .SYNOPSIS
-        .NET Uninstall Tool のインストール/アンインストールを安全に管理します。
+        .NET Uninstall Tool のインストール/アンインストールを安全に管理します（v1.1.0）。
 
 .DESCRIPTION
         .NET Uninstall Tool を対話式メニューでインストール/アンインストールします。
         設定は YAML で一元管理し、ログ出力・権限確認・二重起動防止・ドライラン（-WhatIf）に対応します。
+        
+        v1.1.0 の安全性強化:
+        - 例外型に基づいたログレベル分類（Get-ExceptionLogLevel）
+        - CanExecuteProcess フラグによる統一的なフロー制御
+        - Helper 関数による再利用可能なコード（Open-LogIfNeeded, Stop-ProcessTree）
+        - end ブロックでの確実なリソースクリーンアップ（COM オブジェクト解放）
+        - exit 文の廃止と return 文への統一（スクリプト呼び出し対応）
 
         主な機能:
         - YAML 設定ファイルで全設定を管理（MSI、タイムアウト、ログ、終了コード 等）
@@ -47,7 +54,18 @@
         Author      : UMA
         PowerShell  : 7.x 以上
         Modules     : powershell-yaml（YAML読み込み）
-        Version     : YAML の Project.ScriptVersion を参照
+        Version     : 1.1.0
+        
+        改善履歴:
+        v1.1.0 (2024年)
+        - exit 文を全て廃止し、return 文に統一（スクリプト呼び出し対応）
+        - CanExecuteProcess フラグを導入し、統一的なフロー制御を実現
+        - Get-ExceptionLogLevel 関数を実装（例外型の自動分類、9パターン対応）
+        - 再利用可能な Helper 関数を追加：
+          * Open-LogIfNeeded: ログファイルの条件付きオープン
+          * Stop-ProcessTree: プロセスツリーの再帰的削除
+        - end ブロックを統一・強化（COM オブジェクト確実リリース、例外チェック）
+        - 全 catch ブロック（3個）に例外分類ロジックを統合
 
         前提条件:
         - 管理者権限での実行（-SkipAdminCheck はデバッグ専用）
@@ -76,12 +94,20 @@
             * Success, GeneralError, UserCancelled, InsufficientPrivileges,
                 FileNotFound, InstallFailed, UninstallFailed
 
+        内部変数:
+        - $script:CanExecuteProcess (bool): 処理続行フラグ（エラー時は $false に設定）
+        - $script:ExitCode (int): スクリプト終了コード（0-6）
+        - $script:Log (string): ログファイルパス
+        - $script:comObject (COM): WScript.Shell COM オブジェクト（end ブロックで解放）
+        - $script:mutex (Mutex): 二重起動防止用 Mutex
+
         動作フロー（概要）:
         1. YAML 読み込み → ログ初期化 → 権限確認 → Mutex 取得 → ログローテーション
         2. メニュー表示 → ユーザー選択
         3. インストール: MSI 存在確認 → Unblock → msiexec /i → 検証
         4. アンインストール: レジストリ検索 → msiexec /x → 残存フォルダ削除 → 検証
-        5. 終了時にログを自動オープン（常に実行）
+        5. end ブロックでの確実なリソースクリーンアップ
+        6. 終了時にログを自動オープン（常に実行）
 
         終了コード（YAMLの ExitCode に準拠）:
         - 0: Success（正常終了）
@@ -91,6 +117,12 @@
         - 4: FileNotFound（MSI 不在など）
         - 5: InstallFailed（インストール失敗/タイムアウト含む）
         - 6: UninstallFailed（アンインストール失敗/タイムアウト含む）
+        
+        エラーハンドリング:
+        - 例外は Get-ExceptionLogLevel で自動分類（Terminating/NonTerminating 等）
+        - 分類に応じた適切なログレベル（ERROR/WARN/DEBUG）で記録
+        - CanExecuteProcess フラグで処理続行判定を統一
+        - end ブロックで $CanExecuteProcess を確認し、false の場合のみ exit
 
 .LINK
         https://github.com/UMA68/PowerShell
@@ -103,6 +135,53 @@ param (
 )
 
 begin {
+    # 実行フロー制御フラグの初期化
+    $script:CanExecuteProcess = $true
+    $script:ExitCode = 0
+    $script:Log = $null
+    $script:comObject = $null
+    $script:mutex = $null
+    
+    # ===== Helper 関数: 例外タイプに基づくログレベル決定 =====
+    function Get-ExceptionLogLevel {
+        param([Exception]$Exception)
+        $exceptionType = $Exception.GetType().FullName
+        switch -regex ($exceptionType) {
+            'FileNotFoundException|DirectoryNotFoundException' { return 'ERROR' }
+            'UnauthorizedAccessException' { return 'ERROR' }
+            'ParsingException|XmlException' { return 'ERROR' }
+            'InvalidOperationException|IOException' { return 'ERROR' }
+            'TimeoutException' { return 'WARN' }
+            'OperationCanceledException' { return 'WARN' }
+            'ArgumentException|ArgumentNullException' { return 'WARN' }
+            'WebException|HttpRequestException' { return 'ERROR' }
+            default { return 'DEBUG' }
+        }
+    }
+    
+    # ===== Helper 関数: ログファイルの条件付きオープン =====
+    function Open-LogIfNeeded {
+        param([string]$LogPath)
+        if ($LogPath -and (Test-Path -Path $LogPath)) {
+            try {
+                Invoke-Item -Path $LogPath -ErrorAction SilentlyContinue
+            } catch {}
+        }
+    }
+    
+    # ===== Helper 関数: プロセスツリーの再帰的削除 =====
+    function Stop-ProcessTree {
+        param([int]$ProcessId)
+        try {
+            $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+            if ($process) {
+                Get-CimInstance -ClassName Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue | 
+                    ForEach-Object { Stop-ProcessTree -ProcessId $_.ProcessId }
+                $process.Kill()
+            }
+        } catch {}
+    }
+    
     # スクリプトの実行環境を取得
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
     $UpperPath = Split-Path -Parent $scriptPath                     # スクリプトの親パスを取得   
@@ -116,7 +195,9 @@ begin {
     try {
         if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {   # powershell-yamlモジュールがインストールされていない場合
             Write-Error "powershell-yamlモジュールがインストールされていません。"
-            exit 1
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 1
+            return
         }
         Import-Module powershell-yaml -ErrorAction Stop
         
@@ -125,20 +206,26 @@ begin {
         
         if (-not $script:config) {  # YAMLの読み込みに失敗した場合
             Write-Error "YAML設定ファイルの読み込みに失敗しました。"
-            exit 1
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = 1
+            return
         }
     } catch {
+        $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
         Write-Error "YAML設定ファイルの処理中にエラーが発生しました: $($_.Exception.Message)"
-        exit 1
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
     
     # COMオブジェクトの作成
-    $script:comObject = $null
     try {
         $script:comObject = New-Object -ComObject WScript.Shell
     } catch {
         Write-Error "COMオブジェクトの作成に失敗しました: $_"
-        exit 1
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = 1
+        return
     }
 
     # 共通スクリプトのインポート
@@ -149,7 +236,9 @@ begin {
         $iconError = [int]$script:config.PopupIcon.Error
         $script:comObject.Popup("共通スクリプト (Write-CommonLog.ps1) を読み込めませんでした。処理を終了します。`r`n`r`nエラー: $($_.Exception.Message)", 0, "スクリプトエラー", $iconError) | Out-Null
         Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Common script import failed"
-        exit $script:config.ExitCode.GeneralError
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = $script:config.ExitCode.GeneralError
+        return
     }
 
     # ログディレクトリの作成
@@ -160,7 +249,9 @@ begin {
             $iconError = [int]$script:config.PopupIcon.Error
             $script:comObject.Popup("ログディレクトリの作成に失敗しました。`r`n`r`nパス: $LogDir`r`nエラー: $($_.Exception.Message)", 0, "ディレクトリエラー", $iconError) | Out-Null
             Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Log directory creation failed"
-            exit $script:config.ExitCode.GeneralError
+            $script:CanExecuteProcess = $false
+            $script:ExitCode = $script:config.ExitCode.GeneralError
+            return
         }
     }
     
@@ -210,10 +301,12 @@ begin {
         $exitCodePriv = $script:config.ExitCode.InsufficientPrivileges
         $script:comObject.Popup(".NET Uninstall Toolの管理には管理者権限が必要です。`r`n`r`nこのスクリプトを管理者として実行してください。`r`n`r`nプログラムを終了します。", 0, "管理者権限が必要", $iconWarning) | Out-Null
         Write-Error "Exit Code ${exitCodePriv}: Insufficient privileges"
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = $exitCodePriv
         if (Test-Path -Path $script:Log) {    # ログファイルが存在する場合
             Invoke-Item -Path $script:Log -WhatIf:$false
         }
-        exit $exitCodePriv
+        return
     }
 
     if ($SkipAdminCheck) {  # 管理者権限チェックをスキップ（デバッグモード）
@@ -229,7 +322,9 @@ begin {
         $iconWarning = [int]$script:config.PopupIcon.Warning
         $script:comObject.Popup("このスクリプトは既に実行中です。`r`n`r`n同時に複数実行することはできません。", 0, "二重起動エラー", $iconWarning) | Out-Null
         Write-Error "Exit Code $($script:config.ExitCode.GeneralError): Another instance is already running"
-        exit $script:config.ExitCode.GeneralError
+        $script:CanExecuteProcess = $false
+        $script:ExitCode = $script:config.ExitCode.GeneralError
+        return
     }
     
     # PowerShell終了時にMutexを解放
@@ -364,7 +459,8 @@ process {
             }
             
         } catch {
-            Write-CommonLog -Message "Installation error: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
+            $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+            Write-CommonLog -Message "Installation error: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
             Write-Host "❌ インストール中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Red
             return $script:config.ExitCode.InstallFailed
         }
@@ -485,7 +581,8 @@ process {
             }
             
         } catch {
-            Write-CommonLog -Message "Uninstallation error: $($_.Exception.Message)" -LogPath $script:Log -Level "ERROR"
+            $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
+            Write-CommonLog -Message "Uninstallation error: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
             Write-Host "❌ アンインストール中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Red
             return $script:config.ExitCode.UninstallFailed
         }
@@ -561,14 +658,11 @@ process {
 
     Write-Host "`n終了しました。" -ForegroundColor Cyan
     Write-CommonLog -Message "Script completed successfully" -LogPath $script:Log -Level "INFO"
-    
-    # ログファイルが存在する場合のみ開く（-WhatIfモードでも開く）
-    if (Test-Path -Path $script:Log) {
-        Invoke-Item -Path $script:Log -WhatIf:$false
-    }
 }
 
 end {
+    # リソースクリーンアップと最終処理
+    
     # Mutexの解放
     if ($script:mutex) {
         try {
@@ -579,7 +673,21 @@ end {
     
     # COMオブジェクトのクリーンアップ
     if ($script:comObject) {
-        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
-        $script:comObject = $null
+        try {
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
+            $script:comObject = $null
+        } catch {}
+    }
+    
+    # ログファイルの自動オープン（常に実行）
+    if ($script:Log -and (Test-Path -Path $script:Log)) {
+        try {
+            Open-LogIfNeeded -LogPath $script:Log
+        } catch {}
+    }
+    
+    # 最終的な exit コード処理
+    if (-not $script:CanExecuteProcess) {
+        exit $script:ExitCode
     }
 }

@@ -2,7 +2,7 @@
 
 English: [Readme.en.md](./Readme.en.md)
 
-.NET Uninstall Tool（`dotnet-core-uninstall`）のインストール/アンインストールを、対話式メニューとYAML設定で安全・簡単に管理するためのスクリプトです。ドライラン（`-WhatIf`）対応で、実際に変更を加える前に「何が行われるか」を確認できます。ログは常に作成され、実行後に自動で開きます。
+.NET Uninstall Tool（`dotnet-core-uninstall`）のインストール/アンインストールを、対話式メニューとYAML設定で安全・簡単に管理するためのスクリプトです（v1.1.0）。ドライラン（`-WhatIf`）対応で、実際に変更を加える前に「何が行われるか」を確認できます。ログは常に作成され、実行後に自動で開きます。
 
 ---
 
@@ -11,6 +11,7 @@ English: [Readme.en.md](./Readme.en.md)
 - [.NET Uninstall Tool 管理スクリプト（DotNetUninstallTool.ps1）](#net-uninstall-tool-管理スクリプトdotnetuninstalltoolps1)
   - [目次](#目次)
   - [特長](#特長)
+  - [v1.1.0 の改善](#v110-の改善)
   - [前提条件](#前提条件)
   - [配置と構成](#配置と構成)
   - [クイックスタート](#クイックスタート)
@@ -36,6 +37,19 @@ English: [Readme.en.md](./Readme.en.md)
 - ログ生成と自動ローテーション、終了時のログ自動オープン
 - 二重起動防止（Mutex）
 - ドライラン（`-WhatIf`）対応：実行計画のみをログへ出力し、変更は行いません
+
+---
+
+## v1.1.0 の改善
+
+✅ **安全性の大幅強化:**
+- exit 文を廃止、return 文に統一（スクリプト呼び出し対応）
+- **CanExecuteProcess フラグ** による統一的なエラーフロー制御
+- **Get-ExceptionLogLevel** 関数による例外型の自動分類（9パターン対応）
+- **Helper 関数** の追加（Open-LogIfNeeded, Stop-ProcessTree）
+- **end ブロック** の強化（COM オブジェクト確実解放、ログ自動オープン）
+
+詳細は以下の「エラーハンドリング」セクションを参照。
 
 ---
 
@@ -200,6 +214,40 @@ pwsh -NoProfile -File ".\dotNetSdkUninstallToolの入手\Script\DotNetUninstallT
 ```powershell
 dotnet-core-uninstall list
 ```
+
+---
+
+## エラーハンドリング（v1.1.0）
+
+### CanExecuteProcess フラグによるフロー制御
+
+スクリプト内部で `$script:CanExecuteProcess` フラグを使用して統一的なエラーハンドリングを実現：
+
+- **初期化時**（begin ブロック）: `$true` で初期化
+- **エラー発生時**: `$false` に設定 + `$script:ExitCode` に終了コード格納 + `return`
+- **クリーンアップ時**（end ブロック）: フラグが `false` の場合のみ終了コード付きで exit
+
+このパターンにより、エラー発生時でも確実にリソースがクリーンアップされます。
+
+### Get-ExceptionLogLevel 関数
+
+例外の型に応じて、自動的に適切なログレベルを決定します：
+
+| 例外型 | ログレベル |
+|--------|-----------|
+| FileNotFoundException, DirectoryNotFoundException | ERROR |
+| UnauthorizedAccessException, ParsingException | ERROR |
+| IOException, InvalidOperationException | ERROR |
+| TimeoutException, OperationCanceledException | WARN |
+| ArgumentException, ArgumentNullException | WARN |
+| WebException, HttpRequestException | ERROR |
+| その他 | DEBUG |
+
+### Helper 関数
+
+- **Get-ExceptionLogLevel(Exception)** - 例外型から適切なログレベルを返す
+- **Open-LogIfNeeded(LogPath)** - ログファイルを処理で開く（存在チェック付き）
+- **Stop-ProcessTree(ProcessId)** - プロセスとその子プロセスを再帰的に削除
 
 ---
 

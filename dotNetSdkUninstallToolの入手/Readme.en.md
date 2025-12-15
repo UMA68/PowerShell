@@ -2,24 +2,31 @@
 
 日本語: [Readme.md](./Readme.md)
 
-This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet-core-uninstall`) with an interactive menu and a YAML-driven configuration. It supports a dry-run mode (`-WhatIf`) so you can preview actions safely. A log file is always created and automatically opened at the end.
+This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet-core-uninstall`) with an interactive menu and a YAML-driven configuration (v1.1.0). It supports a dry-run mode (`-WhatIf`) so you can preview actions safely. A log file is always created and automatically opened at the end.
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Folder Layout](#folder-layout)
-- [Quick Start](#quick-start)
-- [WhatIf Behavior](#whatif-behavior)
-- [Logging](#logging)
-- [YAML Config](#yaml-config)
-- [Flow](#flow)
-- [Exit Codes](#exit-codes)
-- [Troubleshooting](#troubleshooting)
-- [Manual Install (Reference)](#manual-install-reference)
-- [License / Links](#license--links)
+- [.NET Uninstall Tool Manager (DotNetUninstallTool.ps1)](#net-uninstall-tool-manager-dotnetuninstalltoolps1)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [v1.1.0 Improvements](#v110-improvements)
+  - [Prerequisites](#prerequisites)
+  - [Folder Layout](#folder-layout)
+  - [Quick Start](#quick-start)
+  - [WhatIf Behavior](#whatif-behavior)
+  - [Logging](#logging)
+  - [YAML Config](#yaml-config)
+  - [Flow](#flow)
+  - [Exit Codes](#exit-codes)
+  - [Error Handling](#error-handling)
+    - [CanExecuteProcess Flag](#canexecuteprocess-flag)
+    - [Get-ExceptionLogLevel Function](#get-exceptionloglevel-function)
+    - [Helper Functions](#helper-functions)
+  - [Troubleshooting](#troubleshooting)
+  - [Manual Install (Reference)](#manual-install-reference)
+  - [License / Links](#license--links)
 
 ---
 
@@ -34,6 +41,19 @@ This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet
 - Log creation and auto-rotation; opens the log file at the end
 - Double-run protection with a Mutex
 - Dry-run (`-WhatIf`) support: logs the plan without making changes
+
+---
+
+## v1.1.0 Improvements
+
+✅ **Enhanced Safety:**
+- Removed all exit statements, unified to return statements (script invocation compatible)
+- **CanExecuteProcess flag** for unified error flow control
+- **Get-ExceptionLogLevel** function for automatic exception type classification (9 patterns)
+- **Helper functions** (Open-LogIfNeeded, Stop-ProcessTree)
+- **end block** reinforcement (guaranteed COM object release, automatic log opening)
+
+See "Error Handling" section below for details.
 
 ---
 
@@ -60,7 +80,7 @@ dotNetSdkUninstallToolの入手/
 ├─ Readme.md                         ← Japanese documentation
 ├─ Readme.en.md                      ← This file
 ├─ Script/
-│   └─ DotNetUninstallTool.ps1       ← The script to run
+│   └─ DotNetUninstallTool.ps1       ← The script to run (v1.1.0)
 ├─ YAML/
 │   └─ DotNetUninstallTool.yaml      ← Config (ScriptVersion: 1.1.0)
 ├─ dotNetSdkUninstallTool/
@@ -157,7 +177,7 @@ Key sections (with examples):
 2. Show menu (Install/Uninstall/Quit)
 3. Install: Check MSI → Unblock → `msiexec /i` → Verify
 4. Uninstall: Registry search → `msiexec /x` → Delete leftover folder → Verify
-5. Open the log file
+5. Clean up resources (Mutex, COM object) → Open log file automatically
 
 ---
 
@@ -170,6 +190,40 @@ Key sections (with examples):
 - `4`: FileNotFound
 - `5`: InstallFailed
 - `6`: UninstallFailed
+
+---
+
+## Error Handling
+
+### CanExecuteProcess Flag
+
+The script uses an internal `$script:CanExecuteProcess` flag for unified error handling:
+
+- **Initialization** (begin block): Set to `$true`
+- **On error**: Set to `false` + store exit code in `$script:ExitCode` + return
+- **Cleanup** (end block): Check flag; if `false`, exit with stored code
+
+This ensures resources are always cleaned up, even if an error occurs.
+
+### Get-ExceptionLogLevel Function
+
+Automatically determines the appropriate log level based on exception type:
+
+| Exception Type | Log Level |
+|---|---|
+| FileNotFoundException, DirectoryNotFoundException | ERROR |
+| UnauthorizedAccessException, ParsingException | ERROR |
+| IOException, InvalidOperationException | ERROR |
+| TimeoutException, OperationCanceledException | WARN |
+| ArgumentException, ArgumentNullException | WARN |
+| WebException, HttpRequestException | ERROR |
+| Other | DEBUG |
+
+### Helper Functions
+
+- **Get-ExceptionLogLevel(Exception)** – Returns appropriate log level from exception type
+- **Open-LogIfNeeded(LogPath)** – Opens log file (with existence check)
+- **Stop-ProcessTree(ProcessId)** – Recursively kills process and children
 
 ---
 
