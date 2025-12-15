@@ -8,7 +8,7 @@
 
 ## 実装概要
 
-ユーザーの要望に基づき、**改善 #1（Exit 排除 + CanExecuteProcess + End ブロック保証）**と**改善 #2（-NoKeyWait パラメータ）**を完全に実装しました。
+ユーザーの要望に基づき、**改善 #1（Exit排除 + CanExecuteProcess + Endブロック保証）**と**改善 #2（-NoKeyWaitパラメーター）**を完全に実装しました。
 
 ---
 
@@ -38,11 +38,11 @@ catch {
 
 ---
 
-### ✅ 改善 #2: -NoKeyWait パラメータ（非対話モード）
+### ✅ 改善 #2: -NoKeyWait パラメーター（非対話モード）
 
 | 項目 | 状態 | 詳細 |
 |------|------|------|
-| パラメータ定義 | 完了 | `[switch]$NoKeyWait = $false` |
+| パラメーター定義 | 完了 | `[switch]$NoKeyWait = $false` |
 | ポップアップ条件付け | 完了 | 23 個のポップアップが `if (-not $NoKeyWait)` で保護 |
 | ログ自動オープン条件付け | 完了 | End ブロックで -NoKeyWait 時は開かない |
 | スケジューラー対応 | 完了 | 完全非対話実行可能 |
@@ -50,6 +50,7 @@ catch {
 **検証結果:** ✅ 合格（23個のポップアップが条件付けされている）
 
 **使用例:**
+
 ```powershell
 # 対話的実行（従来通り）
 .\getILSpyCmd.ps1
@@ -62,7 +63,7 @@ catch {
 
 ## ファイル変更統計
 
-```
+```Text
 ILSpyCmdの入手/Script/getILSpyCmd.ps1
   - 行数: 688 行（改善後）
   - Exit 文: 0 個（完全削除）
@@ -75,7 +76,7 @@ ILSpyCmdの入手/Script/getILSpyCmd.ps1
 
 ## 付属ドキュメント
 
-1. **README.md** - スクリプト全体の使用方法・機能説明（v1.3.0 対応）
+1. **README.md** - スクリプト全体の使用方法・機能説明（v1.3.0対応）
 2. **IMPROVEMENTS_v1.3.0.md** - 改善内容の詳細説明
 3. **Verify_v1.3.0.ps1** - 改善内容の自動検証スクリプト
 
@@ -83,7 +84,7 @@ ILSpyCmdの入手/Script/getILSpyCmd.ps1
 
 ## 検証結果概要
 
-```
+```log
 ========================================
 検証結果
 ========================================
@@ -111,6 +112,7 @@ ILSpyCmdの入手/Script/getILSpyCmd.ps1
 ## 実装パターンの参考資料
 
 ### パターン 1: エラーハンドリング
+
 ```powershell
 try {
     # 処理
@@ -127,6 +129,7 @@ try {
 ```
 
 ### パターン 2: End ブロック
+
 ```powershell
 end {
     # エラー状態の確認
@@ -166,6 +169,7 @@ end {
 ## 次のステップ（推奨）
 
 ### 動作検証
+
 ```powershell
 # テスト 1: 対話的実行
 .\getILSpyCmd.ps1
@@ -180,6 +184,7 @@ rm YAML/getILSpyCmd.yaml
 ```
 
 ### スケジューラータスク登録例
+
 ```powershell
 $taskAction = New-ScheduledTaskAction -Execute 'pwsh.exe' -Argument @(
     "-NoProfile",
@@ -194,16 +199,17 @@ Register-ScheduledTask -TaskName "ILSpyCmd Installation" -Action $taskAction
 ## 後続改善予定（ユーザーで判断）
 
 - [ ] #3: 例外タイプのログレベル分類化
-- [ ] #4: パラメータ検証の強化
-- [ ] #5: タイムアウト時間のパラメータ化
+- [ ] #4: パラメーター検証の強化
+- [ ] #5: タイムアウト時間のパラメーター化
 - [ ] #6: ロールバック機能のオプション化
 
 ---
 
 ## サポート情報
 
-**スクリプト公開フォルダ:**
-```
+**スクリプト公開フォルダー:**
+
+```Terminal
 c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 ├── Script/
 │   ├── getILSpyCmd.ps1           (v1.3.0 - メインスクリプト)
@@ -216,9 +222,10 @@ c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 ```
 
 **サポート対象:**
+
 - PowerShell 7.x
 - Windows 10/11
-- .NET SDK 8.0.x 対応
+- .NET SDK 8.0.x対応
 
 ---
 
@@ -226,7 +233,7 @@ c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 
 | バージョン | 日付 | 改善内容 |
 |-----------|------|--------|
-| v1.3.0 | 2025-01-15 | Exit 排除、-NoKeyWait パラメータ追加 |
+| v1.3.0 | 2025-01-15 | Exit 排除、-NoKeyWait パラメーター追加 |
 | v1.2.0 | 2024-12 | ネットワーク確認、インストーラー検証 |
 | v1.1.0 | 2024-11 | YAML 設定対応 |
 | v1.0.0 | 2024-10 | 初版リリース |
