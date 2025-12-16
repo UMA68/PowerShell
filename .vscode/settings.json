@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "PYTHONIOENCODING"
-    ]
+    ],
+    "markdown.validate.enabled": true
 }
