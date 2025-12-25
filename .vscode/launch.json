@@ -4,6 +4,7 @@
     // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
             "name": "PowerShell: 通常実行",
             "type": "PowerShell",
@@ -17,6 +18,13 @@
             "request": "launch",
             "script": "${file}",
             "args": ["-WhatIf"]
+        },
+        {
+            "name": "PowerShell: DryRunモード",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-DryRun"]
         },
         {
             "name": "PowerShell: WhatIf + Verbose",
