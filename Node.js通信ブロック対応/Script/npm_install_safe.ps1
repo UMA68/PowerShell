@@ -229,6 +229,7 @@ try {
         Write-Log "[DryRun] 実行予定コマンド: $npmCommand" "INFO"
         Write-Log "[DryRun] ファイアウォール再ブロック: Set-NetFirewallRule -DisplayName '$RuleName' -Enabled True" "INFO"
         # WhatIfとして扱い、finallyでの再ブロックもスキップ
+        $script:OriginalWhatIfPreference = $WhatIfPreference
         $WhatIfPreference = $true
         $exitCode = $script:EXIT_SUCCESS
     } elseif ($PSCmdlet.ShouldProcess($RuleName, "ファイアウォール一時解除とnpm $Command 実行")) {
@@ -275,6 +276,11 @@ try {
     $exitCode = $script:EXIT_FIREWALL_ERROR
     
 } finally {
+    # WhatIfPreferenceを元に戻す（セッション全体への影響を防ぐ）
+    if ($null -ne $script:OriginalWhatIfPreference) {
+        $WhatIfPreference = $script:OriginalWhatIfPreference
+    }
+    
     # 必ずファイアウォールを再ブロック
     if (-not $WhatIfPreference) {
         Write-Log "Node.js の送信通信を再度ブロックします..." "INFO"
@@ -303,5 +309,6 @@ try {
     if ($null -eq $exitCode) {
         $exitCode = $script:EXIT_SUCCESS
     }
+    
     exit $exitCode
 }
