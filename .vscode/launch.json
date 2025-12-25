@@ -40,6 +40,13 @@
             "script": "${file}",
             "args": ["-SkipAdminCheck"]
         },
+                {
+            "name": "PowerShell: SkipAdminCheck and DryRun",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "args": ["-SkipAdminCheck", "-DryRun"]
+        },
         {
             "name": "PowerShell: SkipAdminCheck (Debug)",
             "type": "PowerShell",

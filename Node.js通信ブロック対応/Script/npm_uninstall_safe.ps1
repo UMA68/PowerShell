@@ -18,8 +18,11 @@
 .PARAMETER DryRun
     実際の変更を行わずに手順を表示（管理者不要）
 
+.PARAMETER SkipAdminCheck
+    管理者権限チェックをスキップ（DryRunとの併用時のみ有効。単独使用時はエラー終了）
+
 .PARAMETER RuleName
-    使用するファイアウォールルール名（デフォルト: "Block Node.js Outbound"）
+    使用するファイアウォールルール名（デフォルト: "Block Node.js Outbound")
 
 .PARAMETER LogPath
     ログファイルパス（デフォルト: Node.js通信ブロック対応\npm_safe.log）
@@ -61,6 +64,9 @@ param (
     [switch]$DryRun,
 
     [Parameter(Mandatory=$false)]
+    [switch]$SkipAdminCheck,
+
+    [Parameter(Mandatory=$false)]
     [string[]]$ExtraArgs,
     
     [Parameter(Mandatory=$false)]
@@ -87,6 +93,13 @@ function Write-Log {
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
+
+    # ログディレクトリが無い場合は作成
+    $logDir = Split-Path -Path $LogPath -Parent
+    if ($logDir -and -not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+
     Add-Content -Path $LogPath -Value $logMessage -Encoding UTF8 -ErrorAction SilentlyContinue
     
     switch ($Level) {
@@ -133,12 +146,25 @@ try {
     Write-Log "npm $Command 安全実行スクリプト開始" "INFO"
     Write-Log "========================================" "INFO"
     
+    # SkipAdminCheckの検証: DryRun以外での使用を禁止
+    if ($SkipAdminCheck -and -not $DryRun) {
+        Write-Log "エラー: -SkipAdminCheck は -DryRun との併用時のみ有効です。単独では使用できません。" "ERROR"
+        Write-Log "検証目的の場合は -DryRun を追加してください。" "ERROR"
+        exit $script:EXIT_NO_ADMIN
+    }
+    
     # 管理者権限チェック
-    if (-not $DryRun -and -not (Test-AdminPrivilege)) {
+    if (-not $DryRun -and -not $SkipAdminCheck -and -not (Test-AdminPrivilege)) {
         Write-Log "エラー: 管理者権限が必要です。PowerShellを管理者として実行してください。" "ERROR"
         exit $script:EXIT_NO_ADMIN
     }
-    if (-not $DryRun) { Write-Log "✓ 管理者権限を確認しました" "SUCCESS" } else { Write-Log "[DryRun] 管理者権限チェックをスキップ" "INFO" }
+    if ($DryRun) {
+        Write-Log "[DryRun] 管理者権限チェックをスキップ" "INFO"
+    } elseif ($SkipAdminCheck) {
+        Write-Log "[警告] SkipAdminCheckにより管理者権限チェックをスキップします。権限不足で処理が失敗する可能性があります。" "WARNING"
+    } else {
+        Write-Log "✓ 管理者権限を確認しました" "SUCCESS"
+    }
     
     # ファイアウォールルール存在チェック
     if (-not $DryRun -and -not (Test-FirewallRule -DisplayName $RuleName)) {
@@ -172,12 +198,7 @@ try {
         "uninstall" {
             if ($Global) { $flags += "-g" }
             $flagString = if ($flags.Count -gt 0) { " " + ($flags -join " ") } else { "" }
-            if (-not $Packages -or $Packages.Count -eq 0) {
-                Write-Log "警告: パッケージが指定されていません。'npm -v'でテストします。" "WARNING"
-                $npmCommand = "npm -v"
-            } else {
-                $npmCommand = "npm uninstall$flagString $packageList$extra"
-            }
+            $npmCommand = "npm uninstall$flagString $packageList$extra"
         }
         "update" {
             if ($Global) { $flags += "-g" }
