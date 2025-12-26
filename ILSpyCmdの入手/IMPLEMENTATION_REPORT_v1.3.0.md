@@ -209,7 +209,7 @@ Register-ScheduledTask -TaskName "ILSpyCmd Installation" -Action $taskAction
 
 **スクリプト公開フォルダー:**
 
-```Terminal
+```Shell
 c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 ├── Script/
 │   ├── getILSpyCmd.ps1           (v1.3.0 - メインスクリプト)

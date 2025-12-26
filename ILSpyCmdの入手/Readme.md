@@ -133,7 +133,7 @@ Module:
 
 ログファイルは `LOG` フォルダーに以下の形式で保存されます：
 
-```Terminal
+```Shell
 ILSpyCmd_yyyyMMdd-HHmmss-mmm.log
 ```
 

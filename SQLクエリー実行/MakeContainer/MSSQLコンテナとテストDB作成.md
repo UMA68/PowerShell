@@ -140,7 +140,7 @@ podman logs mssql2022
 
 ## ファイル構成
 
-```Terminal
+```Shell
 MakeContainer/
 ├── MSSQLコンテナとテストDB作成.md          ← このファイル
 ├── docker-compose.yml                  ← コンテナ設定

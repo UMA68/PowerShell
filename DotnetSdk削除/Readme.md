@@ -140,7 +140,7 @@ return
 
 ログファイルは `LOG/` ディレクトリに自動生成されます：
 
-```Terminal
+```Shell
 LOG/
 ├── DotNetSdk_Uninstall_20241215-150000.log
 ├── DotNetSdk_Uninstall_20241214-145000.log
@@ -184,7 +184,7 @@ YAML/DotNetUninst.yaml が存在することを確認してください
 
 ## ファイル構成
 
-```Terminal
+```Shell
 DotnetSdk削除/
 ├── Readme.md                               # このファイル
 ├── Script/

@@ -316,7 +316,7 @@ $env:YAML_CONFIG = "D:\Config\getILSpyCmd.yaml"
 
 **公開フォルダー構成:**
 
-```Terminal
+```Shell
 c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
 ├── Script/
 │   ├── getILSpyCmd.ps1               (v1.4.0 - メインスクリプト)

@@ -36,7 +36,7 @@ YAMLファイルに定義されたPowerShellモジュールを自動的に一括
 
 ## ディレクトリ構造
 
-```Terminal
+```Shell
 必要なモジュールの導入/
 ├── Script/
 │   ├── InstMain.ps1              # メインスクリプト
@@ -296,7 +296,7 @@ Stop-Process -Name pwsh -Force
 
 開発環境、ステージング環境、本番環境で異なるモジュール構成を管理：
 
-```Terminal
+```Shell
 YAML/
 ├── Env.yaml              # 開発環境
 ├── Staging.yaml          # ステージング環境

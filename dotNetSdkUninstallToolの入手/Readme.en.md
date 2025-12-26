@@ -76,7 +76,7 @@ See "Error Handling" section below for details.
 
 ## Folder Layout
 
-```text
+```Shell
 dotNetSdkUninstallToolの入手/
 ├─ Readme.md                         ← Japanese documentation
 ├─ Readme.en.md                      ← This file

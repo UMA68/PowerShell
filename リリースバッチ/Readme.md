@@ -42,7 +42,7 @@ Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
 
 ## ディレクトリ構造
 
-```Terminal
+```Shell
 PowerShell/
 ├── Common/
 │   ├── Encryption.Key              # 暗号化鍵（将来使用予定）
