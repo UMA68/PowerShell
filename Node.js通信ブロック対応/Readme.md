@@ -58,7 +58,7 @@ New-NetFirewallRule -DisplayName "Block Node.js Outbound" `
 
 ## ディレクトリ構造
 
-```Terminal
+```Shell
 Node.js通信ブロック対応/
 ├── README.md                      # このファイル
 └── Script/
@@ -145,7 +145,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 3. ✅ 送信通信を再度ブロック
 4. ✅ 完了メッセージを表示
 
-```Terminal
+```Shell
 Node.js の送信通信を一時的に許可します...
 npm install を実行中...
 + express@4.18.2
@@ -225,7 +225,7 @@ Node.jsパッケージを安全にアンインストール・更新（uninstall/
 
 #### 1. 「管理者権限が必要です」エラー
 
-```Terminal
+```Shell
 エラー: アクセスが拒否されました
 ```
 
@@ -236,7 +236,7 @@ Node.jsパッケージを安全にアンインストール・更新（uninstall/
 
 #### 2. ファイアウォールルールが見つからない
 
-```Terminal
+```Shell
 エラー: No MSFT_NetFirewallRule objects found with property 'DisplayName' equal to 'Block Node.js Outbound'
 ```
 
@@ -257,7 +257,7 @@ Get-Command node | Select-Object Source
 
 #### 3. 実行ポリシーエラー
 
-```Terminal
+```Shell
 エラー: このシステムではスクリプトの実行が無効になっているため...
 ```
 
@@ -276,7 +276,7 @@ Set-ExecutionPolicy Bypass -Scope Process
 
 #### 4. npmコマンドが見つからない
 
-```Terminal
+```Shell
 エラー: 'npm' は、内部コマンドまたは外部コマンド...として認識されていません
 ```
 
