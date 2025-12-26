@@ -73,7 +73,7 @@ param (
     [string]$RuleName = "Block Node.js Outbound",
     
     [Parameter(Mandatory=$false)]
-    [string]$LogPath = (Join-Path $PSScriptRoot "..\npm_safe.log")
+    [string]$LogPath = (Join-Path (Join-Path $PSScriptRoot "..\LOG") ("npm_safe_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date)))
 )
 
 # 定数定義
@@ -142,6 +142,7 @@ function Get-FirewallRuleState {
 
 # メイン処理開始
 try {
+    $isDryRun = $DryRun
     Write-Log "========================================" "INFO"
     Write-Log "npm $Command 安全実行スクリプト開始" "INFO"
     Write-Log "========================================" "INFO"
@@ -271,8 +272,10 @@ try {
         $WhatIfPreference = $script:OriginalWhatIfPreference
     }
     
-    # 必ずファイアウォールを再ブロック
-    if (-not $WhatIfPreference) {
+    # DryRun/WhatIf時は再ブロックをスキップ
+    if ($isDryRun) {
+        Write-Log "[DryRun] ファイアウォール再ブロックをスキップしました" "INFO"
+    } elseif (-not $WhatIfPreference) {
         Write-Log "Node.js の送信通信を再度ブロックします..." "INFO"
         try {
             Set-NetFirewallRule -DisplayName $RuleName -Enabled True -ErrorAction Stop
@@ -289,6 +292,8 @@ try {
             Write-Log "エラー: ファイアウォールの再ブロックに失敗しました: $($_.Exception.Message)" "ERROR"
             Write-Log "手動で再ブロックしてください: Set-NetFirewallRule -DisplayName '$RuleName' -Enabled True" "ERROR"
         }
+    } else {
+        Write-Log "WhatIfモードのためファイアウォール再ブロックをスキップしました" "INFO"
     }
     
     Write-Log "========================================" "INFO"

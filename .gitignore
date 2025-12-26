@@ -29,3 +29,6 @@ DotnetSdk削除/LOG/*
 
 # ditNetSdkUninstallToolの入手
 dotNetSdkUninstallToolの入手/LOG/*
+
+# Node.js通信ブロック対応
+Node.js通信ブロック対応/LOG/*
