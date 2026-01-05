@@ -190,6 +190,7 @@ Microsoftの .NET Uninstall Toolを自動ダウンロード・実行するスク
 ```
 
 #### 🗑️ .NET SDK 削除
+
 **パス**: [DotnetSdk削除/](DotnetSdk削除/)
 
 指定した .NET SDKを直接アンインストールします。
@@ -201,6 +202,7 @@ Microsoftの .NET Uninstall Toolを自動ダウンロード・実行するスク
 📖 [詳細なドキュメント](DotnetSdk削除/Readme.md)
 
 #### 🛡️ Node.js 通信ブロック対応
+
 **パス**: [Node.js通信ブロック対応/](Node.js通信ブロック対応/)
 
 Node.jsの送信通信をブロックしている環境で、npmコマンドを安全に実行します。
