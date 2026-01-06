@@ -16,6 +16,7 @@
   - [開発ツール](#開発ツール)
   - [システム管理ツール](#システム管理ツール)
   - [データベースツール](#データベースツール)
+  - [Excel操作ツール](#excel操作ツール)
   - [その他のツール](#その他のツール)
 - [セットアップ](#セットアップ)
 - [ライセンス](#ライセンス)
@@ -54,6 +55,9 @@ Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Scope CurrentUser
 # SqlServer（データベースツール用）
 
 Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
+
+# ImportExcel（Excel操作ツール用）
+Install-Module -Name ImportExcel -Scope CurrentUser
 ```
 
 ## 共通機能 (Common)
@@ -319,6 +323,65 @@ docker-compose up -d
 
 📖 [詳細なドキュメント](SQLクエリー実行/Readme.md)
 
+### Excel操作ツール
+
+#### 📊 Excelの操作
+
+**パス**: [Excelの操作/](Excelの操作/)
+
+PowerShellを使用してExcelファイルを操作するための各種スクリプト集です。ImportExcelモジュールやExcel COMオブジェクトを活用して、データの比較、コメント操作、SQL Serverからのデータエクスポートなど、さまざまなExcel操作を自動化できます。
+
+##### 📊 ExcelBook比較
+
+2つのExcelファイルの内容を比較し、差分がある行を自動的に強調表示します。
+
+- **機能**:
+  - 2つのExcelブック（typeA.xlsxとtypeB.xlsx）の指定シート間でデータ比較
+  - CD、KEY、Chr1～3、Num1～3の各列を基準に差分を検出
+  - 差分がある行をシアン色で自動ハイライト
+  - 差分データを`compdata.xlsx`として出力
+  - オートフィルターとウィンドウ固定機能
+- **使用技術**: ImportExcelモジュール、Excel COMオブジェクト
+
+```powershell
+./Excelの操作/ExcelBook比較/ExcelComp.ps1
+```
+
+##### 💬 Excelセルコメント
+
+Excelのセルにテキストとコメントを書き込み、コメント内容を別セルに抽出します。
+
+- **機能**:
+  - セルに値とコメントを記入
+  - コメント枠のサイズを自動調整
+  - マウスオーバー時のみ表示される設定
+  - セルコメントの内容を取得して別セルに出力
+  - コメントがない場合のエラーハンドリング
+- **使用技術**: Excel COMオブジェクト
+
+```powershell
+./Excelの操作/Excelセルコメント/WriteCell.ps1
+```
+
+##### 🗄️ ExportExcel
+
+SQL Serverデータベースからデータを取得し、Excelファイルとして出力します。
+
+- **機能**:
+  - 暗号化されたパスワードを使用したセキュアなDB接続
+  - パラメーター化されたSQLクエリの実行
+  - 必要な列のみを抽出してExcel出力
+  - 列幅自動調整、オートフィルター、先頭行固定
+  - Excelテーブル形式での出力
+  - 既存ファイルの上書き確認ダイアログ
+- **使用技術**: SqlServerモジュール、ImportExcelモジュール、暗号化認証
+
+```powershell
+./Excelの操作/ExportExcel/ExptExcel.ps1
+```
+
+📖 [詳細なドキュメント](Excelの操作/Readme.md)
+
 ### その他のツール
 
 #### 🤖 Obsidian Copilot
@@ -356,6 +419,9 @@ Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Scope CurrentUser
 
 # SqlServer（データベースツール使用時）
 Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
+
+# ImportExcel（Excel操作ツール使用時）
+Install-Module -Name ImportExcel -Scope CurrentUser
 ```
 
 ### 4. 暗号化鍵の作成（オプション）
@@ -414,4 +480,4 @@ Issue報告やPull Requestを歓迎します。
 
 ---
 
-**最終更新**: 2025年12月30日
+**最終更新**: 2026年1月6日
