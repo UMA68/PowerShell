@@ -216,7 +216,27 @@ $script:Yaml = Get-Content ...
 5. **DecompileDLL/**
    - `DecompileDll.ps1` ✓ (一部）
 
+6. **Node.js通信ブロック対応/**
+   - `npm_install_safe.ps1` ✓
+   - `npm_uninstall_safe.ps1` ✓
+
+7. **Excelの操作/**
+   - `ExcelBook比較/ExcelComp.ps1` ✓
+   - `Excelセルコメント/WriteCell.ps1` ✓
+   - `ExportExcel/ExptExcel.ps1` ✓
+
+8. **ファイルアクセスブロック解除/**
+   - `unblock_files.ps1` ✓
+
+9. **必要なモジュールの導入/**
+   - `InstMain.ps1` ✓
+
 ## バージョン履歴
+
+- **v1.1.0** (2026-01-06):
+  - Excel操作スクリプトの追加対応
+  - Node.js通信ブロック対応の追加
+  - その他ツールの統合
 
 - **v1.0.0** (2025-12-10): 初版リリース
   - スクリプトスコープの統一ガイドライン確立
