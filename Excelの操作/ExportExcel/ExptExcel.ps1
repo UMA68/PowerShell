@@ -164,25 +164,25 @@ try {
     Invoke-Item $outputPath
     Write-Host "Excelファイルを出力しました。" -ForegroundColor Green
 }
-    catch {
-        Write-Host "Excelファイルの作成に失敗しました。" -ForegroundColor Yellow
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        
-        # ダイアログ表示を行う
-        $obj = New-Object -ComObject WScript.Shell
-        try {
-            $obj.Popup("Excelファイルの作成に失敗しました。処理を終了します",0,"エラー",0x10)
-        } finally {
-            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
-        }
-        
-        # モジュールのアンインポート
-        Remove-Module SqlServer -ErrorAction SilentlyContinue
-        Remove-Module ImportExcel -ErrorAction SilentlyContinue
-        # 変数の削除
-        Remove-Variable serverName, databaseName, userId, password, outputPath, scriptDir, UpperDir, EncryptionKeyPath, PasswordFilePath, TableName, sql, data -ErrorAction SilentlyContinue
-        exit 1
+catch {
+    Write-Host "Excelファイルの作成に失敗しました。" -ForegroundColor Yellow
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    
+    # ダイアログ表示を行う
+    $obj = New-Object -ComObject WScript.Shell
+    try {
+        $obj.Popup("Excelファイルの作成に失敗しました。処理を終了します",0,"エラー",0x10)
+    } finally {
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
     }
+    
+    # モジュールのアンインポート
+    Remove-Module SqlServer -ErrorAction SilentlyContinue
+    Remove-Module ImportExcel -ErrorAction SilentlyContinue
+    # 変数の削除
+    Remove-Variable serverName, databaseName, userId, password, outputPath, scriptDir, UpperDir, EncryptionKeyPath, PasswordFilePath, TableName, sql, data -ErrorAction SilentlyContinue
+    exit 1
+}
 
 # ========================================
 # 終了処理
