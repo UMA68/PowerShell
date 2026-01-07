@@ -1,0 +1,37 @@
+# =================
+Project: ILSpyCmd Test
+Version: 1.4.0
+# =================
+
+# -----------------
+# 実行環境
+# -----------------
+PowerShell:
+  Version: 7.5.2
+
+# 実行に必要なモジュール
+Module:
+  Powershell-Yaml:
+    Name: powershell-yaml
+    Version: 0.4.7
+
+# .NET SDKの導入設定（非破壊検証用）
+DotnetSdk:
+  SdkFolder: DotnetSDK
+  # Exit 1（インストーラー未検出）で早期終了させる場合は、意図的に存在しないファイル名を指定します。
+  Installer: missing-installer-for-test.exe
+  # 実インストールを試す場合は、実在するインストーラー名に変更してください。
+  # Installer: dotnet-sdk-8.0.411-win-x64.exe
+  Version: 8.0.411
+
+# ILSpyCmdの設定
+ILSpyCmd:
+  # 既存導入時にWARN（バージョン不一致）をログで確認するためのテスト値
+  ExpectedVersion: 0.0.0-test
+
+# -----------------
+# ログ設定
+# -----------------
+LOG:
+  FILENAME: ILSpyCmd_test
+  EXTENSION: .log

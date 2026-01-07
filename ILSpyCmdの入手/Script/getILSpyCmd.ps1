@@ -87,7 +87,7 @@
     Author         : UMA
     Prerequisite   : PowerShell 7.x, powershell-yaml module
     Version        : 1.4.0
-    Last Updated   : 2025-01-15
+    Last Updated   : 2026-01-07
     
     前提条件:
     - PowerShell 7.x 以上（7.3.9以上推奨）
@@ -114,7 +114,7 @@
     13. end ブロックでのクリーンアップ保証（COM解放、終了コード設定）
     
     改善履歴:
-    v1.4.0 (2025-01-15) - 例外タイプのログレベル分類化、パラメータ検証強化
+    v1.4.0 (2026-01-07) - 例外タイプのログレベル分類化、パラメータ検証強化
     v1.3.0 (2025-01-15) - exit文完全排除、-NoKeyWaitパラメータ追加
     v1.2.0 (2024-12)    - ネットワーク確認、インストーラー検証強化
     v1.1.0 (2024-11)    - YAML設定対応、ログ機能強化
@@ -126,18 +126,15 @@
 param (
     [Parameter(Mandatory=$false)]
     [ValidateScript({ # YAMLファイル名の妥当性検証
-        # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
+        # パス（相対・絶対・ファイル名のみ）いずれも許容。拡張子のみ検証。
         if ($_ -notmatch '\.(yaml|yml)$') { # 拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
         }
-        if ($_ -match '[\\/:"*?<>|]') { # 禁止文字チェック
-            throw "ファイル名に使用できない文字が含まれています: $_"
-        }
         if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
-            throw "ファイル名は空にできません"
+            throw "YAMLパスは空にできません"
         }
-        if ($_.Length -gt 255) { # Windowsのファイル名長制限
-            throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
+        if ($_.Length -gt 260) { # 一般的なWindowsパス長制限に配慮
+            throw "YAMLパスが長すぎます（目安260文字超）: $($_.Length)文字"
         }
         $true
     })]
@@ -382,6 +379,10 @@ begin{
     $script:isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 process{
+    # 事前ガード: begin段階で致命エラーが発生した場合は処理しない
+    if (-not $script:CanExecuteProcess) {
+        return
+    }
     # タイトル表示
     Write-CommonLog -Message "HOST: $script:HostName" -LogPath $script:Log -Level "INFO"
     Write-CommonLog -Message "USER: $script:User" -LogPath $script:Log -Level "INFO"
@@ -416,14 +417,20 @@ process{
             # バージョン比較
             if ($installedVersion.ToString() -ne $expectedVersion) { # バージョンが異なる場合
                 Write-CommonLog -Message "Version mismatch detected. Installed: $installedVersion, Expected: $expectedVersion" -LogPath $script:Log -Level "WARN"
-                $script:comObject.Popup("ILSpyCmdはインストール済みですが、バージョンが異なります。`r`n`r`nインストール済み: $installedVersion`r`n期待バージョン: $expectedVersion`r`n`r`nプログラムを終了します。",0,"バージョン不一致",0x30) | Out-Null
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup("ILSpyCmdはインストール済みですが、バージョンが異なります。`r`n`r`nインストール済み: $installedVersion`r`n期待バージョン: $expectedVersion`r`n`r`nプログラムを終了します。",0,"バージョン不一致",0x30) | Out-Null
+                }
             } else { # バージョンが一致
                 Write-CommonLog -Message "Version matches expected version." -LogPath $script:Log -Level "INFO"
-                $script:comObject.Popup("ILSpyCmdはすでにインストールされています。`r`n`r`nバージョン: $installedVersion (正常)`r`n`r`nプログラムを終了します。",0,"確認完了",0x40) | Out-Null
+                if (-not $NoKeyWait) {
+                    $script:comObject.Popup("ILSpyCmdはすでにインストールされています。`r`n`r`nバージョン: $installedVersion (正常)`r`n`r`nプログラムを終了します。",0,"確認完了",0x40) | Out-Null
+                }
             }
         } else { # 期待バージョンが指定されていない場合
             Write-CommonLog -Message "No expected version specified in YAML. Skipping version check." -LogPath $script:Log -Level "INFO"
-            $script:comObject.Popup("ILSpyCmdはすでにインストールされています。`r`n`r`nバージョン: $installedVersion`r`n`r`nプログラムを終了します。",0,"確認完了",0x40) | Out-Null
+            if (-not $NoKeyWait) {
+                $script:comObject.Popup("ILSpyCmdはすでにインストールされています。`r`n`r`nバージョン: $installedVersion`r`n`r`nプログラムを終了します。",0,"確認完了",0x40) | Out-Null
+            }
         }
 
         # ログファイルを開いて終了
@@ -463,7 +470,12 @@ process{
         }
         
         # ユーザーにSDKインストールの確認
-        [int]$retButton = $script:comObject.Popup("dotnet(sdk)がインストールされていません。`r`n`r`n.NET SDK をインストールしますか？`r`n`r`n※インストールには数分かかる場合があります。",0,"SDK未検出",36)
+        [int]$retButton = 6
+        if (-not $NoKeyWait) {
+            $retButton = $script:comObject.Popup("dotnet(sdk)がインストールされていません。`r`n`r`n.NET SDK をインストールしますか？`r`n`r`n※インストールには数分かかる場合があります。",0,"SDK未検出",36)
+        } else {
+            Write-CommonLog -Message "NoKeyWait is specified. Auto-accepting SDK installation prompt." -LogPath $script:Log -Level "INFO"
+        }
         switch($retButton){
             # はい(.NET SDKをインストール)
             6 {
@@ -751,19 +763,17 @@ process{
     }
 }
 end{
-    # スクリプトの終了メッセージをログに出力
-    Write-CommonLog -Message "Script completed successfully." -LogPath $script:Log -Level "INFO"
+    # スクリプトの終了メッセージをログに出力（ログファイルがある場合のみ）
+    if ($script:Log -and (Test-Path $script:Log)) {
+        Write-CommonLog -Message "Script completed successfully." -LogPath $script:Log -Level "INFO"
+    }
     
-    # プロセス実行フラグに基づいてクリーンアップを実行
-    if (-not $script:CanExecuteProcess) { # プロセスを実行しなかった場合
-        # エラー状態: ログにメッセージを出力
-        if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
-            Add-Content -Path $script:Log -Value "`n=== Script ended with error (Exit Code: $script:ExitCode) ==="
-        }
-    } else { # 正常完了
-        # 正常完了
-        if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
+    # 終了コードに基づいてクリーンアップメッセージを出力（可読性向上）
+    if ($script:Log -and (Test-Path $script:Log)) {
+        if ($script:ExitCode -eq 0) {
             Add-Content -Path $script:Log -Value "`n=== Script completed successfully (Exit Code: 0) ==="
+        } else {
+            Add-Content -Path $script:Log -Value "`n=== Script ended with error (Exit Code: $script:ExitCode) ==="
         }
     }
     
