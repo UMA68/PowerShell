@@ -188,6 +188,19 @@ AES暗号化に使用する共通鍵ファイルを生成します。
 Start-Process -FilePath pwsh -ArgumentList "-File","./ILSpyCmdの入手/Script/getILSpyCmd.ps1" -Verb RunAs
 ```
 
+【検証スクリプト】
+- `Verify_v1.4.0.ps1` により v1.3.0（9項目）と v1.4.0（11項目）の合計20項目を自動検証します。
+- 実行例（PowerShell 7）：
+
+```powershell
+pwsh -NoProfile -File "./ILSpyCmdの入手/Script/Verify_v1.4.0.ps1"
+```
+
+- 期待結果（成功時）：
+  - `【v1.3.0 検証】 9 / 9 合格`
+  - `【v1.4.0 検証】 11 / 11 合格`
+  - `総合結果: 20 / 20 合格`
+
 📖 [詳細なドキュメント](ILSpyCmdの入手/Readme.md) — 終了コード、YAML 設定、安全な検証レシピを含む
 
 #### 🛠️ .NET SDK Uninstall Tool 管理
@@ -491,4 +504,4 @@ Issue報告やPull Requestを歓迎します。
 
 ---
 
-**最終更新**: 2026年1月6日
+**最終更新**: 2026年1月7日
