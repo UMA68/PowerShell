@@ -11,7 +11,7 @@
 #>
 
 param(
-    [string]$ScriptPath = "c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\Script\getILSpyCmd.ps1"
+    [string]$ScriptPath = (Join-Path -Path $HOME -ChildPath "GitHub\PowerShell\ILSpyCmdの入手\Script\getILSpyCmd.ps1")
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
