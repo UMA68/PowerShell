@@ -159,19 +159,19 @@ AES暗号化に使用する共通鍵ファイルを生成します。
 
 **パス**: [ILSpyCmdの入手/](ILSpyCmdの入手/)
 
-.NET逆コンパイルツール ILSpyCmd を自動的にインストールします。
+.NET逆コンパイルツールILSpyCmdを自動的にインストールします。
 
 - **機能**:
-  - ILSpyCmd のインストール状態確認とバージョン比較
-  - .NET SDK の存在確認と自動インストール（タイムアウト10分・ロールバック対応）
-  - ネットワーク接続の検証（NuGet.org へ ICMP/HTTP で確認）
+  - ILSpyCmdのインストール状態確認とバージョン比較
+  - .NET SDKの存在確認と自動インストール（タイムアウト10分・ロールバック対応）
+  - ネットワーク接続の検証（NuGet.orgへICMP/HTTPで確認）
   - インストーラーファイルの整合性検証
   - 例外タイプに基づくログレベル自動分類
   - 非対話モード（`-NoKeyWait`）- ポップアップ抑止・スケジューラー用
 - **バージョン**: v1.4.0（2026-01-07）
 - **新機能（v1.4.0）**:
-  - EnvYaml の柔軟な解決（ファイル名のみ、相対パス、絶対パス対応）
-  - 例外分類ログ（FileNotFoundException/UnauthorizedAccessException 等を自動振り分け）
+  - EnvYamlの柔軟な解決（ファイル名のみ、相対パス、絶対パス対応）
+  - 例外分類ログ（FileNotFoundException/UnauthorizedAccessException等を自動振り分け）
   - 必須フィールド検証の強化
 
 ```powershell
@@ -189,7 +189,8 @@ Start-Process -FilePath pwsh -ArgumentList "-File","./ILSpyCmdの入手/Script/g
 ```
 
 【検証スクリプト】
-- `Verify_v1.4.0.ps1` により v1.3.0（9項目）と v1.4.0（11項目）の合計20項目を自動検証します。
+
+- `Verify_v1.4.0.ps1` によりv1.3.0（9項目）とv1.4.0（11項目）の合計20項目を自動検証します。
 - 実行例（PowerShell 7）：
 
 ```powershell
@@ -201,7 +202,7 @@ pwsh -NoProfile -File "./ILSpyCmdの入手/Script/Verify_v1.4.0.ps1"
   - `【v1.4.0 検証】 11 / 11 合格`
   - `総合結果: 20 / 20 合格`
 
-📖 [詳細なドキュメント](ILSpyCmdの入手/Readme.md) — 終了コード、YAML 設定、安全な検証レシピを含む
+📖 [詳細なドキュメント](ILSpyCmdの入手/Readme.md) — 終了コード、YAML設定、安全な検証レシピを含む
 
 #### 🛠️ .NET SDK Uninstall Tool 管理
 
