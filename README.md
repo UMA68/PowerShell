@@ -159,25 +159,36 @@ AES暗号化に使用する共通鍵ファイルを生成します。
 
 **パス**: [ILSpyCmdの入手/](ILSpyCmdの入手/)
 
-.NET逆コンパイルツールILSpyCmdを自動的にインストールします。
+.NET逆コンパイルツール ILSpyCmd を自動的にインストールします。
 
 - **機能**:
-  - ILSpyCmdの自動インストール
-  - .NET SDKの前提条件チェックと自動インストール
-  - ネットワーク接続の検証
-  - ロールバック機能
-  - 非対話モード対応（\`-NoKeyWait\`）
-- **バージョン**: v1.4.0
+  - ILSpyCmd のインストール状態確認とバージョン比較
+  - .NET SDK の存在確認と自動インストール（タイムアウト10分・ロールバック対応）
+  - ネットワーク接続の検証（NuGet.org へ ICMP/HTTP で確認）
+  - インストーラーファイルの整合性検証
+  - 例外タイプに基づくログレベル自動分類
+  - 非対話モード（`-NoKeyWait`）- ポップアップ抑止・スケジューラー用
+- **バージョン**: v1.4.0（2026-01-07）
+- **新機能（v1.4.0）**:
+  - EnvYaml の柔軟な解決（ファイル名のみ、相対パス、絶対パス対応）
+  - 例外分類ログ（FileNotFoundException/UnauthorizedAccessException 等を自動振り分け）
+  - 必須フィールド検証の強化
 
 ```powershell
-# 対話モード
+# 基本実行（対話モード）
 ./ILSpyCmdの入手/Script/getILSpyCmd.ps1
 
-# 非対話モード（自動化・スケジューラー用）
+# カスタム YAML 指定
+./ILSpyCmdの入手/Script/getILSpyCmd.ps1 -EnvYaml "custom.yaml"
+
+# 非対話モード（スケジューラー・CI/CD 用）
 ./ILSpyCmdの入手/Script/getILSpyCmd.ps1 -NoKeyWait
+
+# 管理者権限で実行（SDK 導入時に必要）
+Start-Process -FilePath pwsh -ArgumentList "-File","./ILSpyCmdの入手/Script/getILSpyCmd.ps1" -Verb RunAs
 ```
 
-📖 [詳細なドキュメント](ILSpyCmdの入手/Readme.md)
+📖 [詳細なドキュメント](ILSpyCmdの入手/Readme.md) — 終了コード、YAML 設定、安全な検証レシピを含む
 
 #### 🛠️ .NET SDK Uninstall Tool 管理
 
