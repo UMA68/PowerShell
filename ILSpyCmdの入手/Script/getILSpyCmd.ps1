@@ -36,6 +36,8 @@
     - ファイル名のみ: "custom.yaml" → YAMLフォルダ直下を想定
     - 相対パス: "../Config/custom.yaml" → スクリプト位置から解決
     - 絶対パス: "C:\Config\getILSpyCmd.yaml" → そのまま使用
+    - 拡張子: ".yaml" または ".yml" のみ許可（v1.4.0）
+    - パス長: 260文字以内を推奨（Windowsの一般的な制限に配慮）
     
     必須YAMLフィールド:
     - Project: プロジェクト名
@@ -55,6 +57,7 @@
     このフラグを指定すると、すべてのポップアップダイアログが抑止され、
     ログファイルも自動的に開きません。
     スケジューラータスクやCI/CDパイプラインでの使用に適しています。
+    SDK未導入時のインストール確認は自動的に「はい」として承認されます（v1.4.0）。
 
 .EXAMPLE
     .\getILSpyCmd.ps1
@@ -122,6 +125,8 @@
 
 .LINK
     https://github.com/UMA68/PowerShell
+    ./ILSpyCmdの入手/Readme.md
+    ./ILSpyCmdの入手/Script/Verify_v1.4.0.ps1
 #>
 param (
     [Parameter(Mandatory=$false)]
