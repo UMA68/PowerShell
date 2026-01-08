@@ -126,6 +126,44 @@ choco install nkf32
 nkf32 --version
 ```
 
+##### nkf32 使用オプション一覧
+
+sqlMain.ps1では以下のオプションでファイル文字エンコーディングの自動検出と変換を行います：
+
+| オプション | 機能 | 用途 |
+|-----------|------|------|
+| `--guess` | ファイルの文字エンコーディング自動判定 | 入力ファイルの文字コード検出 |
+| `--ms-ucs-map` | Microsoftの拡張UCS マッピングを使用 | SQL Server との互換性向上 |
+| `-x` | 入力に対して `-X` フラグを強制 | 文字エンコーディング混在時の安全化 |
+| `-wLw` | 改行コードをCRLFに変換（`-w` は出力を`w`モード） | Windows文法への統一 |
+| `-O` | 出力ファイルを指定 | 変換結果を別ファイルに保存 |
+
+##### 実装例
+
+```powershell
+# ステップ1: ファイルの文字エンコーディングを検出
+$fileEncoding = & nkf32 --guess $sqlFile.FullName
+# 例: "Shift_JIS (CRLF)", "EUC-JP (LF)", "UTF-8 (CRLF)" など
+
+# ステップ2: UTF-8(CRLF)でない場合は変換
+if ($fileEncoding -ne "UTF-8 (CRLF)") {
+    $tempFile = $sqlFile.FullName + ".utf8(CRLF)"
+    & nkf32 --ms-ucs-map -x -wLw -O $sqlFile.FullName $tempFile
+    # 結果: $tempFile がUTF-8(CRLF)で保存される
+}
+```
+
+##### 検出可能な文字エンコーディング（代表例）
+
+| 検出結果 | エンコーディング | 改行コード |
+|--------|----------------|---------|
+| UTF-8 (LF) | UTF-8 | LF |
+| UTF-8 (CRLF) | UTF-8 | CRLF |
+| Shift_JIS (LF) | Shift-JIS | LF |
+| Shift_JIS (CRLF) | Shift-JIS | CRLF |
+| EUC-JP (LF) | EUC-JP | LF |
+| EUC-JP (CRLF) | EUC-JP | CRLF |
+
 ### 2. 必須モジュールのインストール
 
 ```powershell
