@@ -67,7 +67,7 @@ Install-Module -Name ImportExcel -Scope CurrentUser
 
 1. **暗号化鍵ファイル**: `Common\Encryption.Key`
    - `暗号化鍵の作成` フォルダー内の「`鍵ファイル作成.ps1 - ショートカット.lnk`」を実行
-   
+
 2. **暗号化パスワードファイル**: `mssql2022-dev-db.pass`
    - `暗号化文字列の作成` フォルダー内の「`鍵ファイル作成.ps1 - ショートカット.lnk`」を実行
    - SQL Serverのパスワードを入力して暗号化ファイルを作成
@@ -110,7 +110,7 @@ PowerShell/
 [string]$TableName = "Customers"         # テーブル名
 ```
 
-2. **スクリプトの実行**
+1. **スクリプトの実行**
 
 ```powershell
 # スクリプトのあるディレクトリに移動
@@ -146,14 +146,19 @@ Excelファイルを出力しました。
 スクリプト内のSQL文は以下のように定義されています：
 
 ```powershell
-[string]$sql = "SELECT CustomerID, Name, Email, Phone, Address FROM [$databaseName].dbo.[$TableName] ;"
+[string]$sql = "SELECT * FROM [$databaseName].dbo.[$TableName] ;"
 ```
+
+この`SELECT *`により全カラムを取得し、後続の処理で不要なカラム（RowError、RowState、Table、ItemArray、HasErrors）を除外します。
 
 **カスタマイズ例**:
 
 ```powershell
 # 条件を追加する場合
-$sql = "SELECT CustomerID, Name, Email FROM [$databaseName].dbo.[$TableName] WHERE CustomerID > 100 ;"
+$sql = "SELECT * FROM [$databaseName].dbo.[$TableName] WHERE CustomerID > 100 ;"
+
+# 特定のカラムのみ取得する場合
+$sql = "SELECT CustomerID, Name, Email FROM [$databaseName].dbo.[$TableName] ;"
 
 # JOIN を使用する場合
 $sql = "SELECT c.CustomerID, c.Name, o.OrderDate FROM [$databaseName].dbo.Customers c INNER JOIN [$databaseName].dbo.Orders o ON c.CustomerID = o.CustomerID ;"
@@ -171,6 +176,39 @@ Export-Excelのオプション：
 | `-BoldTopRow` | 先頭行を太字に |
 | `-TableName` | Excelテーブル名を指定 |
 | `-NumberFormat '@'` | 全セルを文字列フォーマットに |
+
+### カラム（列）の選択・除外
+
+データベースから取得したすべてのカラムから、不要なカラムを除外する方法：
+
+```powershell
+# 不要なカラムを除外する方法（推奨）
+$data = $data | Select-Object -ExcludeProperty CreatedAt, RowError, RowState, Table, ItemArray, HasErrors
+```
+
+除外するカラム：
+
+- **CreatedAt**: 作成日時（必要に応じて除外）
+- **RowError**: DataRowの内部エラー情報
+- **RowState**: DataRowの状態情報
+- **Table**: DataTableへの参照
+- **ItemArray**: 配列形式のデータ
+- **HasErrors**: エラー有無のフラグ
+
+この方法のメリット：
+
+- SQLに`SELECT *`を使用できるため、テーブル構造変更時の対応が容易
+- 除外リストで管理するため、新規カラムが自動的に含まれる
+- 不要な内部カラムを確実に除外できる
+
+**また、特定のカラムのみを選択する場合**：
+
+```powershell
+# 必要なカラムのみを選択
+$data = $data | Select-Object CustomerID, Name, Email, Phone, Address
+```
+
+どちらの方法を使用するかは、テーブル設計と要件に応じて選択してください。
 
 ## トラブルシューティング
 
@@ -319,10 +357,11 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
 ### ⚠️ 重要な注意点
 
-1. **暗号化ファイルの管理**: 
+1. **暗号化ファイルの管理**:
    - `Encryption.Key`と`.pass`ファイルは厳重に管理してください
    - バージョン管理システム（Git等）にコミットしないでください
    - `.gitignore`に以下を追加することを推奨：
+
    ```gitignore
    # 暗号化ファイル
    Common/Encryption.Key

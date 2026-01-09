@@ -68,8 +68,8 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropS
 # 出力先の定義
 [string]$outputPath = Join-Path $UpperDir "Excel" | Join-Path -ChildPath "ExptExcel.xlsx"
 
-# SQL文の定義（パラメータ化、必要な列のみ選択）
-[string]$sql = "SELECT CustomerID, Name, Email, Phone, Address FROM [$databaseName].dbo.[$TableName] ;"
+# SQL文の定義（全カラム取得、不要なカラムは後で除外）
+[string]$sql = "SELECT * FROM [$databaseName].dbo.[$TableName] ;"
 
 # 出力ファイルの存在確認と削除
 if(Test-Path $outputPath){
@@ -157,7 +157,7 @@ if ($null -eq $data -or $data.Count -eq 0) {
 
 # Excelファイルの作成
 try {
-    $data = $data | Select-Object CustomerID, Name, Email, Phone, Address   # 必要な列のみ選択
+    $data = $data | Select-Object -ExcludeProperty CreatedAt, RowError, RowState, Table, ItemArray, HasErrors   # 不要な列を除外
     # データをExcelファイルにエクスポート
     $data | Export-Excel -Path $outputPath -AutoSize -AutoFilter -FreezeTopRow -BoldTopRow -TableName $TableName -NumberFormat '@'
     # Excelファイルの表示
