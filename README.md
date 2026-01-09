@@ -423,20 +423,61 @@ Obsidian Copilot関連のユーティリティスクリプト集です。
 
 ## セットアップ
 
-### 1. リポジトリのクローン
+### 1. リポジトリのFork
+
+このリポジトリをご自身のGitHubアカウントにForkしてください。
+
+1. [リポジトリページ](https://github.com/UMA68/PowerShell)を開く
+2. 右上の「Fork」ボタンをクリック
+3. ご自身のアカウントへのForkが完了
+
+### 2. リポジトリのクローン
 
 ```powershell
 git clone https://github.com/[your-username]/PowerShell.git
 cd PowerShell
 ```
 
-### 2. 実行ポリシーの設定
+### 3. 元リポジトリ（upstream）の設定
+
+Fork元の最新変更を取り込めるよう、upstreamリモートを設定します。
+
+```powershell
+# upstreamリモートを追加
+git remote add upstream https://github.com/UMA68/PowerShell.git
+
+# 設定確認
+git remote -v
+```
+
+**元リポジトリとの同期方法**:
+
+```powershell
+# 元リポジトリの最新情報を取得
+git fetch upstream
+
+# mainブランチに元リポジトリの変更をマージ
+git checkout main
+git merge upstream/main
+
+# 自分のForkへプッシュ
+git push origin main
+```
+
+### 4. 実行ポリシーの設定
 
 ```powershell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-### 3. 必要なモジュールのインストール
+### 5. 必要なモジュールのインストール
+
+#### 推奨方法：ショートカットを使用
+
+`必要なモジュールの導入` フォルダー内の「`指定モジュールの導入.ps1 - ショートカット.lnk`」を実行してください。
+このショートカットで、必要なすべてのモジュールが自動的にインストールされます。
+
+#### 手動インストール（オプション）
 
 ```powershell
 # PowerShell-Yaml
@@ -449,13 +490,92 @@ Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
 Install-Module -Name ImportExcel -Scope CurrentUser
 ```
 
-### 4. 暗号化鍵の作成（オプション）
+### 6. 暗号化鍵の作成（オプション）
 
 セキュリティツールを使用する場合：
 
 ```powershell
 ./暗号化鍵の作成/Script/MakeEncrypted.ps1
 ```
+
+### 7. デバッグ設定（開発時）
+
+#### 概要
+
+VS Codeでスクリプトをデバッグする際は、各種パラメーターを組み合わせたデバッグ構成を使用することで、開発作業がより効率的に進みます。ご自身の環境に合わせて `.vscode/launch.json` を設定してください（Git管理対象外）。
+
+#### 利用可能なデバッグ構成
+
+| 構成名 | 説明 | 用途 |
+|--------|------|------|
+| **通常実行** | スクリプトを通常モードで実行 | 実際の処理を実行 |
+| **WhatIfモード** | 実行結果をプレビュー | 処理内容を事前確認 |
+| **DryRunモード** | 実際の変更を行わずにテスト | リスク低減デバッグ |
+| **WhatIf + Verbose** | 詳細情報付きプレビュー | 詳細な動作確認 |
+| **SkipAdminCheck Only** | 管理者チェックをスキップ | 権限不要なテスト |
+| **SkipAdminCheck and DryRun** | 管理者チェックなしのDryRun | 安全なテスト実行 |
+
+#### 設定の追加方法
+
+1. VS Codeで `.vscode/launch.json` を開く
+2. 下記の設定例をコピーし、`launch.json` の `"configurations"` セクションに追加
+3. F5キーでデバッグを開始
+
+#### `launch.json`の設定例
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PowerShell: 通常実行",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": []
+    },
+    {
+      "name": "PowerShell: WhatIfモード",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": ["-WhatIf"]
+    },
+    {
+      "name": "PowerShell: DryRunモード",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": ["-DryRun"]
+    },
+    {
+      "name": "PowerShell: WhatIf + Verbose",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": ["-WhatIf", "-Verbose"]
+    },
+    {
+      "name": "PowerShell: SkipAdminCheck Only",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": ["-SkipAdminCheck"]
+    },
+    {
+      "name": "PowerShell: SkipAdminCheck and DryRun",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${file}",
+      "args": ["-SkipAdminCheck", "-DryRun"]
+    }
+  ]
+}
+```
+
+詳細な設定は、ご自身の環境に合わせてカスタマイズしてください。`.vscode/launch.json`はGit管理対象外となっているため、各開発者が独自の設定を維持できます。
+
+これらの構成を利用することで、スクリプトの動作確認やデバッグを効率良く行えます。
 
 ## ライセンス
 
