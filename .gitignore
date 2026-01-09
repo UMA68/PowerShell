@@ -46,7 +46,8 @@ Thumbs.db
 *.tmp
 .vscode/settings.json
 .vscode/launch.json
-SQLクエリー実行/launch.json
+SQLクエリー実行/.vscode/launch.json
+暗号化文字列の復元/.vscode/launch.json
 
 # その他テンポラリ
 */.vs
