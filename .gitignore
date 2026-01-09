@@ -46,6 +46,7 @@ Thumbs.db
 *.tmp
 .vscode/settings.json
 .vscode/launch.json
+SQLクエリー実行/launch.json
 
 # その他テンポラリ
 */.vs
