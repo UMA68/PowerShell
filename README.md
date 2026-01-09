@@ -438,7 +438,9 @@ git clone https://github.com/[your-username]/PowerShell.git
 cd PowerShell
 ```
 
-### 3. 元リポジトリ（upstream）の設定
+### 3. 元リポジトリ（upstream）の設定と作業ブランチの作成
+
+#### upstreamリモートの設定
 
 Fork元の最新変更を取り込めるよう、upstreamリモートを設定します。
 
@@ -450,18 +452,71 @@ git remote add upstream https://github.com/UMA68/PowerShell.git
 git remote -v
 ```
 
-**元リポジトリとの同期方法**:
+#### 推奨ワークフロー
+
+**mainブランチは同期専用**とし、実際の作業は**作業用ブランチ**で行います。
 
 ```powershell
-# 元リポジトリの最新情報を取得
+# 1. 元リポジトリの最新情報を取得
 git fetch upstream
 
-# mainブランチに元リポジトリの変更をマージ
+# 2. mainブランチを最新に更新（自分の変更は含めない）
 git checkout main
 git merge upstream/main
-
-# 自分のForkへプッシュ
 git push origin main
+
+# 3. 作業用ブランチを作成して切り替え
+git checkout -b feature/my-improvement
+
+# 4. 作業を行い、コミット
+git add .
+git commit -m "feat: add new feature"
+
+# 5. 自分のForkへプッシュ
+git push origin feature/my-improvement
+```
+
+**Pull Request作成時**:
+
+1. 作業ブランチを自分のForkへプッシュ後、GitHubのリポジトリページを開く
+2. 「Compare & pull request」ボタンが表示されるのでクリック
+   - または、「Pull requests」タブ →「New pull request」をクリック
+3. Pull Requestの設定を確認:
+   - **base repository**: `UMA68/PowerShell` (元リポジトリ）
+   - **base**: `main` (元リポジトリのmainブランチ）
+   - **head repository**: `[your-username]/PowerShell` (自分のFork)
+   - **compare**: `feature/my-improvement` (作業ブランチ）
+4. タイトルと説明を記入:
+   - タイトル: 変更内容を簡潔に（例: "feat: SQLクエリ実行時のエラーハンドリング改善"）
+   - 説明: 変更の詳細、背景、テスト結果などを記載
+5. 「Create pull request」をクリックして作成
+
+**レビュー・マージ後**:
+
+```powershell
+# 元リポジトリに取り込まれたら、mainブランチを同期
+git checkout main
+git fetch upstream
+git merge upstream/main
+git push origin main
+
+# 作業ブランチは削除（オプション）
+git branch -d feature/my-improvement
+git push origin --delete feature/my-improvement
+```
+
+**作業ブランチの更新**（元リポジトリの変更を取り込む場合）:
+
+```powershell
+# mainブランチを最新化
+git checkout main
+git fetch upstream
+git merge upstream/main
+git push origin main
+
+# 作業ブランチに最新のmainをマージ
+git checkout feature/my-improvement
+git merge main
 ```
 
 ### 4. 実行ポリシーの設定
