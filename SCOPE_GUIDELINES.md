@@ -231,18 +231,149 @@ $script:Yaml = Get-Content ...
 9. **必要なモジュールの導入/**
    - `InstMain.ps1` ✓
 
+## 補足ガイド
+
+### `$global:` の取り扱い
+
+- 原則として使用禁止。影響範囲がワークスペース全体に拡散し、保守性とテスト容易性が低下します。
+- 例外は短命の検証コードやテスト専用のフラグなどに限定し、PRレビューを必須とします。
+
+### モジュールスコープ (`$module:`)
+
+- `.psm1` 内では `$script:` がモジュール内スコープとして機能します。モジュール外からの共有はパラメーター渡しを基本とし、`$global:` を避けます。
+- 推奨: 設定値やステートは `$module:`（または `$script:`）に集約し、公開関数は引数で受け取り・返り値で返す方針。
+
+### 並列/非同期と `$using:` の注意
+
+- `Start-Job` や `ForEach-Object -Parallel` では、親スコープの値は `$using:` で明示渡し（コピー）され、同期はされません。
+
+```powershell
+$cfg = $script:Yaml
+Start-Job -ScriptBlock {
+    param($c)
+    Process-Items -Config $c
+} -ArgumentList $cfg | Out-Null
+
+$script:Items | ForEach-Object -Parallel {
+    Process-Item -Config $using:Yaml
+}
+```
+
+### ドットソースの注意
+
+- `. "path\lib.ps1"` は呼び出し側スコープに取り込みます（衝突リスク）。原則は実行 `& "path\lib.ps1"` を推奨。
+- やむを得ずドットソースする場合は、公開シンボルのプレフィックスや `$script:` での明示を徹底し、命名衝突を避けます。
+
+### 読み取り専用化（誤更新防止）
+
+```powershell
+New-Variable -Name 'LogPath' -Value $computed -Scope Script -Option ReadOnly
+```
+
+- 初期化後に変更しない共有値にはReadOnlyを推奨します。必要時のみ `-Force` 解除を伴う再初期化に限定します。
+
+### コンテキスト集約（論理的バンドル）
+
+```powershell
+$script:Context = [ordered]@{
+    Paths  = [ordered]@{ Root = $script:UpperPath; Log = $script:LogPath }
+    Config = $script:Yaml
+    User   = [ordered]@{ Name = $script:User; Host = $script:HostName }
+}
+```
+
+- 論理的まとまりで束ねることで、意図せぬキー追加/誤用を検知しやすくします。
+
+### 例外と後始末の標準化（ロギング・フォールバック）
+
+```powershell
+try {
+    Write-CommonLog -Message $msg -LogPath $script:LogPath -Level 'INFO'
+} catch {
+    Write-Error $_
+    $fb = Join-Path $env:TEMP 'fallback.log'
+    Add-Content -Path $fb -Value "[FALLBACK] $msg"
+}
+```
+
+- 主要処理に失敗時でも最低限の記録を残すフォールバックを用意します。
+
+### `Set-StrictMode` の推奨
+
+```powershell
+Set-StrictMode -Version Latest
+```
+
+- 未宣言/未初期化参照を早期検知し、スコープの不整合を防ぎます。
+
+## 設計・可読性の補足
+
+### `begin/process/end` の役割明確化
+
+- `begin`: 共有リソースの初期化（パス、設定、ログ）。
+- `process`: 逐次処理（ローカル変数中心、共有値の読み取りのみ）。
+- `end`: 後始末（ハンドル解放、サマリ出力）。
+
+### 命名の強化
+
+- YAML原文は `$YamlText`、変換済みオブジェクトは `$Yaml` と役割分離。
+- パスは `...Path`、ディレクトリは `...Dir` を徹底（例: `LogPath` / `LogDir`）。
+
+### 既定値評価のタイミング
+
+- パラメーター既定値で `$script:LogPath` を参照する場合、呼出時評価のため「呼出前に初期化済み」が前提である旨を明記。
+
+### ログ出力先の事前作成
+
+```powershell
+$dir = Split-Path -Path $script:LogPath
+if (-not (Test-Path $dir)) {
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+}
+```
+
+## 品質保証
+
+### PSScriptAnalyzer の活用
+
+```powershell
+Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+Invoke-ScriptAnalyzer -Path . -Recurse
+```
+
+- 推奨ルール例: `PSUseDeclaredVarsMoreThanAssignments`, `PSAvoidGlobalVars`, `PSUseCorrectCasing`, `PSUseConsistentWhitespace`。
+- ルールセットを使う場合: `Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1`
+
+### Pester でのスコープ検証
+
+- `$script:` 初期化の存在・不変性・関数からの参照可否をテストで担保。
+
+## アンチパターン
+
+- ループ中に共有変数へ随時追記（並列化不能・副作用拡散）。
+- 暗黙のドットソースでスコープ混在（命名衝突・意図しない上書き）。
+- 例外で初期化が部分的に失敗したまま続行（整合性欠如）。
+
 ## バージョン履歴
+
+- **v1.2.0** (2026-01-13): 補足ガイド追加
+  - `$global:`の取り扱い、`$module:`、並列/非同期と`$using:`、ドットソース注意点を追加
+    - 読み取り専用化、コンテキスト集約、例外・後始末、`Set-StrictMode`推奨を追記
+    - 設計・可読性、品質保証（PSScriptAnalyzer/Pester）、アンチパターンを補強
 
 - **v1.1.0** (2026-01-06):
   - Excel操作スクリプトの追加対応
   - Node.js通信ブロック対応の追加
-  - その他ツールの統合
+    - その他ツールの統合
 
 - **v1.0.0** (2025-12-10): 初版リリース
   - スクリプトスコープの統一ガイドライン確立
-  - 主要スクリプトへの適用完了
+    - 主要スクリプトへの適用完了
 
 ## 参考資料
 
 - [PowerShell About Scopes (Microsoft Docs)](https://docs.microsoft.com/powershell/module/microsoft.powershell.core/about/about_scopes)
+- [About Modules](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_Modules)
+- [About Jobs](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_Jobs)
+- [Script Internationalization](https://learn.microsoft.com/powershell/scripting/learn/ps-international)
 - プロジェクトREADME: `README.md`

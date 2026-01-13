@@ -199,7 +199,7 @@ begin{
     # 同じスクリプトが複数同時実行されないようチェック
     if (-not (Test-NoDoubleActivation -Thread "InstMain" -ShowDialog)) { # 二重起動検出時
         # 既に起動中のため処理を終了
-        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        Write-Warning "既に起動中のため処理を終了します"
         $script:CanExecuteProcess = $false
         return
     }

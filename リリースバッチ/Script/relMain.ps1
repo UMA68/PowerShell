@@ -334,7 +334,7 @@ begin{
                     $script:UserSidList += $userSid
                 }
             } catch {
-                Write-Host "[WARNING] Could not resolve YAML LOG.USERS user '$user'. Skipping." -ForegroundColor Yellow
+                Write-Warning "Could not resolve YAML LOG.USERS user '$user'. Skipping."
             }
         }
     }
@@ -359,14 +359,14 @@ begin{
     } catch {
         # ACL設定に失敗した場合は警告を表示するが、処理を続行
         # （管理者権限がない場合など）
-        Write-Host "[WARNING] Could not set ACL on log directory (requires administrator privilege). Continuing without ACL configuration." -ForegroundColor Yellow
+        Write-Warning "Could not set ACL on log directory (requires administrator privilege). Continuing without ACL configuration."
     }
 
     # 二重起動の禁止（早期チェック）
     # 同じスクリプトが複数同時実行されないようチェック
     if (-not (Test-NoDoubleActivation -Thread "relMain" -ShowDialog)) { # 二重起動している場合
         # 既に起動中のため以降の処理をスキップ（endは実行）
-        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        Write-Warning "既に起動中のため処理を終了します"
         $script:CanExecuteProcess = $false
     }
 
@@ -374,7 +374,7 @@ begin{
 process{
     if (-not $script:CanExecuteProcess) { return }
     # スクリプトバージョン情報をログに記録（デバッグ用）
-    Write-Host "[INFO] Script version: 1.2.0, Configuration version: $($script:yaml.Version)" -ForegroundColor Gray
+    Write-Information "Script version: 1.2.0, Configuration version: $($script:yaml.Version)"
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()

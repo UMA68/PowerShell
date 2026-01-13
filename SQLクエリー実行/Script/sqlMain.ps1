@@ -377,12 +377,12 @@ begin {
     try {
         if (Test-Path -Path $script:KeyPath) { # 鍵ファイルが存在する場合
             [byte[]]$script:EncryptedKey = [System.IO.File]::ReadAllBytes($script:KeyPath)
-            Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
+            Write-Information "鍵ファイル『$DecryptionKey』を読み込みました。"
         } else { # 鍵ファイルが存在しない場合
             throw "鍵ファイル『$DecryptionKey』が見つかりません。"
         }
     } catch {
-        Write-Host $_.Exception.Message -ForegroundColor Red
+        Write-Error $_.Exception.Message
         & $script:ShowPopup -Message ($_.Exception.Message + "`r`n作成した $DecryptionKey を `"$($script:ComPath)`" へ置いてください。") -Title "エラー" -Icon 0x10
         $script:CanExecuteProcess = $false
         return
@@ -399,10 +399,10 @@ begin {
         $script:password = Get-Content -Path $script:PwFilePath | ConvertTo-SecureString -Key $script:EncryptedKey -ErrorAction Stop
     }
     catch {
-        Write-Host "パスワードの復号化に失敗しました。" -ForegroundColor Yellow
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        Write-Host "パスワードファイル『$pwFile』と鍵ファイル『$DecryptionKey』が正しいことを確認してください。" -ForegroundColor Yellow
-        Write-Host "何かキーを押してください。" -ForegroundColor Yellow
+        Write-Warning "パスワードの復号化に失敗しました。"
+        Write-Error $_.Exception.Message
+        Write-Warning "パスワードファイル『$pwFile』と鍵ファイル『$DecryptionKey』が正しいことを確認してください。"
+        Write-Information "何かキーを押してください。"
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
         $script:CanExecuteProcess = $false
         return
@@ -436,7 +436,7 @@ process {
     # SQLフォルダの存在確認
     if (-not (Test-Path -Path $script:SqlFolder)) { # SQLフォルダ無し
         $errorMsg = "SQLフォルダ『$YamlSQL』が見つかりません。処理を終了します。"
-        Write-Host $errorMsg -ForegroundColor Red
+        Write-Error $errorMsg
         Write-Output $errorMsg | Out-File -FilePath $script:LogPath -Append
         $script:CanExecuteProcess = $false
         return
@@ -448,7 +448,7 @@ process {
     # SQLファイルが存在しない場合は警告
     if ($SqlFiles.Count -eq 0) { # SQLファイル無し
         $warnMsg = "SQLフォルダ内に.sqlファイルが見つかりません。"
-        Write-Host $warnMsg -ForegroundColor Yellow
+        Write-Warning $warnMsg
         Write-Output $warnMsg | Out-File -FilePath $script:LogPath -Append
         $script:CanExecuteProcess = $false
         return
@@ -464,7 +464,7 @@ process {
         $sqlVersion = [int]$Matches[1]
         $script:TrustServerCert = ($sqlVersion -ge 2019)
     } else { # バージョン情報が不明な場合は警告を表示して有効にする
-        Write-Host "SQL Serverバージョンの判定に失敗しました。TrustServerCertificateを有効にします。" -ForegroundColor Yellow
+        Write-Warning "SQL Serverバージョンの判定に失敗しました。TrustServerCertificateを有効にします。"
         $script:TrustServerCert = $true
     }
     
@@ -555,13 +555,13 @@ process {
     # 処理完了時に統計情報を表示・ログ記録
     $totalCount = $SqlFiles.Count
     $summaryMsg = "`n実行完了: 合計 $totalCount 件 (成功: $successCount 件, エラー: $errorCount 件)"
-    Write-Host $summaryMsg -ForegroundColor Cyan
+    Write-Information $summaryMsg
     Write-Output $summaryMsg | Out-File -FilePath $script:LogPath -Append
 
     if ($totalCount -gt 0) { # 成功率計算
         $successRate = [math]::Round((($totalCount - $errorCount) / $totalCount) * 100, 2)
         $rateMsg = "成功率: $successRate%"
-        Write-Host $rateMsg -ForegroundColor Cyan
+        Write-Information $rateMsg
         Write-Output $rateMsg | Out-File -FilePath $script:LogPath -Append
     }
 }
@@ -571,20 +571,20 @@ end {
     $elapsed = $script:EndTime - $script:StartTime
 
     if (-not $script:CanExecuteProcess) { # エラー終了時の処理
-        Write-Host "前段のエラーにより処理を完了できませんでした。" -ForegroundColor Yellow
-        Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds) -ForegroundColor Yellow
+        Write-Warning "前段のエラーにより処理を完了できませんでした。"
+        Write-Information ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
         $script:password = $null
         # エラー時も何かキーを押すまで待機
-        Write-Host "何かキーを押してください。" -ForegroundColor Yellow
+        Write-Information "何かキーを押してください。"
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
         return
     }
 
-    Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds) -ForegroundColor Cyan
+    Write-Information ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
     $script:password = $null
 
     # 何かキーを押して終了
-    Write-Host "何かキーを押してください。" -ForegroundColor Cyan   
+    Write-Information "何かキーを押してください。"   
     $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
 
     # ログを表示
