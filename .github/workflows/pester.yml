@@ -1,0 +1,158 @@
+name: Pester Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - 'Tests/**'
+      - '.github/workflows/pester.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - 'Tests/**'
+      - '.github/workflows/pester.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Pester ユニットテスト
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        powershell-version: ['7.3', '7.4']
+    
+    steps:
+    - name: リポジトリをチェックアウト
+      uses: actions/checkout@v4
+      
+    - name: PowerShell ${{ matrix.powershell-version }} をセットアップ
+      uses: actions/setup-powershell@v4
+      with:
+        powershell-version: ${{ matrix.powershell-version }}
+        
+    - name: 必要なモジュールをインストール
+      shell: pwsh
+      run: |
+        Set-PSRepository PSGallery -InstallationPolicy Trusted
+        
+        Write-Host "Pester をインストール中..." -ForegroundColor Cyan
+        Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
+        
+        Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
+        Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
+        
+        Write-Host "モジュール情報:" -ForegroundColor Cyan
+        Get-Module -ListAvailable Pester | Select-Object Name, Version
+        Get-Module -ListAvailable PowerShell-Yaml | Select-Object Name, Version
+        
+    - name: Pester テストを実行（Unit テスト）
+      shell: pwsh
+      run: |
+        Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
+        $config = New-PesterConfiguration
+        $config.Run.Path = '.\Tests\'
+        $config.Run.Tag = @('Unit')
+        $config.Filter.Tag = @('Unit')
+        $config.Output.Verbosity = 'Detailed'
+        $config.TestResult.Enabled = $true
+        $config.TestResult.OutputPath = 'test-results-unit.xml'
+        $config.TestResult.OutputFormat = 'NUnitXml'
+        
+        Invoke-Pester -Configuration $config
+        
+    - name: テスト結果をアップロード（Unit）
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-unit-${{ matrix.powershell-version }}
+        path: test-results-unit.xml
+        retention-days: 30
+        
+    - name: Pester テストレポートを発行（Unit）
+      if: always()
+      uses: EnricoMi/publish-unit-test-result-action/windows@v2
+      with:
+        files: test-results-unit.xml
+        check_name: Unit Test Results (${{ matrix.powershell-version }})
+        comment_mode: always
+        
+    - name: Pester テストを実行（Integration テスト）
+      shell: pwsh
+      continue-on-error: true
+      run: |
+        Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
+        
+        # Integration テストが存在するか確認
+        $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '*.Tests.ps1' -ErrorAction SilentlyContinue
+        
+        if ($integrationTests.Count -gt 0) {
+          $config = New-PesterConfiguration
+          $config.Run.Path = '.\Tests\Integration\'
+          $config.Output.Verbosity = 'Detailed'
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = 'test-results-integration.xml'
+          $config.TestResult.OutputFormat = 'NUnitXml'
+          
+          Invoke-Pester -Configuration $config
+        } else {
+          Write-Host "⚠️ Integration テストファイルが見つかりません" -ForegroundColor Yellow
+        }
+        
+    - name: テスト結果をアップロード（Integration）
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-integration-${{ matrix.powershell-version }}
+        path: test-results-integration.xml
+        retention-days: 30
+        
+    - name: テスト概要を表示
+      if: always()
+      shell: pwsh
+      run: |
+        Write-Host "`n" + "="*70 -ForegroundColor Cyan
+        Write-Host "テスト実行概要" -ForegroundColor Cyan
+        Write-Host "="*70 -ForegroundColor Cyan
+        
+        if (Test-Path 'test-results-unit.xml') {
+          [xml]$unitResults = Get-Content 'test-results-unit.xml'
+          $unitTests = $unitResults.'test-results'.tests
+          $unitPassed = ($unitResults.'test-results'.'test-suite' | Where-Object { $_.name -like 'Pester*' } | Measure-Object).Count
+          
+          Write-Host "`n📋 Unit テスト結果:" -ForegroundColor Yellow
+          if ($unitResults.'test-results'.'test-suite') {
+            foreach ($suite in $unitResults.'test-results'.'test-suite') {
+              $passed = [int]$suite.tests - [int]$suite.failures
+              Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Red' })
+            }
+          }
+        }
+        
+        if (Test-Path 'test-results-integration.xml') {
+          [xml]$integrationResults = Get-Content 'test-results-integration.xml'
+          Write-Host "`n📋 Integration テスト結果:" -ForegroundColor Yellow
+          if ($integrationResults.'test-results'.'test-suite') {
+            foreach ($suite in $integrationResults.'test-results'.'test-suite') {
+              $passed = [int]$suite.tests - [int]$suite.failures
+              Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Yellow' })
+            }
+          } else {
+            Write-Host "  テストが実行されませんでした" -ForegroundColor DarkGray
+          }
+        }
+        
+        Write-Host "`n" + "="*70 -ForegroundColor Cyan
+        
+    - name: テスト失敗時のログをアップロード
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pester-logs-${{ matrix.powershell-version }}
+        path: ${{ github.workspace }}
+        retention-days: 30

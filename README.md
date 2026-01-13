@@ -543,9 +543,47 @@ Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
 
 # ImportExcel（Excel操作ツール使用時）
 Install-Module -Name ImportExcel -Scope CurrentUser
+
+# PSScriptAnalyzer（コード品質チェック）
+Install-Module -Name PSScriptAnalyzer -Scope CurrentUser
+
+# Pester（テスト実行時）
+Install-Module -Name Pester -MinimumVersion 5.0 -Scope CurrentUser
 ```
 
-### 6. 暗号化鍵の作成（オプション）
+### 6. テストの実行
+
+リポジトリの品質を保つため、変更前後にテストを実行してください：
+
+```powershell
+# すべてのテストを実行
+Invoke-Pester -Path .\Tests\ -Verbose
+
+# Unit テストのみ実行
+Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+
+# 特定のテストファイルを実行
+Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
+
+# テストカバレッジを測定
+$config = New-PesterConfiguration
+$config.CodeCoverage.Enabled = $true
+$config.CodeCoverage.Path = .\Common\*.ps1
+Invoke-Pester -Configuration $config
+```
+
+詳細は [Tests/README.md](Tests/README.md) をご覧ください。
+
+### 7. コード品質チェック
+
+すべての変更は PSScriptAnalyzer のチェックを通過する必要があります：
+
+```powershell
+# コード品質をチェック
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+```
+
+### 8. 暗号化鍵の作成（オプション）
 
 セキュリティツールを使用する場合：
 
@@ -553,7 +591,7 @@ Install-Module -Name ImportExcel -Scope CurrentUser
 ./暗号化鍵の作成/Script/MakeEncrypted.ps1
 ```
 
-### 7. デバッグ設定（開発時）
+### 9. デバッグ設定（開発時）
 
 #### 概要
 

@@ -1,0 +1,288 @@
+# テストについて
+
+このリポジトリでは、Pesterを使用したユニットテストを実施しています。
+
+## テストの構造
+
+```
+Tests/
+├── README.md                                    # このファイル
+├── Common/                                      # Common モジュールのテスト
+│   ├── Get-ScriptPaths.Tests.ps1
+│   ├── Write-CommonLog.Tests.ps1
+│   ├── Import-YamlConfig.Tests.ps1
+│   └── CheckCommand.Tests.ps1
+├── Integration/                                 # 統合テスト
+│   ├── ReleaseProcess.Tests.ps1
+│   ├── DecompileDLL.Tests.ps1
+│   └── SQLQuery.Tests.ps1
+└── Fixtures/                                    # テスト用のサンプルファイル
+    ├── SampleConfig.yaml
+    ├── SampleScript.ps1
+    └── SampleDatabase/
+```
+
+## 前提条件
+
+### Pester のインストール
+
+```powershell
+# Pester をインストール（v5以上推奨）
+Install-Module -Name Pester -MinimumVersion 5.0 -Scope CurrentUser -Force
+
+# バージョン確認
+Get-Module -ListAvailable Pester | Select-Object Name, Version
+```
+
+### その他の必要なモジュール
+
+```powershell
+# PowerShell-Yaml
+Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Scope CurrentUser
+
+# PSScriptAnalyzer
+Install-Module -Name PSScriptAnalyzer -Scope CurrentUser
+```
+
+## テスト実行方法
+
+### すべてのテストを実行
+
+```powershell
+# リポジトリのルートから
+cd PowerShell
+
+# すべてのテストを実行
+Invoke-Pester -Path .\Tests\ -Verbose
+
+# テスト結果を NUnit 形式で出力
+Invoke-Pester -Path .\Tests\ -OutputFormat NUnitXml -OutputFile test-results.xml
+```
+
+### 特定のテストファイルを実行
+
+```powershell
+# Common モジュールのテストのみ
+Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
+
+# 統合テストのみ
+Invoke-Pester -Path .\Tests\Integration\ -Verbose
+```
+
+### 特定のテストを実行（フィルタリング）
+
+```powershell
+# 特定のテスト関数を実行
+Invoke-Pester -Path .\Tests\ -Filter @{ FullName = '*Get-ScriptPaths*' } -Verbose
+
+# タグでフィルタリング
+Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+```
+
+## カバレッジレポートの取得
+
+```powershell
+# コードカバレッジを測定
+$config = New-PesterConfiguration
+$config.CodeCoverage.Enabled = $true
+$config.CodeCoverage.Path = .\Common\*.ps1
+$config.CodeCoverage.OutputPath = 'coverage.xml'
+$config.Run.Path = .\Tests\Common\
+
+Invoke-Pester -Configuration $config
+
+# カバレッジレポートを表示
+Get-Content coverage.xml | ConvertFrom-Csv | Format-Table
+```
+
+## テストの書き方
+
+### 基本的なテストテンプレート
+
+```powershell
+<#
+.SYNOPSIS
+    テスト対象の関数/スクリプトのテスト
+
+.DESCRIPTION
+    Get-ScriptPaths 関数のユニットテスト
+    - 正常系: パスが正しく計算されることを検証
+    - 異常系: 無効な入力に対してエラーが発生することを検証
+
+.NOTES
+    Author: Your Name
+    Version: 1.0.0
+    Last Updated: 2026-01-13
+#>
+
+BeforeAll {
+    # テスト前の初期化処理
+    # 対象の関数/スクリプトを読み込み
+    $modulePath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    . (Join-Path $modulePath 'Common\Get-ScriptPaths.ps1')
+}
+
+Describe 'Get-ScriptPaths' {
+    Context '正常系: パス計算' {
+        It 'スクリプトパスが設定されていない場合、デフォルトパスを使用' {
+            # Arrange
+            $testScriptPath = 'C:\Test\Script\MyScript.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath
+            
+            # Assert
+            $result.Script | Should -Not -BeNullOrEmpty
+            $result.PowerShell | Should -Not -BeNullOrEmpty
+            $result.Common | Should -Not -BeNullOrEmpty
+        }
+        
+        It 'EnvFileName を指定すると EnvFile キーが追加される' {
+            # Arrange
+            $testScriptPath = 'C:\Test\Script\MyScript.ps1'
+            $envFileName = 'Env.yaml'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath -EnvFileName $envFileName
+            
+            # Assert
+            $result.ContainsKey('EnvFile') | Should -BeTrue
+            $result.EnvFile | Should -Match $envFileName
+        }
+    }
+    
+    Context '異常系: エラーハンドリング' {
+        It 'スクリプトパスが空の場合、エラーが発生' {
+            # Arrange
+            $testScriptPath = ''
+            
+            # Act & Assert
+            { Get-ScriptPaths -ScriptPath $testScriptPath } | Should -Throw
+        }
+    }
+}
+```
+
+### テストのベストプラクティス
+
+1. **AAA パターンを使用**: Arrange → Act → Assert
+2. **明確なテスト名**: テスト名から目的が分かること
+3. **単一責任**: 1つのテストは1つのことをテストする
+4. **モックとスタブの使用**: 外部依存を最小化
+5. **セットアップとクリーンアップ**: 
+   - `BeforeAll` / `AfterAll`: テスト前後の全体初期化
+   - `BeforeEach` / `AfterEach`: 各テスト前後の初期化
+
+## テストタグの使用
+
+テストを分類・管理するためにタグを使用します：
+
+```powershell
+Describe 'Get-ScriptPaths' -Tag 'Unit', 'Common' {
+    It 'パスを正しく計算する' -Tag 'Positive' {
+        # テスト内容
+    }
+    
+    It '無効な入力でエラーが発生' -Tag 'Negative' {
+        # テスト内容
+    }
+}
+```
+
+**推奨タグ**:
+- `Unit`: ユニットテスト
+- `Integration`: 統合テスト
+- `Positive`: 正常系テスト
+- `Negative`: 異常系テスト
+- `Common`, `SQL`, `Release`, `DecompileDLL`: モジュール別
+
+### タグでのフィルタリング実行
+
+```powershell
+# Unit テストのみ実行
+Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+
+# Common モジュール以外を実行
+Invoke-Pester -Path .\Tests\ -ExcludeTag 'Common' -Verbose
+```
+
+## CI/CD 統合
+
+GitHub Actions で自動的にテストが実行されます（`.github/workflows/pester.yml` 参照）。
+
+```yaml
+- name: Pester テスト実行
+  run: |
+    Invoke-Pester -Path .\Tests\ -OutputFormat NUnitXml -OutputFile test-results.xml
+```
+
+## トラブルシューティング
+
+### Pester が見つからない
+
+```powershell
+# Pester がインストールされているか確認
+Get-Module -ListAvailable Pester
+
+# インストールされていない場合
+Install-Module -Name Pester -Scope CurrentUser -Force
+```
+
+### モジュール読み込みエラー
+
+```powershell
+# 対象のモジュール/スクリプトのパスが正しいか確認
+Test-Path 'C:\path\to\your\module.ps1'
+
+# 構文エラーがないか確認
+Invoke-ScriptAnalyzer -Path 'C:\path\to\your\module.ps1'
+```
+
+### テストの実行に時間がかかる
+
+```powershell
+# 特定のテストファイルのみ実行
+Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1
+
+# パラレル実行（Pester v5.1+）
+$config = New-PesterConfiguration
+$config.Run.ParallelRuns = 4
+Invoke-Pester -Configuration $config
+```
+
+## テスト作成のチェックリスト
+
+テストを作成する際は、以下を確認してください：
+
+- [ ] テスト関数が Describe/Context ブロックで適切に構造化されている
+- [ ] AAA パターン（Arrange-Act-Assert）に従っている
+- [ ] テスト名が明確で目的が分かる
+- [ ] 正常系と異常系の両方をテストしている
+- [ ] エッジケースやボーダーケースをカバーしている
+- [ ] モックとスタブを適切に使用している
+- [ ] セットアップとクリーンアップが実装されている
+- [ ] テストが高速に実行される（遅いテストは注記を追加）
+- [ ] テストが繰り返し実行できる（テスト間で依存がない）
+- [ ] コード行数が合理的（大きすぎないテスト）
+
+## 参考資料
+
+- [Pester 公式ドキュメント](https://pester.dev/)
+- [PowerShell テストベストプラクティス](https://docs.microsoft.com/powershell/scripting/learn/ps-best-practices)
+- [AAA テストパターン](https://docs.microsoft.com/en-us/visualstudio/test/unit-test-basics)
+
+## 貢献時のテスト要件
+
+新機能またはバグ修正を提出する際は、以下を確認してください：
+
+- [ ] 関連するユニットテストを実装している
+- [ ] すべてのテストが成功している
+  ```powershell
+  Invoke-Pester -Path .\Tests\ -Verbose
+  ```
+- [ ] テストカバレッジが合理的な範囲にある（60%以上推奨）
+- [ ] テストが PR テンプレートに記載されている
+
+---
+
+**質問や提案**: テスト関連の質問がある場合は、[Issue](https://github.com/UMA68/PowerShell/issues) で質問してください。
