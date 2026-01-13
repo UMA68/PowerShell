@@ -15,11 +15,11 @@ function Test-ModuleAvailable {
 
 # モジュール確認（簡潔版）
 if (-not (Test-ModuleAvailable -ModuleName "SqlServer")) {
-    Write-Host "SqlServerモジュールがインストールされていません。処理を終了します。" -ForegroundColor Yellow
+    Write-Warning "SqlServerモジュールがインストールされていません。処理を終了します。"
     exit 1
 }
 if (-not (Test-ModuleAvailable -ModuleName "ImportExcel")) {
-    Write-Host "ImportExcelモジュールがインストールされていません。処理を終了します。" -ForegroundColor Yellow
+    Write-Warning "ImportExcelモジュールがインストールされていません。処理を終了します。"
     exit 1
 }
 
@@ -47,9 +47,9 @@ try {
     [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($EncryptionKeyPath)
 }
 catch {
-    Write-Host "鍵の読み込みに失敗しました。" -ForegroundColor Yellow
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    Write-Host "鍵ファイル($EncryptionKeyPath)が正しいことを確認してください。" -ForegroundColor Yellow
+    Write-Warning "鍵の読み込みに失敗しました。"
+    Write-Error $_.Exception.Message
+    Write-Warning "鍵ファイル($EncryptionKeyPath)が正しいことを確認してください。"
     exit 1
 }
 
@@ -58,9 +58,9 @@ try {
     $password = Get-Content -Path $PasswordFilePath | ConvertTo-SecureString -Key $EncryptedKey -ErrorAction Stop
 }
 catch {
-    Write-Host "パスワードの復号化に失敗しました。" -ForegroundColor Yellow
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    Write-Host "パスワードファイル,鍵ファイル(Encryption.Key)が正しいことを確認してください。" -ForegroundColor Yellow
+    Write-Warning "パスワードの復号化に失敗しました。"
+    Write-Error $_.Exception.Message
+    Write-Warning "パスワードファイル,鍵ファイル(Encryption.Key)が正しいことを確認してください。"
     exit 1
 }
 $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($password))
@@ -88,8 +88,8 @@ if(Test-Path $outputPath){
                 Remove-Item $outputPath -Force -ErrorAction Stop
             }
             catch {
-                Write-Host "ファイルの削除に失敗しました。ファイルが開かれている可能性があります。" -ForegroundColor Yellow
-                Write-Host $_.Exception.Message -ForegroundColor Red
+                Write-Warning "ファイルの削除に失敗しました。ファイルが開かれている可能性があります。"
+                Write-Error $_.Exception.Message
                 
                 $obj = New-Object -ComObject WScript.Shell
                 try {
@@ -115,8 +115,8 @@ if(Test-Path $outputPath){
 try{
     $data = Invoke-Sqlcmd -TrustServerCertificate -ServerInstance $serverName -Database $databaseName -User $userId -Password $password -Query $sql -ErrorAction Stop 
 }catch{
-    Write-Host "SQLの実行に失敗しました。" -ForegroundColor Yellow
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Warning "SQLの実行に失敗しました。"
+    Write-Error $_.Exception.Message
 
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
@@ -136,8 +136,8 @@ try{
     
 # データ取得結果の検証（空データチェック）
 if ($null -eq $data -or $data.Count -eq 0) {
-    Write-Host "データが取得できませんでした。" -ForegroundColor Yellow
-    Write-Host "テーブルデータが存在するか確認してください。" -ForegroundColor Yellow
+    Write-Warning "データが取得できませんでした。"
+    Write-Warning "テーブルデータが存在するか確認してください。"
 
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
@@ -162,11 +162,11 @@ try {
     $data | Export-Excel -Path $outputPath -AutoSize -AutoFilter -FreezeTopRow -BoldTopRow -TableName $TableName -NumberFormat '@'
     # Excelファイルの表示
     Invoke-Item $outputPath
-    Write-Host "Excelファイルを出力しました。" -ForegroundColor Green
+    Write-Information "Excelファイルを出力しました。"
 }
 catch {
-    Write-Host "Excelファイルの作成に失敗しました。" -ForegroundColor Yellow
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Warning "Excelファイルの作成に失敗しました。"
+    Write-Error $_.Exception.Message
     
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
@@ -193,6 +193,6 @@ Remove-Module ImportExcel -ErrorAction SilentlyContinue
 # 変数の削除（パスワードを含む、エラー制御付き）
 Remove-Variable serverName, databaseName, userId, password, outputPath, scriptDir, UpperDir, EncryptionKeyPath, PasswordFilePath, TableName, sql, data, obj -ErrorAction SilentlyContinue
 # 終了
-Write-Host "処理が完了しました。" -ForegroundColor Green
+Write-Information "処理が完了しました。"
 
 

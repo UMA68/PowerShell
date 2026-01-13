@@ -174,14 +174,14 @@ function Invoke-Cleanup {
             [System.GC]::Collect()                  # ガベージコレクションの実行
             [System.GC]::WaitForPendingFinalizers() # ファイナライザの完了待機
             
-            Write-Host "✓ 機密情報をメモリから削除しました。" -ForegroundColor Green
+            Write-Information "✓ 機密情報をメモリから削除しました。"
         }
         
         # 何かキーが押されるまで待機
-        Write-Host "終了するには何かキーを押してください..." -ForegroundColor Gray
+        Write-Information "終了するには何かキーを押してください..."
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     } catch {
-        Write-Host "警告: クリーンアップ中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Warning "クリーンアップ中にエラーが発生しました: $($_.Exception.Message)"
     }
 }
 
@@ -208,7 +208,7 @@ try {
 # 同じスクリプトが複数同時実行されないようチェック
 if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) { # 二重起動が検出された場合
     # 既に起動中のため処理を終了
-    Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+    Write-Warning "既に起動中のため処理を終了します"
     $script:CanExecuteProcess = $false
     Invoke-Cleanup -FullCleanup $false
     exit
@@ -220,12 +220,12 @@ if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) { 
 try {
     if (Test-Path -Path $keyPath) { # 鍵ファイルが存在する場合
         [byte[]]$script:EncryptionKey = [System.IO.File]::ReadAllBytes($keyPath)
-        Write-Host "鍵ファイル「$keyFileName」を読み込みました。" -ForegroundColor Green
+        Write-Information "鍵ファイル「$keyFileName」を読み込みました。"
     } else { # 鍵ファイルが存在しない場合
         throw "鍵ファイル「$keyFileName」が見つかりません: $keyPath"
     }
 } catch {
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Error $_.Exception.Message
     $script:obj = New-Object -ComObject WScript.Shell
     $script:obj.popup($_.Exception.Message + "`r`n`r`n作成した鍵ファイルを「$comPath」に配置してください。", 0, "エラー", 0x10)
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:obj) | Out-Null
@@ -256,7 +256,7 @@ $script:SecureString = ConvertTo-SecureString -String $script:InputString -AsPla
 $script:EncryptedString = ConvertFrom-SecureString -SecureString $script:SecureString -Key $script:EncryptionKey
 
 # 暗号化した文字列を表示
-Write-Host "暗号化した文字列: $script:EncryptedString" -ForegroundColor Cyan
+Write-Information "暗号化した文字列: $script:EncryptedString"
 
 # ====================================
 # 出力ファイル名入力とバリデーション
@@ -290,13 +290,13 @@ $script:OutputPath = Join-Path -Path $UpperDir -ChildPath $script:FileName
 try {
     $script:EncryptedString | Out-File -FilePath $script:OutputPath -Encoding utf8 -ErrorAction Stop
     
-    Write-Host "暗号化した文字列をファイルに出力しました: $script:OutputPath" -ForegroundColor Green
+    Write-Information "暗号化した文字列をファイルに出力しました: $script:OutputPath"
     $script:obj = New-Object -ComObject WScript.Shell
     $script:obj.popup("暗号化した文字列をファイル「$script:FileName」に出力しました。", 0, "文字列暗号化", 0x40)  # 0x40:情報アイコン
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:obj) | Out-Null
     $script:obj = $null
 } catch {
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Error $_.Exception.Message
     $script:obj = New-Object -ComObject WScript.Shell
     $script:obj.popup("ファイルへの書き込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)  # 0x10:エラーアイコン
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:obj) | Out-Null
@@ -307,5 +307,5 @@ try {
 # ====================================
 # セキュリティクリーンアップ
 # ====================================
-Write-Host "処理が完了しました。機密情報をメモリから削除しています..." -ForegroundColor Cyan
+Write-Information "処理が完了しました。機密情報をメモリから削除しています..."
 Invoke-Cleanup -FullCleanup $true

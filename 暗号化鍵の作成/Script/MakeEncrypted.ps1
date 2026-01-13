@@ -128,7 +128,7 @@ begin {
     try {
         $script:obj = New-Object -ComObject WScript.Shell
     } catch {
-        Write-Host "COMオブジェクトの作成に失敗しました: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Error "COMオブジェクトの作成に失敗しました: $($_.Exception.Message)"
         $script:CanExecuteProcess = $false
         return
     }
@@ -151,7 +151,7 @@ begin {
     # 同じスクリプトが複数同時実行されないようチェック
     if (-not (Test-NoDoubleActivation -Thread "MakeEncrypted" -ShowDialog)) { # 二重起動が検出された場合
         # 既に起動中のため処理を終了
-        Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+        Write-Warning "既に起動中のため処理を終了します"
         $script:CanExecuteProcess = $false
         return
     }
@@ -171,7 +171,7 @@ begin {
     if (Test-Path -Path $script:KeyFilePath) { # 既存ファイルがある場合
         $result = $script:obj.Popup("既存の鍵ファイルが見つかりました。上書きしますか？`r`n`r`n"+$script:KeyFilePath, 0, "確認", 0x34)
         if ($result -ne 6) { # 6 = はい
-            Write-Host "上書きがキャンセルされました" -ForegroundColor Yellow
+            Write-Warning "上書きがキャンセルされました"
             $script:CanExecuteProcess = $false
             return
         }
@@ -186,7 +186,7 @@ process {
     # ====================================
     # 鍵生成とファイル書き込み
     # ====================================
-    Write-Host "鍵生成中（${KeySize}bit）…" -ForegroundColor Cyan
+    Write-Information "鍵生成中（${KeySize}bit）…"
 
     $script:rng = $null
     $script:EncryptionKey = $null
@@ -213,7 +213,7 @@ process {
         # 鍵をファイルに書き出す（バイナリ）
         try {
             [System.IO.File]::WriteAllBytes($script:KeyFilePath, $script:EncryptionKey)
-            Write-Host "鍵ファイル「Encryption.Key」を生成しました。" -ForegroundColor Green
+            Write-Information "鍵ファイル「Encryption.Key」を生成しました。"
         } catch [System.UnauthorizedAccessException] {
             throw "ファイルへの書き込み権限がありません。管理者権限で実行してください。"
         } catch [System.IO.IOException] {
@@ -222,7 +222,7 @@ process {
 
         $script:obj.popup("鍵生成完了（${KeySize}bit）`r`n`r`n"+$script:KeyFilePath, 0, "鍵生成", 0x40)
     } catch {
-        Write-Host $_.Exception.Message -ForegroundColor Red
+        Write-Error $_.Exception.Message
         $script:obj.popup("鍵生成またはファイル書き込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)
         $script:CanExecuteProcess = $false
     } finally {
@@ -242,7 +242,7 @@ process {
         Clear-Variable -Name EncryptionKey, KeyBytes, allZero, rng -Scope Script -ErrorAction SilentlyContinue
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
-        Write-Host "✓ 機密情報をメモリから削除しました。" -ForegroundColor Green
+        Write-Information "✓ 機密情報をメモリから削除しました。"
     }
 }
 
@@ -254,7 +254,7 @@ end {
         try {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:obj) | Out-Null
         } catch {
-            Write-Host "COMオブジェクトの解放中に警告: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Warning "COMオブジェクトの解放中に警告: $($_.Exception.Message)"
         }
         $script:obj = $null
         Clear-Variable -Name obj -Scope Script -ErrorAction SilentlyContinue
@@ -263,6 +263,6 @@ end {
     # パス変数のクリーンアップ
     Clear-Variable -Name ScriptDir, UpperDir, PowerShellDir, comPath, noDoubleActivationPath, KeyFilePath -Scope Script -ErrorAction SilentlyContinue
     
-    Write-Host "終了するには何かキーを押してください..." -ForegroundColor Gray
+    Write-Information "終了するには何かキーを押してください..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }

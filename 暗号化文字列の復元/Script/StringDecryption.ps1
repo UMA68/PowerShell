@@ -179,15 +179,15 @@ function Invoke-Cleanup {
             [System.GC]::Collect()                  # ガベージコレクションを強制的に実行
             [System.GC]::WaitForPendingFinalizers() # 最終化が完了するまで待機
             
-            Write-Host "✓ 機密情報をメモリから削除しました。" -ForegroundColor Green
-            Write-Host "✓ 処理が正常に完了しました。" -ForegroundColor Green
+            Write-Information "✓ 機密情報をメモリから削除しました。"
+            Write-Information "✓ 処理が正常に完了しました。"
         }
         
         # 何かキーが押されるまで待機
-        Write-Host "終了するには何かキーを押してください..." -ForegroundColor Gray
+        Write-Information "終了するには何かキーを押してください..."
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     } catch {
-        Write-Host "警告: クリーンアップ中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Warning "クリーンアップ中にエラーが発生しました: $($_.Exception.Message)"
     }
 }
 
@@ -210,7 +210,7 @@ try {
     . $noDoubleActivationPath -ErrorAction Stop
 } catch {
     # エラーメッセージを表示して終了
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Error $_.Exception.Message
     $obj = $null
     try {
         $obj = New-Object -ComObject WScript.Shell
@@ -230,7 +230,7 @@ try {
 # 同じスクリプトが複数同時実行されないようチェック
 if (-not (Test-NoDoubleActivation -Thread "StringDecryption" -ShowDialog)) { # 二重起動が検出された場合
     # 既に起動中のため処理を終了
-    Write-Host "既に起動中のため処理を終了します" -ForegroundColor Yellow
+    Write-Warning "既に起動中のため処理を終了します"
     $script:CanExecuteProcess = $false
     Invoke-Cleanup -FullCleanup $false  # クリーンアップのみ実行
     exit
@@ -244,12 +244,12 @@ try {
     if (Test-Path -Path $keyPath) { # 鍵ファイルが存在する場合
         # 鍵ファイルを読み込む
         [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($keyPath)
-        Write-Host "鍵ファイル「$keyFileName」を読み込みました。" -ForegroundColor Green
+        Write-Information "鍵ファイル「$keyFileName」を読み込みました。"
     } else { # 鍵ファイルが存在しない場合
         throw "鍵ファイル「$keyFileName」が見つかりません: $keyPath"
     }
 } catch {
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Error $_.Exception.Message
     $obj = $null
     try {
         $obj = New-Object -ComObject WScript.Shell
@@ -271,7 +271,7 @@ $dialogResult = $form.ShowDialog()
 
 # ダイアログの結果を確認
 if ($dialogResult -eq [System.Windows.Forms.DialogResult]::Cancel) { # ユーザーがキャンセルした場合
-    Write-Host "操作がユーザーによってキャンセルされました。処理を終了します。" -ForegroundColor Yellow
+    Write-Warning "操作がユーザーによってキャンセルされました。処理を終了します。"
     # フォームを破棄
     if ($null -ne $form) { $form.Dispose() }
     exit
@@ -281,7 +281,7 @@ $InputString = $textBox.Text    # 入力された文字列取得
 
 # 入力検証
 if ([string]::IsNullOrWhiteSpace($InputString)) { # 入力が空の場合
-    Write-Host "空文字列が入力されました。処理を終了します。" -ForegroundColor Yellow
+    Write-Warning "空文字列が入力されました。処理を終了します。"
     $obj = $null
     try {
         $obj = New-Object -ComObject WScript.Shell
@@ -307,16 +307,15 @@ try {
     # 復号した文字列を平文に変換（より安全な方法）
     $DecryptedString = [System.Net.NetworkCredential]::new('', $SecureDecryptedString).Password
     
-    Write-Host "復号に成功しました。" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "=============================" -ForegroundColor Cyan
-    Write-Host "復号結果: " -NoNewline -ForegroundColor Yellow
-    Write-Host "$DecryptedString" -ForegroundColor White
-    Write-Host "=============================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "※ 上記の復号結果をコピーしてご利用ください" -ForegroundColor Gray
+    Write-Information "復号に成功しました。"
+    Write-Information ""
+    Write-Information "============================="
+    Write-Information "復号結果: $DecryptedString"
+    Write-Information "============================="
+    Write-Information ""
+    Write-Information "※ 上記の復号結果をコピーしてご利用ください"
 } catch {
-    Write-Host "文字列の復号に失敗しました: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Error "文字列の復号に失敗しました: $($_.Exception.Message)"
     $obj = $null
     try {
         $obj = New-Object -ComObject WScript.Shell
@@ -342,7 +341,7 @@ try {
 $script:obj = New-Object -ComObject WScript.Shell
 $script:obj.popup("復号に成功しました。`r`n`r`n結果: $DecryptedString`r`n`r`n※この情報は画面キャプチャにご注意ください", 0, "復号成功", 0x40)  # 0x40:情報アイコン
 
-Write-Host "復号処理が完了しました。機密情報をメモリから削除しています..." -ForegroundColor Cyan
+Write-Information "復号処理が完了しました。機密情報をメモリから削除しています..."
 
 # ====================================
 # セキュリティクリーンアップ

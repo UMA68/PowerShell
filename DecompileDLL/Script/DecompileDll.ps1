@@ -262,7 +262,7 @@ begin{
     Write-Log "────────────────────────────────────────" "INFO"
     Write-Log "DLL逆コンパイルスクリプトを開始" "INFO"
     Write-Log "YAML設定ファイル: $EnvYaml" "INFO"
-    Write-Host "ログファイル: $script:logPath" -ForegroundColor Cyan
+    Write-Information "ログファイル: $script:logPath"
     
     # 処理時間計測開始
     $script:startTime = Get-Date
@@ -493,7 +493,7 @@ begin{
             if (Test-Path $oldOutputPath) { # 古いDLL出力フォルダーのクリア
                 try {
                     Remove-Item -Path $oldOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー($folderOld)をクリアしました: $oldOutputPath" -ForegroundColor $script:colorSuccess
+                    Write-Information "出力フォルダー($folderOld)をクリアしました: $oldOutputPath"
                 } catch {
                     Write-Warning "出力フォルダー($folderOld)のクリアに失敗しました: $($_.Exception.Message)"
                 }
@@ -502,7 +502,7 @@ begin{
             if (Test-Path $newOutputPath) { # 新しいDLL出力フォルダーのクリア
                 try {
                     Remove-Item -Path $newOutputPath -Recurse -Force -ErrorAction Stop
-                    Write-Host "出力フォルダー($folderNew)をクリアしました: $newOutputPath" -ForegroundColor $script:colorSuccess
+                    Write-Information "出力フォルダー($folderNew)をクリアしました: $newOutputPath"
                 } catch {
                     Write-Warning "出力フォルダー($folderNew)のクリアに失敗しました: $($_.Exception.Message)"
                 }
@@ -530,9 +530,9 @@ process{
     # 完了予定時刻（ETA）計算用
     $processStartTime = Get-Date
     
-    Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor $script:colorInfo
+    Write-Information "逆コンパイル対象: $totalCount 個のDLLファイル"
     if ($Parallel) { # 並列処理モード
-        Write-Host "並列処理モード: 最大 $ThrottleLimit スレッド" -ForegroundColor $script:colorInfo
+        Write-Information "並列処理モード: 最大 $ThrottleLimit スレッド"
         Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (並列処理: $ThrottleLimit スレッド)" "INFO"
     } else { # 順次処理モード
         Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (順次処理)" "INFO"
@@ -860,25 +860,14 @@ end{
     Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL -Completed
     
     # 処理統計の表示
-    Write-Host "`n========================================" -ForegroundColor $script:colorInfo
-    Write-Host "           処理サマリー" -ForegroundColor $script:colorInfo
-    Write-Host "========================================" -ForegroundColor $script:colorInfo
-    Write-Host "処理DLL数:      $totalCount"
-    Write-Host "成功:           " -NoNewline
-    Write-Host "$successCount" -ForegroundColor $script:colorSuccess
-    Write-Host "失敗:           " -NoNewline
-    if ($failCount -gt 0) { # 失敗がある場合
-        Write-Host "$failCount" -ForegroundColor $script:colorError
-    } else { # 失敗がない場合
-        Write-Host "$failCount"
-    }
-    Write-Host "スキップ:       " -NoNewline
-    if ($skipCount -gt 0) { # スキップがある場合
-        Write-Host "$skipCount" -ForegroundColor $script:colorWarning
-    } else { # スキップがない場合
-        Write-Host "$skipCount"
-    }
-    Write-Host "========================================`n" -ForegroundColor $script:colorInfo
+    Write-Information "`n========================================"
+    Write-Information "           処理サマリー"
+    Write-Information "========================================"
+    Write-Information "処理DLL数:      $totalCount"
+    Write-Information "成功:           $successCount"
+    Write-Information "失敗:           $failCount"
+    Write-Information "スキップ:       $skipCount"
+    Write-Information "========================================`n"
     
     # 処理統計をログに記録
     Write-Log "──────── 処理結果 ────────" "INFO"
@@ -897,45 +886,39 @@ end{
     
     # エラーレポートの表示(エラーがある場合)
     if ($script:errorList.Count -gt 0) { # エラーがある場合
-        Write-Host "========================================" -ForegroundColor $script:colorError
-        Write-Host "         エラー詳細" -ForegroundColor $script:colorError
-        Write-Host "========================================" -ForegroundColor $script:colorError
+        Write-Information "========================================"
+        Write-Information "         エラー詳細"
+        Write-Information "========================================"
         foreach ($errorItem in $errorList) { # エラー詳細の表示
-            Write-Host "DLL: " -NoNewline
-            Write-Host "$($errorItem.DllName)" -ForegroundColor $script:colorWarning -NoNewline
-            Write-Host " [$($errorItem.Type)]"
-            Write-Host "  エラー: $($errorItem.Error)" -ForegroundColor Gray
+            Write-Information "DLL: $($errorItem.DllName) [$($errorItem.Type)]"
+            Write-Information "  エラー: $($errorItem.Error)"
         }
-        Write-Host "========================================`n" -ForegroundColor $script:colorError
+        Write-Information "========================================`n"
         
         # エラーレポートをファイルに保存
         $errorReportPath = Join-Path $script:LogDir "DecompileErrors_$timestamp.txt"
         $errorList | Format-Table -AutoSize | Out-File -FilePath $errorReportPath -Encoding UTF8
-        Write-Host "エラーレポートを保存しました: " -NoNewline
-        Write-Host "$errorReportPath" -ForegroundColor $script:colorWarning
-        Write-Host ""
+        Write-Information "エラーレポートを保存しました: $errorReportPath"
+        Write-Information ""
     }
     
     # スキップレポートの表示(スキップがある場合)
     if ($script:skipReasons.Count -gt 0) { # スキップがある場合
-        Write-Host "========================================" -ForegroundColor $script:colorWarning
-        Write-Host "       スキップ詳細" -ForegroundColor $script:colorWarning
-        Write-Host "========================================" -ForegroundColor $script:colorWarning
+        Write-Information "========================================"
+        Write-Information "       スキップ詳細"
+        Write-Information "========================================"
         foreach ($skipItem in $script:skipReasons) { # スキップ詳細の表示
-            Write-Host "DLL: " -NoNewline                                                   # スキップDLL名表示
-            Write-Host "$($skipItem.DllName)" -ForegroundColor $script:colorInfo -NoNewline # スキップDLL名
-            Write-Host ""
-            Write-Host "  理由: $($skipItem.Reason)" -ForegroundColor Gray                  # スキップ理由表示
+            Write-Information "DLL: $($skipItem.DllName)"  # スキップDLL名
+            Write-Information "  理由: $($skipItem.Reason)"  # スキップ理由
         }
-        Write-Host "========================================`n" -ForegroundColor $script:colorWarning
+        Write-Information "========================================`n"
     }
     
     # 処理時間の計算と表示
     $endTime = Get-Date
     $elapsedTime = $endTime - $script:startTime # 経過時間計算
-    Write-Host "処理時間: " -NoNewline
-    Write-Host "$($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor $script:colorInfo
-    Write-Host ""
+    Write-Information "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))"
+    Write-Information ""
     Write-Log "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))" "INFO"
     
     # WinMergeの実行準備
@@ -947,38 +930,34 @@ end{
     
     # 並列処理の場合は差分ツールを自動起動しない（複数の比較が発生するため）
     if ($Parallel) { # 並列処理モードの場合
-        Write-Host "`n並列処理モードのため、差分ツールは自動起動しません。" -ForegroundColor $script:colorInfo
-        Write-Host "手動で以下のパスを比較してください:" -ForegroundColor $script:colorInfo
-        Write-Host "Old: " -NoNewline
-        Write-Host "$oldFile" -ForegroundColor $colorWarning
-        Write-Host "New: " -NoNewline
-        Write-Host "$newFile" -ForegroundColor $colorWarning
+        Write-Information "`n並列処理モードのため、差分ツールは自動起動しません。"
+        Write-Information "手動で以下のパスを比較してください:"
+        Write-Information "Old: $oldFile"
+        Write-Information "New: $newFile"
         Write-Log "並列処理完了 - 差分ツール手動起動が必要" "INFO"
         exit $script:exitSuccess
     }
     
     # 差分ツールの選択と起動（順次処理のみ）
     if ($DiffTool -eq "VSCode") { # VSCodeモードの場合
-        Write-Host "`nVSCodeを起動しています..." -ForegroundColor $script:colorInfo
+        Write-Information "`nVSCodeを起動しています..."
         Write-Log "VSCodeで差分比較を起動" "INFO"
         if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) { # VSCode起動
             try {
                 Start-Process -FilePath "code" -ArgumentList "--diff","`"$oldFile`"","`"$newFile`"" -ErrorAction Stop
-                Write-Host "VSCodeを起動しました。" -ForegroundColor $script:colorSuccess
+                Write-Information "VSCodeを起動しました。"
                 Write-Log "VSCode起動成功" "SUCCESS"
             } catch {
                 Write-Warning "VSCodeの起動に失敗しました: $($_.Exception.Message)"
                 Write-Log "VSCode起動失敗: $($_.Exception.Message)" "ERROR"
-                Write-Host "VSCodeがインストールされているか、PATHに追加されているか確認してください。" -ForegroundColor $script:colorWarning
+                Write-Warning "VSCodeがインストールされているか、PATHに追加されているか確認してください。"
             }
         }
     } elseif ($DiffTool -eq "Custom") { # カスタム差分ツールモードの場合
-        Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor $script:colorInfo
+        Write-Information "`nカスタム差分ツールモード: 手動で以下のパスを比較してください"
         Write-Log "カスタム差分ツールモード" "INFO"
-        Write-Host "Old: " -NoNewline
-        Write-Host "$oldFile" -ForegroundColor $colorWarning
-        Write-Host "New: " -NoNewline
-        Write-Host "$newFile" -ForegroundColor $colorWarning
+        Write-Information "Old: $oldFile"
+        Write-Information "New: $newFile"
     } else { # WinMergeモード（デフォルト）
         # WinMerge (デフォルト)
         # WinMergeの実行パスの確認
@@ -991,7 +970,7 @@ end{
         Write-Verbose "WinMerge実行ファイル: $ExecWinMerge"
     
         # WinMergeの実行
-        Write-Host "`nWinMergeを起動しています..." -ForegroundColor $script:colorInfo
+        Write-Information "`nWinMergeを起動しています..."
         Write-Log "WinMergeで差分比較を起動" "INFO"
         if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) { # WinMerge起動
             try {
@@ -1005,7 +984,7 @@ end{
                 )
                 
                 Start-Process -FilePath $ExecWinMerge -ArgumentList $winMergeArgs -ErrorAction Stop
-                Write-Host "WinMergeを起動しました。" -ForegroundColor $script:colorSuccess
+                Write-Information "WinMergeを起動しました。"
                 Write-Log "WinMerge起動成功" "SUCCESS"
             } catch {
                 Write-Log "WinMerge起動失敗: $($_.Exception.Message)" "ERROR"
@@ -1016,10 +995,10 @@ end{
     }
     
     # 処理の完了メッセージ
-    Write-Host "`n処理が完了しました。" -ForegroundColor $script:colorSuccess
+    Write-Information "`n処理が完了しました。"
     if (-not $WhatIfPreference) { # WhatIfモードでない場合
         if ($DiffTool -ne "Custom") { # カスタム差分ツールモードでない場合
-            Write-Host "差分比較ツールで差分を確認してください。" -ForegroundColor $script:colorInfo
+            Write-Information "差分比較ツールで差分を確認してください。"
         }
     }
     
@@ -1042,8 +1021,7 @@ end{
                      ForEach-Object { Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue }    # 親プロセス取得
     
     if ($parentProcess.ProcessName -eq 'explorer') { # 親プロセスがexplorer.exeの場合（ショートカットからの実行）
-        Write-Host "`n" -NoNewline
-        Write-Host "続行するには何かキーを押してください..." -ForegroundColor $script:colorInfo
+        Write-Information "`n続行するには何かキーを押してください..."
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') # キー入力待機
     }
     

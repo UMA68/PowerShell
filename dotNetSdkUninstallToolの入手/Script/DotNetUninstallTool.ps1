@@ -358,7 +358,7 @@ process {
     
     if ($WhatIfPreference) { # WhatIfモードの確認
         Write-CommonLog -Message "⚠️ WhatIf mode enabled - No actual changes will be made" -LogPath $script:Log -Level "INFO"
-        Write-Host "`n⚠️ ドライランモード: 実際の処理は実行されません（ログのみ）" -ForegroundColor Yellow
+        Write-Warning "`n⚠️ ドライランモード: 実際の処理は実行されません（ログのみ）"
     }
     
     $ProjectLine = "=" * 50
@@ -370,12 +370,12 @@ process {
 
     # メニュー表示関数
     function Show-Menu {
-        Write-Host ""
-        Write-Host "=== .NET Uninstall Tool 管理メニュー ===" -ForegroundColor Cyan
-        Write-Host "1. インストール" -ForegroundColor Green
-        Write-Host "2. アンインストール" -ForegroundColor Yellow
-        Write-Host "Q. 終了" -ForegroundColor Red
-        Write-Host ""
+        Write-Information ""
+        Write-Information "=== .NET Uninstall Tool 管理メニュー ==="
+        Write-Information "1. インストール"
+        Write-Information "2. アンインストール"
+        Write-Information "Q. 終了"
+        Write-Information ""
     }
 
     # インストール関数
@@ -390,7 +390,7 @@ process {
             Write-CommonLog -Message "MSI file not found: $msiPath" -LogPath $script:Log -Level "ERROR"
             $iconError = [int]$script:config.PopupIcon.Error
             $exitCodeFile = $script:config.ExitCode.FileNotFound
-            Write-Host "❌ MSIファイルが見つかりません: $msiPath" -ForegroundColor Red
+            Write-Error "❌ MSIファイルが見つかりません: $msiPath"
             $script:comObject.Popup("MSIファイルが見つかりません。`r`n`r`nパス: $msiPath`r`n`r`ndotNetSdkUninstallToolフォルダにMSIファイルを配置してください。", 0, "ファイル未検出", $iconError) | Out-Null
             return $exitCodeFile
         }
@@ -410,13 +410,13 @@ process {
         }
         
         # インストール実行
-        Write-Host "🛠 インストールを開始します..." -ForegroundColor Yellow
+        Write-Information "🛠 インストールを開始します..."
         Write-CommonLog -Message "Executing MSI installation..." -LogPath $script:Log -Level "INFO"
         
         # WhatIfモードの確認
         if (-not $PSCmdlet.ShouldProcess($msiPath, "Install MSI package")) { # WhatIfモードの場合
             Write-CommonLog -Message "[WhatIf] Would execute: msiexec.exe /i `"$msiPath`" /passive /norestart" -LogPath $script:Log -Level "INFO"
-            Write-Host "[WhatIf] インストール処理はスキップされました" -ForegroundColor Cyan
+            Write-Information "[WhatIf] インストール処理はスキップされました"
             return $script:config.ExitCode.Success
         }
         
@@ -445,7 +445,7 @@ process {
                     $process.Kill()
                     Write-CommonLog -Message "Process terminated due to timeout" -LogPath $script:Log -Level "WARN"
                 } catch {}
-                Write-Host "⚠️ インストールがタイムアウトしました" -ForegroundColor Red
+                Write-Error "⚠️ インストールがタイムアウトしました"
                 return $script:config.ExitCode.InstallFailed
             }
             
@@ -454,14 +454,14 @@ process {
             
             if ($exitCode -ne 0) { # インストール失敗
                 Write-CommonLog -Message "Installation failed with exit code: $exitCode" -LogPath $script:Log -Level "ERROR"
-                Write-Host "❌ インストールに失敗しました (Exit Code: $exitCode)" -ForegroundColor Red
+                Write-Error "❌ インストールに失敗しました (Exit Code: $exitCode)"
                 return $script:config.ExitCode.InstallFailed
             }
             
         } catch {
             $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
             Write-CommonLog -Message "Installation error: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
-            Write-Host "❌ インストール中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Error "❌ インストール中にエラーが発生しました: $($_.Exception.Message)"
             return $script:config.ExitCode.InstallFailed
         }
         
@@ -474,11 +474,11 @@ process {
         $commandName = $script:config.Installation.CommandName
         if (Get-Command $commandName -ErrorAction SilentlyContinue) { # コマンドが認識された場合
             Write-CommonLog -Message "✅ Installation completed successfully" -LogPath $script:Log -Level "INFO"
-            Write-Host "✅ インストールが完了しました。" -ForegroundColor Green
+            Write-Information "✅ インストールが完了しました。"
             
             # バージョン情報を表示
             try {
-                Write-Host "`nインストールされたツール情報:" -ForegroundColor Cyan
+                Write-Information "`nインストールされたツール情報:"
                 & $commandName --help
                 Write-CommonLog -Message "Tool help displayed successfully" -LogPath $script:Log -Level "INFO"
             } catch {
@@ -487,7 +487,7 @@ process {
             return $script:config.ExitCode.Success
         } else { # コマンドが認識されなかった場合
             Write-CommonLog -Message "⚠️ Command not recognized after installation" -LogPath $script:Log -Level "WARN"
-            Write-Host "⚠️ インストール後にコマンドが認識されていません。PowerShellを再起動して確認してください。" -ForegroundColor Yellow
+            Write-Warning "⚠️ インストール後にコマンドが認識されていません。PowerShellを再起動して確認してください。"
             return $script:config.ExitCode.Success
         }
     }
@@ -508,7 +508,7 @@ process {
         # アンインストール対象が見つからなかった場合
         if (-not $keys) { # 製品が見つからなかった場合
             Write-CommonLog -Message "Product not found in registry" -LogPath $script:Log -Level "INFO"
-            Write-Host "✅ .NET Uninstall Tool はインストールされていません。" -ForegroundColor Green
+            Write-Information "✅ .NET Uninstall Tool はインストールされていません。"
             return $script:config.ExitCode.Success
         }
         
@@ -522,19 +522,19 @@ process {
         
         Write-CommonLog -Message "Product code: $productCode" -LogPath $script:Log -Level "INFO"
         Write-CommonLog -Message "Install location: $installLocation" -LogPath $script:Log -Level "INFO"
-        Write-Host "🧾 製品コード: $productCode" -ForegroundColor Cyan
+        Write-Information "🧾 製品コード: $productCode"
         if ($installLocation) { # インストール場所が取得できた場合
-            Write-Host "📁 インストール場所: $installLocation" -ForegroundColor Cyan
+            Write-Information "📁 インストール場所: $installLocation"
         }
         
         # アンインストール実行
-        Write-Host "🛠 アンインストールを開始します..." -ForegroundColor Yellow
+        Write-Information "🛠 アンインストールを開始します..."
         Write-CommonLog -Message "Executing MSI uninstallation..." -LogPath $script:Log -Level "INFO"
         
         # WhatIfモードの確認
         if (-not $PSCmdlet.ShouldProcess($productCode, "Uninstall MSI package")) { # WhatIfモード
             Write-CommonLog -Message "[WhatIf] Would execute: msiexec.exe /x $productCode /passive /norestart" -LogPath $script:Log -Level "INFO"
-            Write-Host "[WhatIf] アンインストール処理はスキップされました" -ForegroundColor Cyan
+            Write-Information "[WhatIf] アンインストール処理はスキップされました"
             if ($installLocation) { # 残存フォルダ削除のWhatIfログ
                 Write-CommonLog -Message "[WhatIf] Would remove folder: $installLocation" -LogPath $script:Log -Level "INFO"
             }
@@ -567,7 +567,7 @@ process {
                     $process.Kill()
                     Write-CommonLog -Message "Process terminated due to timeout" -LogPath $script:Log -Level "WARN"
                 } catch {}
-                Write-Host "⚠️ アンインストールがタイムアウトしました" -ForegroundColor Red
+                Write-Error "⚠️ アンインストールがタイムアウトしました"
                 return $script:config.ExitCode.UninstallFailed
             }
             
@@ -576,14 +576,14 @@ process {
             
             if ($exitCode -ne 0) { # アンインストール失敗
                 Write-CommonLog -Message "Uninstallation failed with exit code: $exitCode" -LogPath $script:Log -Level "ERROR"
-                Write-Host "❌ アンインストールに失敗しました (Exit Code: $exitCode)" -ForegroundColor Red
+                Write-Error "❌ アンインストールに失敗しました (Exit Code: $exitCode)"
                 return $script:config.ExitCode.UninstallFailed
             }
             
         } catch {
             $logLevel = Get-ExceptionLogLevel -Exception $_.Exception
             Write-CommonLog -Message "Uninstallation error: $($_.Exception.Message)" -LogPath $script:Log -Level $logLevel
-            Write-Host "❌ アンインストール中にエラーが発生しました: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Error "❌ アンインストール中にエラーが発生しました: $($_.Exception.Message)"
             return $script:config.ExitCode.UninstallFailed
         }
         
@@ -598,10 +598,10 @@ process {
             try {
                 Remove-Item $installLocation -Recurse -Force -ErrorAction Stop
                 Write-CommonLog -Message "Removed remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
-                Write-Host "🧹 残存フォルダを削除しました: $installLocation" -ForegroundColor Green
+                Write-Information "🧹 残存フォルダを削除しました: $installLocation"
             } catch {
                 Write-CommonLog -Message "Failed to remove folder: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
-                Write-Host "⚠️ 残存フォルダの削除に失敗しました: $installLocation" -ForegroundColor Yellow
+                Write-Warning "⚠️ 残存フォルダの削除に失敗しました: $installLocation"
             }
         }
         
@@ -610,12 +610,12 @@ process {
         if (Get-Command $commandName -ErrorAction SilentlyContinue) { # コマンドがまだ存在する場合
             # コマンドがまだ存在する場合
             Write-CommonLog -Message "⚠️ Command still recognized after uninstallation" -LogPath $script:Log -Level "WARN"
-            Write-Host "⚠️ アンインストール後もコマンドが残っています。PowerShellを再起動して確認してください。" -ForegroundColor Yellow
+            Write-Warning "⚠️ アンインストール後もコマンドが残っています。PowerShellを再起動して確認してください。"
             return $script:config.ExitCode.Success
         } else { # コマンドが存在しない場合
             # コマンドが存在しない場合
             Write-CommonLog -Message "✅ Uninstallation completed successfully" -LogPath $script:Log -Level "INFO"
-            Write-Host "✅ アンインストールが完了しました。" -ForegroundColor Green
+            Write-Information "✅ アンインストールが完了しました。"
             return $script:config.ExitCode.Success
         }
     }
@@ -651,13 +651,13 @@ process {
                 Write-CommonLog -Message "User selected exit" -LogPath $script:Log -Level "INFO"
             }
             default { # 無効な選択肢
-                Write-Host "⚠️ 無効な選択です。もう一度入力してください。" -ForegroundColor Red
+                Write-Error "⚠️ 無効な選択です。もう一度入力してください。"
                 Write-CommonLog -Message "Invalid selection: $choice" -LogPath $script:Log -Level "WARN"
             }
         }
     } while (-not $exitFlag)
 
-    Write-Host "`n終了しました。" -ForegroundColor Cyan
+    Write-Information "`n終了しました。"
     Write-CommonLog -Message "Script completed successfully" -LogPath $script:Log -Level "INFO"
 }
 
