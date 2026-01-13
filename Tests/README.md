@@ -4,7 +4,7 @@
 
 ## テストの構造
 
-```
+```Shell
 Tests/
 ├── README.md                                    # このファイル
 ├── Common/                                      # Common モジュールのテスト
@@ -23,6 +23,7 @@ Tests/
 ```
 
 **凡例:**
+
 - ✅ 実装完了 - テストケースが完成して実行可能
 - 📋 テンプレート - 実装ガイドとしてご利用ください
 
@@ -104,15 +105,15 @@ Get-Content coverage.xml | ConvertFrom-Csv | Format-Table -AutoSize
 
 ### CI/CD での自動測定
 
-GitHub Actions で自動的にカバレッジが測定され、アーティファクトとして保存されます：
+GitHub Actionsで自動的にカバレッジが測定され、アーティファクトとして保存されます：
 
-1. PR を作成すると、GitHub Actions が自動的に実行
+1. PRを作成すると、GitHub Actionsが自動的に実行
 2. テスト結果とカバレッジレポートが生成
 3. アーティファクトセクションから `coverage-report-*.xml` をダウンロード可能
 
 ### VS Code での可視化
 
-VS Code 拡張機能でカバレッジを可視化できます：
+VS Code拡張機能でカバレッジを可視化できます：
 
 ```powershell
 # Coverage Gutters 拡張をインストール
@@ -194,7 +195,7 @@ Describe 'Get-ScriptPaths' {
 ### テストのベストプラクティス
 
 1. **AAA パターンを使用**: Arrange → Act → Assert
-2. **明確なテスト名**: テスト名から目的が分かること
+2. **明確なテスト名**: テスト名から目的がわかること
 3. **単一責任**: 1つのテストは1つのことをテストする
 4. **モックとスタブの使用**: 外部依存を最小化
 5. **セットアップとクリーンアップ**: 
@@ -218,6 +219,7 @@ Describe 'Get-ScriptPaths' -Tag 'Unit', 'Common' {
 ```
 
 **推奨タグ**:
+
 - `Unit`: ユニットテスト
 - `Integration`: 統合テスト
 - `Positive`: 正常系テスト
@@ -236,7 +238,7 @@ Invoke-Pester -Path .\Tests\ -ExcludeTag 'Common' -Verbose
 
 ## CI/CD 統合
 
-GitHub Actions で自動的にテストが実行されます（`.github/workflows/pester.yml` 参照）。
+GitHub Actionsで自動的にテストが実行されます（`.github/workflows/pester.yml` 参照）。
 
 ```yaml
 - name: Pester テスト実行
@@ -282,9 +284,9 @@ Invoke-Pester -Configuration $config
 
 テストを作成する際は、以下を確認してください：
 
-- [ ] テスト関数が Describe/Context ブロックで適切に構造化されている
-- [ ] AAA パターン（Arrange-Act-Assert）に従っている
-- [ ] テスト名が明確で目的が分かる
+- [ ] テスト関数がDescribe/Contextブロックで適切に構造化されている
+- [ ] AAAパターン（Arrange-Act-Assert）にしたがっている
+- [ ] テスト名が明確で目的がわかる
 - [ ] 正常系と異常系の両方をテストしている
 - [ ] エッジケースやボーダーケースをカバーしている
 - [ ] モックとスタブを適切に使用している
@@ -305,11 +307,13 @@ Invoke-Pester -Configuration $config
 
 - [ ] 関連するユニットテストを実装している
 - [ ] すべてのテストが成功している
+
   ```powershell
   Invoke-Pester -Path .\Tests\ -Verbose
   ```
+
 - [ ] テストカバレッジが合理的な範囲にある（60%以上推奨）
-- [ ] テストが PR テンプレートに記載されている
+- [ ] テストがPRテンプレートに記載されている
 
 ---
 

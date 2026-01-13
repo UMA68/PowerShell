@@ -34,10 +34,10 @@ assignees: ''
 
 ## 💻 環境情報
 
-- **OS**: [例: Windows 11 Pro 23H2]
-- **PowerShellバージョン**: [例: 7.4.0]
-- **影響を受けるツール**: [例: DecompileDLL, SQLクエリー実行]
-- **YAMLファイルの設定**: [関連する場合、YAML設定の一部を貼り付け]
+- **OS**:[例: Windows 11 Pro 23H2]
+- **PowerShellバージョン**:[例: 7.4.0]
+- **影響を受けるツール**:[例: DecompileDLL, SQLクエリー実行］
+- **YAMLファイルの設定**:[関連する場合、YAML設定の一部を貼り付け］
 
 ```powershell
 # PowerShellバージョンの確認

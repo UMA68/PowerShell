@@ -5,7 +5,7 @@
 ## 🔗 関連Issue
 
 <!-- 関連するIssueがあればリンクしてください -->
-Closes #(issue番号)
+Closes #(issue番号）
 
 ## 📋 変更内容
 
@@ -36,16 +36,19 @@ Closes #(issue番号)
 <!-- この変更をどのようにテストしたかを説明してください -->
 
 ### テスト環境
-- OS: 
-- PowerShell バージョン: 
+
+- OS:
+- PowerShellバージョン: 
 - 影響を受けるツール: 
 
 ### テストケース
+
 1. 
 2. 
 3. 
 
 ### テスト結果
+
 ```powershell
 # テストコマンドと結果を貼り付け
 ```
@@ -59,33 +62,40 @@ Closes #(issue番号)
 <!-- PRを作成する前に、以下の項目を確認してください -->
 
 ### コード品質
+
 - [ ] PSScriptAnalyzerのチェックを通過している
+
   ```powershell
   Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
   ```
+
 - [ ] [SCOPE_GUIDELINES.md](../SCOPE_GUIDELINES.md) に準拠している
 - [ ] 適切なエラーハンドリングを実装している
 - [ ] コードに適切なコメントを追加している
 
 ### ドキュメント
-- [ ] README.md を更新している（必要な場合）
+
+- [ ] README.mdを更新している（必要な場合）
 - [ ] ツール固有のReadme.mdを更新している（必要な場合）
 - [ ] コメントベースのヘルプ（.SYNOPSIS, .DESCRIPTION等）を追加/更新している
 - [ ] 使用例を追加している（必要な場合）
 
 ### セキュリティ
+
 - [ ] 機密情報（鍵、パスワード、接続文字列等）をコミットしていない
 - [ ] `.gitignore` が適切に設定されている
 - [ ] 入力値の検証を実装している
 
 ### テスト
+
 - [ ] 正常系のテストを実施している
 - [ ] 異常系のテストを実施している
 - [ ] エッジケースのテストを実施している
 - [ ] 既存機能を壊していないことを確認している
 
 ### その他
-- [ ] コミットメッセージが [Conventional Commits](https://www.conventionalcommits.org/) に従っている
+
+- [ ] コミットメッセージが [Conventional Commits](https://www.conventionalcommits.org/) にしたがっている
 - [ ] [CONTRIBUTING.md](../CONTRIBUTING.md) を読んで理解している
 - [ ] 破壊的変更がある場合、その旨を明記している
 
