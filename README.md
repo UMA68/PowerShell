@@ -3,6 +3,8 @@
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.3+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
+[![Tests](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml/badge.svg)](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml)
+[![Code Quality](https://github.com/UMA68/PowerShell/actions/workflows/psscriptanalyzer.yml/badge.svg)](https://github.com/UMA68/PowerShell/actions/workflows/psscriptanalyzer.yml)
 
 実務で役立つPowerShellスクリプト・ユーティリティのコレクションです。開発、セキュリティ、システム管理、データベース操作など、さまざまな用途に対応したツールを提供します。
 
@@ -569,10 +571,14 @@ Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
 $config = New-PesterConfiguration
 $config.CodeCoverage.Enabled = $true
 $config.CodeCoverage.Path = .\Common\*.ps1
+$config.CodeCoverage.OutputPath = 'coverage.xml'
 Invoke-Pester -Configuration $config
+
+# カバレッジレポートを確認
+# coverage.xml を確認
 ```
 
-詳細は [Tests/README.md](Tests/README.md) をご覧ください。
+**詳細**: [Tests/README.md](Tests/README.md) をご覧ください。
 
 ### 7. コード品質チェック
 

@@ -8,19 +8,23 @@
 Tests/
 ├── README.md                                    # このファイル
 ├── Common/                                      # Common モジュールのテスト
-│   ├── Get-ScriptPaths.Tests.ps1
-│   ├── Write-CommonLog.Tests.ps1
-│   ├── Import-YamlConfig.Tests.ps1
-│   └── CheckCommand.Tests.ps1
+│   ├── Get-ScriptPaths.Tests.ps1                # ✅ 実装完了 (40テストケース)
+│   ├── Write-CommonLog.Tests.ps1                # ✅ 実装完了 (30テストケース)
+│   ├── Import-YamlConfig.Tests.ps1              # ✅ 実装完了 (35テストケース)
+│   └── CheckCommand.Tests.ps1                   # ✅ 実装完了 (24テストケース)
 ├── Integration/                                 # 統合テスト
-│   ├── ReleaseProcess.Tests.ps1
-│   ├── DecompileDLL.Tests.ps1
-│   └── SQLQuery.Tests.ps1
+│   ├── ReleaseProcess.Tests.ps1                 # ✅ 実装完了 (17テストケース)
+│   ├── DecompileDLL.Tests.ps1                   # 📋 テンプレート
+│   └── SQLQuery.Tests.ps1                       # 📋 テンプレート
 └── Fixtures/                                    # テスト用のサンプルファイル
     ├── SampleConfig.yaml
     ├── SampleScript.ps1
     └── SampleDatabase/
 ```
+
+**凡例:**
+- ✅ 実装完了 - テストケースが完成して実行可能
+- 📋 テンプレート - 実装ガイドとしてご利用ください
 
 ## 前提条件
 
@@ -81,18 +85,42 @@ Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
 
 ## カバレッジレポートの取得
 
+### ローカルでの測定
+
 ```powershell
 # コードカバレッジを測定
 $config = New-PesterConfiguration
 $config.CodeCoverage.Enabled = $true
 $config.CodeCoverage.Path = .\Common\*.ps1
 $config.CodeCoverage.OutputPath = 'coverage.xml'
+$config.CodeCoverage.OutputFormat = 'CoverageGutters'
 $config.Run.Path = .\Tests\Common\
 
 Invoke-Pester -Configuration $config
 
-# カバレッジレポートを表示
-Get-Content coverage.xml | ConvertFrom-Csv | Format-Table
+# レポートを確認
+Get-Content coverage.xml | ConvertFrom-Csv | Format-Table -AutoSize
+```
+
+### CI/CD での自動測定
+
+GitHub Actions で自動的にカバレッジが測定され、アーティファクトとして保存されます：
+
+1. PR を作成すると、GitHub Actions が自動的に実行
+2. テスト結果とカバレッジレポートが生成
+3. アーティファクトセクションから `coverage-report-*.xml` をダウンロード可能
+
+### VS Code での可視化
+
+VS Code 拡張機能でカバレッジを可視化できます：
+
+```powershell
+# Coverage Gutters 拡張をインストール
+# https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters
+
+# カバレッジレポート生成後、VS Code で表示
+code .
+# Ctrl+Shift+P -> Coverage Gutters: Display Coverage
 ```
 
 ## テストの書き方

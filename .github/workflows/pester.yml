@@ -149,6 +149,35 @@ jobs:
         
         Write-Host "`n" + "="*70 -ForegroundColor Cyan
         
+    - name: コードカバレッジを測定
+      shell: pwsh
+      run: |
+        Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
+        
+        $config = New-PesterConfiguration
+        $config.Run.Path = '.\Tests\Common\'
+        $config.CodeCoverage.Enabled = $true
+        $config.CodeCoverage.Path = '.\Common\*.ps1'
+        $config.CodeCoverage.OutputPath = 'coverage.xml'
+        $config.CodeCoverage.OutputFormat = 'CoverageGutters'
+        $config.Output.Verbosity = 'Minimal'
+        
+        $results = Invoke-Pester -Configuration $config -PassThru
+        
+        # カバレッジレポートを表示
+        if ($results.CodeCoverage) {
+          Write-Host "`nコードカバレッジ結果:" -ForegroundColor Cyan
+          Write-Host "測定ファイル数: $($results.CodeCoverage.Count)" -ForegroundColor Yellow
+        }
+        
+    - name: カバレッジレポートをアップロード
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ matrix.powershell-version }}
+        path: coverage.xml
+        retention-days: 30
+        
     - name: テスト失敗時のログをアップロード
       if: failure()
       uses: actions/upload-artifact@v4
