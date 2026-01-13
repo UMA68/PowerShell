@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 質問・相談
+    url: https://github.com/UMA68/PowerShell/discussions
+    about: 使い方の質問や一般的な相談はDiscussionsをご利用ください
+  - name: 📖 ドキュメント
+    url: https://github.com/UMA68/PowerShell/blob/main/README.md
+    about: READMEや各ツールのドキュメントをご確認ください

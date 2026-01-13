@@ -1,0 +1,154 @@
+name: PSScriptAnalyzer
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - 'PSScriptAnalyzerSettings.psd1'
+      - '.github/workflows/psscriptanalyzer.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - 'PSScriptAnalyzerSettings.psd1'
+      - '.github/workflows/psscriptanalyzer.yml'
+
+jobs:
+  analyze:
+    name: PSScriptAnalyzer コード品質チェック
+    runs-on: windows-latest
+    
+    steps:
+    - name: リポジトリをチェックアウト
+      uses: actions/checkout@v4
+      
+    - name: PowerShell 7 をセットアップ
+      uses: actions/setup-powershell@v1
+      
+    - name: PSScriptAnalyzer をインストール
+      shell: pwsh
+      run: |
+        Set-PSRepository PSGallery -InstallationPolicy Trusted
+        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+        
+    - name: PSScriptAnalyzer バージョンを表示
+      shell: pwsh
+      run: |
+        Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
+        
+    - name: PSScriptAnalyzer を実行
+      shell: pwsh
+      run: |
+        Write-Host "PSScriptAnalyzer によるコード解析を開始します..." -ForegroundColor Cyan
+        
+        # PSScriptAnalyzer 設定ファイルのパス
+        $settingsPath = Join-Path $env:GITHUB_WORKSPACE "PSScriptAnalyzerSettings.psd1"
+        
+        # 解析対象のパス
+        $paths = @(
+          "Common",
+          "DecompileDLL/Script",
+          "DotnetSdk削除/Script",
+          "dotNetSdkUninstallToolの入手/Script",
+          "ILSpyCmdの入手/Script",
+          "Node.js通信ブロック対応/Script",
+          "SQLクエリー実行/Script",
+          "ファイルアクセスブロック解除/Script",
+          "リリースバッチ/Script",
+          "必要なモジュールの導入/Script",
+          "暗号化鍵の作成/Script",
+          "暗号化文字列の作成/Script",
+          "暗号化文字列の復元/Script",
+          "Excelの操作"
+        )
+        
+        $allResults = @()
+        $errorCount = 0
+        $warningCount = 0
+        $infoCount = 0
+        
+        foreach ($path in $paths) {
+          $fullPath = Join-Path $env:GITHUB_WORKSPACE $path
+          if (Test-Path $fullPath) {
+            Write-Host "`n📁 解析中: $path" -ForegroundColor Yellow
+            $results = Invoke-ScriptAnalyzer -Path $fullPath -Recurse -Settings $settingsPath
+            $allResults += $results
+            
+            if ($results) {
+              $pathErrors = ($results | Where-Object Severity -eq 'Error').Count
+              $pathWarnings = ($results | Where-Object Severity -eq 'Warning').Count
+              $pathInfo = ($results | Where-Object Severity -eq 'Information').Count
+              
+              $errorCount += $pathErrors
+              $warningCount += $pathWarnings
+              $infoCount += $pathInfo
+              
+              Write-Host "  エラー: $pathErrors, 警告: $pathWarnings, 情報: $pathInfo" -ForegroundColor Gray
+            } else {
+              Write-Host "  ✅ 問題なし" -ForegroundColor Green
+            }
+          } else {
+            Write-Host "  ⚠️ パスが見つかりません: $fullPath" -ForegroundColor DarkGray
+          }
+        }
+        
+        # 結果のサマリー表示
+        Write-Host "`n" + "="*70 -ForegroundColor Cyan
+        Write-Host "PSScriptAnalyzer 解析結果サマリー" -ForegroundColor Cyan
+        Write-Host "="*70 -ForegroundColor Cyan
+        Write-Host "エラー    : $errorCount" -ForegroundColor $(if ($errorCount -gt 0) { 'Red' } else { 'Green' })
+        Write-Host "警告      : $warningCount" -ForegroundColor $(if ($warningCount -gt 0) { 'Yellow' } else { 'Green' })
+        Write-Host "情報      : $infoCount" -ForegroundColor $(if ($infoCount -gt 0) { 'Cyan' } else { 'Green' })
+        Write-Host "="*70 -ForegroundColor Cyan
+        
+        # 詳細な問題の表示（エラーと警告のみ）
+        if ($errorCount -gt 0 -or $warningCount -gt 0) {
+          Write-Host "`n詳細な問題:" -ForegroundColor Yellow
+          $allResults | Where-Object { $_.Severity -eq 'Error' -or $_.Severity -eq 'Warning' } | 
+            Format-Table -Property @{
+              Label = 'Severity'
+              Expression = { $_.Severity }
+              Width = 10
+            }, @{
+              Label = 'RuleName'
+              Expression = { $_.RuleName }
+              Width = 35
+            }, @{
+              Label = 'ScriptName'
+              Expression = { Split-Path $_.ScriptName -Leaf }
+              Width = 25
+            }, @{
+              Label = 'Line'
+              Expression = { $_.Line }
+              Width = 5
+            }, @{
+              Label = 'Message'
+              Expression = { $_.Message }
+            } -AutoSize
+        }
+        
+        # エラーが存在する場合は終了コード1で失敗させる
+        if ($errorCount -gt 0) {
+          Write-Host "`n❌ PSScriptAnalyzer チェック失敗: $errorCount 個のエラーが見つかりました" -ForegroundColor Red
+          exit 1
+        } elseif ($warningCount -gt 0) {
+          Write-Host "`n⚠️ PSScriptAnalyzer チェック完了: $warningCount 個の警告があります" -ForegroundColor Yellow
+          # 警告は失敗扱いにしない（必要に応じて exit 1 に変更可能）
+          exit 0
+        } else {
+          Write-Host "`n✅ PSScriptAnalyzer チェック合格: 問題は見つかりませんでした" -ForegroundColor Green
+          exit 0
+        }
+        
+    - name: 結果をアップロード（エラー時のみ）
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: psscriptanalyzer-results
+        path: ${{ github.workspace }}
+        retention-days: 30
