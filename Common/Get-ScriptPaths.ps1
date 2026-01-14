@@ -7,6 +7,19 @@
     親ディレクトリ、PowerShell ルート、共通スクリプト格納ディレクトリなど
     プロジェクト全体で使用される重要なパスを計算して返します。
     
+    パス階層構造:
+    PowerShell ルート/
+    ├─ Upper (スクリプト実行フォルダの親)
+    │  ├─ YAML (設定ファイル)
+    │  ├─ LOG (ログファイル)
+    │  └─ Script (スクリプト実行ディレクトリ)
+    └─ Common (共通スクリプト)
+    
+    呼び出し元の自動検出メカニズム:
+    1. $PSCommandPath で呼び出し元スクリプトパス取得
+    2. 失敗時は Get-PSCallStack のコールスタック検索
+    3. 失敗時はカレントディレクトリを使用（警告表示）
+    
     返却されるハッシュテーブルには以下のキーが含まれます：
     - Script      : スクリプト実行ディレクトリ
     - Upper       : スクリプト実行ディレクトリの親ディレクトリ
@@ -14,48 +27,79 @@
     - Yaml        : YAML 設定ファイル格納ディレクトリ
     - Log         : ログファイル格納ディレクトリ
     - Common      : 共通スクリプト格納ディレクトリ
-    - EnvFile     : 環境設定ファイルのフルパス（オプション）
+    - EnvFile     : 環境設定ファイルのフルパス（EnvFileName 指定時のみ）
 
 .PARAMETER ScriptPath
-    基準となるスクリプトのパス。デフォルト: 呼び出し元のスクリプトパス
+    基準となるスクリプトのパス。デフォルト: 呼び出し元のスクリプトパス（自動検出）
     
-    このパラメーターは通常、自動的に $MyInvocation.MyCommand.Path が設定されます。
+    指定しない場合の検出順序:
+    1. $PSCommandPath で呼び出し元スクリプトを取得
+    2. 失敗時は Get-PSCallStack のコールスタック[1] から取得
+    3. 失敗時はカレントディレクトリを使用（警告表示）
+    
     テスト時など、明示的にパスを指定することも可能です。
+    
+    パラメーター検証:
+    - 空白のみの入力は不可
+    - ファイルまたはディレクトリが存在する必要があります
 
 .PARAMETER EnvFileName
     環境設定ファイル名。デフォルト: ""（空文字列＝EnvFile キーを含めない）
     
     指定した場合、EnvFile キーに YAML ディレクトリ配下のファイルパスが設定されます。
     例: -EnvFileName "Env.yaml"
+    
+    ファイルの存在確認は行わず、パスのみを計算して返却します。
+    ファイルの実在確認は呼び出し元で行うことが推奨されます。
 
 .EXAMPLE
-    # 基本的な使用方法
+    # 基本的な使用方法（呼び出し元スクリプトパスを自動検出）
     $paths = Get-ScriptPaths
     Write-Host "スクリプトディレクトリ: $($paths.Script)"
     Write-Host "PowerShell ルート: $($paths.PowerShell)"
     Write-Host "共通スクリプト: $($paths.Common)"
 
 .EXAMPLE
-    # 環境設定ファイルパスを含める
+    # 環境設定ファイルパスを含める（ファイル存在確認は別途実施）
     $paths = Get-ScriptPaths -EnvFileName "EnvDEV.yaml"
-    Write-Host "環境設定ファイル: $($paths.EnvFile)"
+    if (Test-Path -Path $paths.EnvFile) {
+        Write-Host "環境設定ファイル: $($paths.EnvFile)"
+    } else {
+        Write-Warning "環境設定ファイルが見つかりません: $($paths.EnvFile)"
+    }
 
 .EXAMPLE
-    # 返却値の全キーを表示
+    # テスト時に明示的にパスを指定
+    $testPath = "C:\Test\Script\test.ps1"
+    $paths = Get-ScriptPaths -ScriptPath $testPath
+    Write-Host "テスト用パス計算: $($paths.PowerShell)"
+
+.EXAMPLE
+    # 返却値の全キーを表示（パス階層構造の確認）
     $paths = Get-ScriptPaths
     $paths.GetEnumerator() | ForEach-Object {
         Write-Host "$($_.Key): $($_.Value)"
     }
+    # 出力例:
+    # Script: C:\Users\...\Project\Script
+    # Upper: C:\Users\...\Project
+    # PowerShell: C:\Users\...\
+    # Yaml: C:\Users\...\Project\YAML
+    # Log: C:\Users\...\Project\LOG
+    # Common: C:\Users\...\Common
 
 .OUTPUTS
     [hashtable] 以下のキーを持つハッシュテーブル:
     - Script      : スクリプトディレクトリパス
-    - Upper       : 親ディレクトリパス
+    - Upper       : 親ディレクトリパス（プロジェクトルート配下）
     - PowerShell  : PowerShell ルートパス
     - Yaml        : YAML ディレクトリパス
     - Log         : LOG ディレクトリパス
     - Common      : Common ディレクトリパス
-    - EnvFile     : 環境設定ファイルパス（EnvFileName 指定時のみ）
+    - EnvFile     : 環境設定ファイルパス（EnvFileName 指定時のみ、ファイル存在確認はしない）
+    
+    注意: EnvFile キーはファイルの存在確認を行わず、パス文字列のみを返却します。
+    ファイルの実在確認は呼び出し元で実施してください。
 
 .FUNCTIONALITY
     スクリプト関連パスの計算と取得
@@ -63,24 +107,39 @@
 .NOTES
     File Name      : Get-ScriptPaths.ps1
     Author         : UMA68
-    Version        : 1.1.0
-    Release Date   : 2025-12-11
+    Version        : 1.2.0
+    Release Date   : 2026-01-14
     Prerequisite   : PowerShell 5.1 以上
     
     変更履歴:
+    v1.2.0 (2026-01-14)
+        - $PSCommandPath → Get-PSCallStack → Get-Location のフォールバック検出順序を実装・記載
+        - パス階層構造を図示してドキュメント記載
+        - ValidateScript による パス存在確認を実装・記載
+        - ScriptPath パラメータの検出順序を詳細ドキュメント記載
+        - エラーハンドリング詳細化（ParameterBindingException、IOException）
+        - EnvFile キーの存在確認を行わない仕様をドキュメント記載
+        - PSUseSingularNouns SuppressMessageAttribute の理由を記載
+        - テスト用パスの例を追加
+        - 出力例を詳細化
+    
     v1.1.0 (2025-12-11)
         - ハッシュテーブルの文法を修正（キー = 値 形式に統一）
-        - 到達不可能なコード（Mutex イベント登録）を削除
         - $envFileName をパラメーター化
-        - ヘルプドキュメント全体を追加
         - 返却するハッシュテーブルの構造を明確化
         - エラーハンドリングを追加
-        - スコープ変数管理に対応
-        - 単一責務（パス計算のみ）に特化
-        - 古いコメント化コードを削除
     
     v1.0.0 (2025-12-10)
         - 初版リリース
+    
+    既知の制限:
+    - スクリプト実行パスが自動検出できない場合はカレントディレクトリを使用（警告表示）
+    - EnvFile キーはパス計算のみで、ファイル存在確認は実施しない
+    - パス階層構造が想定と異なる環境では手動での ScriptPath 指定が必要
+    
+    PSUseSingularNouns Suppression:
+    - 関数名を Paths（複数形）としているのは、複数のパスを返すためです
+    - パス計算の責務を強調するため Get-ScriptPaths としています
 
 .LINK
     GitHub: https://github.com/UMA68/PowerShell
