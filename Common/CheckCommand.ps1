@@ -76,35 +76,36 @@ function Test-Command {
     param (
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
+        [ValidateScript({
+                if ($_ -match '[\*\?\[\]]') {
+                    Write-Warning "コマンド名にワイルドカード文字が含まれています: $_"
+                }
+                $true
+            })]
         [string]$ComName = "nkf32",     # 存在確認対象のコマンド名
         
         [Parameter(Mandatory = $false)]
         [switch]$ShowDialog = $false    # ダイアログ表示オプション
     )
     
-    begin {
-        # 入力値の検証
-        if ($ComName -match '[\*\?\[\]]') { # ワイルドカード文字の警告
-            Write-Warning "コマンド名にワイルドカード文字が含まれています: $ComName"
-        }
-    }
-    
     process {
         try {
             # 指定したコマンドの存在を確認
-            $script:ChkCommand = Get-Command -Name $ComName -ErrorAction Stop
+            $command = Get-Command -Name $ComName -ErrorAction Stop
+            
+            Write-Verbose "コマンド '$ComName' が見つかりました。(型: $($command.CommandType), パス: $($command.Source))"
             return $true
         }
-        catch {
+        catch [System.Management.Automation.CommandNotFoundException] {
             # コマンドが見つからない場合
-            $errorMessage = "コマンド '$ComName' が見つかりません。`nパスが通っていることを確認してください。"
+            $errorMessage = "コマンド '$ComName' が見つかりません。パスが通っていることを確認してください。"
             
-            if ($ShowDialog) { # ダイアログ表示オプションが有効な場合
+            if ($ShowDialog) {
                 # ダイアログで警告を表示
                 $obj = New-Object -ComObject WScript.Shell
                 try {
                     $obj.Popup(
-                        $ComName + "が見つかりません。`r`nパスが通っていることを確認してください。",
+                        "コマンド '$ComName' が見つかりません。`r`nパスが通っていることを確認してください。",
                         0,
                         "警告",
                         0x30
@@ -112,18 +113,23 @@ function Test-Command {
                 }
                 finally {
                     # COM オブジェクトを確実に解放
-                    if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                    if ($null -ne $obj) {
                         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
                         [System.GC]::Collect()
                         [System.GC]::WaitForPendingFinalizers()
                     }
                 }
             }
-            else { # ダイアログ表示オプションが無効な場合
+            else {
                 # コンソールにエラーを表示
                 Write-Error $errorMessage -ErrorAction Continue
             }
             
+            return $false
+        }
+        catch {
+            # その他の予期しないエラー
+            Write-Error "コマンド確認中に予期しないエラーが発生しました: $($_.Exception.Message)" -ErrorAction Continue
             return $false
         }
     }

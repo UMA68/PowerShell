@@ -91,58 +91,84 @@
 function Get-ScriptPaths {
     [CmdletBinding()]
     [OutputType([hashtable])]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = '複数のパスを返すため複数形が適切')]
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ScriptPath,        # 基準となるスクリプトのパス
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$EnvFileName = ""   # 環境設定ファイル名
     )
     
     begin {
         # ScriptPath が指定されていない場合、呼び出し元のパスを使用
-        if ([string]::IsNullOrEmpty($ScriptPath)) { # ScriptPath が空の場合
-            # $MyInvocation.MyCommand.Path は関数内では関数自体を指すため、
-            # 呼び出し元のスクリプトパスを取得するには PSCommandPath を使用
+        if ([string]::IsNullOrEmpty($ScriptPath)) {
+            # 呼び出し元のスクリプトパスを取得（複数の方法を試行）
             $ScriptPath = $PSCommandPath
             
-            # PSCommandPath が空の場合（対話的実行など）は、カレントディレクトリを使用
-            if ([string]::IsNullOrEmpty($ScriptPath)) { # 依然として空の場合
+            if ([string]::IsNullOrEmpty($ScriptPath)) {
+                # コールスタックから呼び出し元のスクリプトを取得
+                $callStack = Get-PSCallStack
+                if ($callStack.Count -gt 1) {
+                    $ScriptPath = $callStack[1].ScriptName
+                }
+            }
+            
+            # それでも取得できない場合はカレントディレクトリを使用
+            if ([string]::IsNullOrEmpty($ScriptPath)) {
                 $ScriptPath = (Get-Location).Path
                 Write-Warning "スクリプトパスが取得できませんでした。カレントディレクトリを使用します: $ScriptPath"
+            }
+        }
+        
+        # パスの検証
+        if (!(Test-Path -Path $ScriptPath -PathType Leaf)) {
+            # ファイルでない場合、ディレクトリとして扱う
+            if (!(Test-Path -Path $ScriptPath -PathType Container)) {
+                Write-Error "指定されたパスが存在しません: $ScriptPath" -ErrorAction Stop
             }
         }
     }
     
     process {
         try {
-            # 各パスを計算
-            $script:ScriptDir = Split-Path -Path $ScriptPath -Parent                        # スクリプト実行ディレクトリ
-            $script:UpperDir = Split-Path -Path $script:ScriptDir -Parent                   # 親ディレクトリ
-            $script:PowerShellDir = Split-Path -Path $script:UpperDir -Parent               # PowerShell ルートディレクトリ
-            $script:YamlDir = Join-Path -Path $script:UpperDir -ChildPath "YAML"            # YAML ディレクトリ
-            $script:LogDir = Join-Path -Path $script:UpperDir -ChildPath "LOG"              # LOG ディレクトリ
-            $script:CommonDir = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # Common ディレクトリ
+            # 各パスを計算（ローカル変数を使用）
+            $scriptDir = Split-Path -Path $ScriptPath -Parent
+            if ([string]::IsNullOrEmpty($scriptDir)) {
+                throw "スクリプトディレクトリの取得に失敗しました: $ScriptPath"
+            }
+            
+            $upperDir = Split-Path -Path $scriptDir -Parent
+            $powerShellDir = Split-Path -Path $upperDir -Parent
+            $yamlDir = Join-Path -Path $upperDir -ChildPath "YAML"
+            $logDir = Join-Path -Path $upperDir -ChildPath "LOG"
+            $commonDir = Join-Path -Path $powerShellDir -ChildPath "Common"
             
             # ハッシュテーブルを構築
-            $script:PathsTable = @{ # ハッシュテーブル初期化
-                Script      = $script:ScriptDir
-                Upper       = $script:UpperDir
-                PowerShell  = $script:PowerShellDir
-                Yaml        = $script:YamlDir
-                Log         = $script:LogDir
-                Common      = $script:CommonDir
+            $pathsTable = @{
+                Script = $scriptDir
+                Upper = $upperDir
+                PowerShell = $powerShellDir
+                Yaml = $yamlDir
+                Log = $logDir
+                Common = $commonDir
             }
             
             # EnvFileName が指定されている場合、EnvFile キーを追加
-            if (-not [string]::IsNullOrEmpty($EnvFileName)) { # EnvFileName が空でない場合
-                $script:EnvPath = Join-Path -Path $script:YamlDir -ChildPath $EnvFileName
-                $script:PathsTable.Add("EnvFile", $script:EnvPath)
+            if (![string]::IsNullOrEmpty($EnvFileName)) {
+                $envPath = Join-Path -Path $yamlDir -ChildPath $EnvFileName
+                $pathsTable.Add("EnvFile", $envPath)
             }
             
-            Write-Verbose "パス計算完了: Script=$($script:ScriptDir), PowerShell=$($script:PowerShellDir)"
+            Write-Verbose "パス計算完了: Script=$scriptDir, PowerShell=$powerShellDir"
             
-            return $script:PathsTable
+            return $pathsTable
+        }
+        catch [System.Management.Automation.ParameterBindingException] {
+            Write-Error "パラメーターが無効です: $($_.Exception.Message)" -ErrorAction Stop
+        }
+        catch [System.IO.IOException] {
+            Write-Error "パス操作に失敗しました: $($_.Exception.Message)" -ErrorAction Stop
         }
         catch {
             Write-Error "パス計算に失敗しました。詳細: $($_.Exception.Message)" -ErrorAction Stop

@@ -62,52 +62,55 @@ function Get-EncryptionKey {
     [CmdletBinding()]
     [OutputType([byte[]])]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
+        [ValidateScript({
+                if (!(Test-Path -Path $_ -PathType Leaf)) {
+                    throw "鍵ファイルが存在しません: $_"
+                }
+                if ($_ -match '[\*\?]') {
+                    Write-Warning "パスにワイルドカード文字が含まれています: $_"
+                }
+                $true
+            })]
         [string]$KeyPath    # 鍵ファイルへのパス
     )
-    
-    begin {
-        # パス検証
-        if ($KeyPath -match '[\*\?]') { # ワイルドカード文字の検出
-            Write-Warning "パスにワイルドカード文字が含まれています: $KeyPath"
-        }
-    }
     
     process {
         try {
             # 絶対パスに変換
-            $script:ResolvedPath = Resolve-Path -Path $KeyPath -ErrorAction Stop
-            
-            # ファイルが存在するか確認
-            if (-not (Test-Path -Path $script:ResolvedPath -PathType Leaf)) { # ファイルが存在しない場合
-                throw "ファイルが見つかりません: $script:ResolvedPath"
-            }
+            $resolvedPath = (Resolve-Path -Path $KeyPath -ErrorAction Stop).Path
             
             # ファイルが読み取り可能か確認
-            try {
-                $script:KeyBytes = [System.IO.File]::ReadAllBytes($script:ResolvedPath)
+            $fileInfo = Get-Item -Path $resolvedPath -ErrorAction Stop
+            if ($fileInfo.IsReadOnly -and !(Test-Path -Path $resolvedPath -PathType Leaf)) {
+                throw "ファイル『$resolvedPath』への読み取りアクセス権がありません。"
             }
-            catch [System.UnauthorizedAccessException] {
-                throw "ファイル『$script:ResolvedPath』への読み取りアクセス権がありません。"
-            }
-            catch {
-                throw "鍵ファイルの読み込みに失敗しました: $($_.Exception.Message)"
-            }
+            
+            # 鍵ファイルを読み込む
+            $keyBytes = [System.IO.File]::ReadAllBytes($resolvedPath)
             
             # 鍵サイズを検証（128/192/256 ビット = 16/24/32 バイト）
             $validSizes = @(16, 24, 32)
-            if ($script:KeyBytes.Length -notin $validSizes) { # 鍵サイズが無効な場合
-                throw "鍵ファイルのサイズが無効です。サイズ: $($script:KeyBytes.Length) バイト。有効なサイズ: 16, 24, 32 バイト"
+            if ($keyBytes.Length -notin $validSizes) {
+                throw "鍵ファイルのサイズが無効です。サイズ: $($keyBytes.Length) バイト。有効なサイズ: 16, 24, 32 バイト"
             }
             
-            Write-Verbose "鍵ファイルを読み込みました。パス: $script:ResolvedPath、鍵サイズ: $($script:KeyBytes.Length) バイト"
+            Write-Verbose "鍵ファイルを読み込みました。パス: $resolvedPath、鍵サイズ: $($keyBytes.Length) バイト"
             
-            return $script:KeyBytes
+            return $keyBytes
+        }
+        catch [System.UnauthorizedAccessException] {
+            Write-Error "ファイル『$KeyPath』への読み取りアクセスが拒否されました。管理者権限が必要な可能性があります。" -ErrorAction Stop
+        }
+        catch [System.IO.FileNotFoundException] {
+            Write-Error "鍵ファイルが見つかりません: $KeyPath" -ErrorAction Stop
+        }
+        catch [System.IO.IOException] {
+            Write-Error "鍵ファイルの読み込み中にI/Oエラーが発生しました: $($_.Exception.Message)" -ErrorAction Stop
         }
         catch {
-            $errorMessage = "鍵ファイルの取得に失敗しました。`n詳細: $($_.Exception.Message)"
-            Write-Error $errorMessage -ErrorAction Stop
+            Write-Error "鍵ファイルの取得に失敗しました。詳細: $($_.Exception.Message)" -ErrorAction Stop
         }
     }
 }

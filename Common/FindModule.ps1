@@ -106,43 +106,50 @@ function Test-ModuleInstalled {
     process {
         try {
             # 指定したモジュールの存在を確認（ネイティブフィルター使用）
-            $script:Module = Get-Module -Name $ModuleName -ListAvailable -ErrorAction Stop
+            $modules = Get-Module -Name $ModuleName -ListAvailable -ErrorAction SilentlyContinue
+            
+            if ($null -eq $modules -or $modules.Count -eq 0) {
+                throw "モジュール '$ModuleName' がインストールされていません。"
+            }
+            
+            # 複数バージョンがある場合、最新バージョンを取得
+            $latestModule = $modules | Sort-Object -Property Version -Descending | Select-Object -First 1
             
             # 最小バージョンを指定した場合、検査
-            if ($PSBoundParameters.ContainsKey('MinimumVersion')) { # MinimumVersion が指定されているか
-                if ($script:Module.Version -lt $MinimumVersion) { # バージョン不足
-                    throw "モジュール '$ModuleName' のバージョンが不足しています。必要バージョン: $MinimumVersion、現在: $($script:Module.Version)"
+            if ($PSBoundParameters.ContainsKey('MinimumVersion')) {
+                if ($latestModule.Version -lt $MinimumVersion) {
+                    throw "モジュール '$ModuleName' のバージョンが不足しています。必要バージョン: $MinimumVersion、現在: $($latestModule.Version)"
                 }
             }
             
-            Write-Output "モジュール '$ModuleName' (バージョン: $($script:Module.Version)) が見つかりました。"
+            Write-Verbose "モジュール '$ModuleName' (バージョン: $($latestModule.Version)) が見つかりました。"
             return $true
         }
         catch {
-            # モジュールが見つからない場合
-            $errorMessage = "モジュール '$ModuleName' が見つかりません。`n詳細情報: $($_.Exception.Message)"
+            # モジュールが見つからない場合、またはバージョン不足の場合
+            $errorMessage = $_.Exception.Message
             
-            if ($ShowDialog) { # ダイアログ表示オプションが有効な場合
+            if ($ShowDialog) {
                 # ダイアログで警告を表示
                 $obj = New-Object -ComObject WScript.Shell
                 try {
-                    $obj.Popup(
-                        "モジュール '$ModuleName' が見つかりません。`r`nインストールしてください。",
-                        0,
-                        "警告",
-                        0x30
-                    ) | Out-Null
+                    $dialogMessage = if ($errorMessage -match 'バージョンが不足') {
+                        $errorMessage
+                    } else {
+                        "モジュール '$ModuleName' が見つかりません。`r`nインストールしてください。"
+                    }
+                    $obj.Popup($dialogMessage, 0, "警告", 0x30) | Out-Null
                 }
                 finally {
                     # COM オブジェクトを確実に解放
-                    if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                    if ($null -ne $obj) {
                         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
                         [System.GC]::Collect()
                         [System.GC]::WaitForPendingFinalizers()
                     }
                 }
             }
-            else { # ダイアログ表示オプションが無効な場合
+            else {
                 # コンソールにエラーを表示
                 Write-Error $errorMessage -ErrorAction Continue
             }
