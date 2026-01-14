@@ -72,12 +72,13 @@
 #>
 function Test-Command {
     [CmdletBinding()]
+    [OutputType([bool])]
     param (
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [string]$ComName = "nkf32",     # 存在確認対象のコマンド名
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [switch]$ShowDialog = $false    # ダイアログ表示オプション
     )
     

@@ -83,15 +83,16 @@
 
 function Test-ModuleInstalled {
     [CmdletBinding()]
+    [OutputType([bool])]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$ModuleName,            # 確認対象のモジュール名
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [version]$MinimumVersion,       # 最小バージョン（オプション）
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [switch]$ShowDialog = $false    # コマンドが見つからない場合
     )
     
