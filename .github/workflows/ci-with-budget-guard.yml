@@ -1,0 +1,164 @@
+
+name: CI with Budget Guard
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+# 無駄な同時実行を止めて分課金を抑制
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # === 予算ガードの閾値（徳永さんの環境に合わせて変更） ===
+  # Actions minutes（月内の「請求対象分」）上限
+  MAX_ACTIONS_MINUTES: "2000"   # 例: Freeなら2000、Proなら3000、Teamなら3000/組織、Enterpriseなら50000など
+  # 共有ストレージ（Artifacts/Cache/Packagesの合算）の上限（GB）
+  MAX_STORAGE_GB: "50"          # 例: Enterprise相当。実運用の無料枠・方針に合わせて変更
+  # 【組織運用】組織名（例: your-org）。個人運用なら空文字に
+  ORG_NAME: ""
+  # 【個人運用】GitHubユーザー名（例: your-username）。組織運用なら空文字に
+  # USER_NAME: ""               # デフォルトは空（手動指定時のみ有効）
+  USER_NAME: "UMA68"            # デフォルトは空（手動指定時のみ有効）
+  # 閾値の警告割合（90%到達でWarning、100%超過でStop）
+  WARN_RATIO: "0.9"
+
+jobs:
+  budget-guard:
+    name: Check Actions budget before running
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Actions billing (organization)
+        id: org_billing
+        if: env.ORG_NAME != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BILLING_TOKEN }}
+          script: |
+            const org = process.env.ORG_NAME;
+            const res = await github.request('GET /orgs/{org}/settings/billing/actions', { org });
+            core.setOutput('included', res.data.included_minutes || 0);
+            core.setOutput('used', res.data.used_minutes || 0);
+            core.setOutput('paid', res.data.total_paid_minutes || 0);
+
+      - name: Get Actions billing (user)
+        id: user_billing
+        if: env.USER_NAME != '' && env.USER_NAME != 'your-username' && env.ORG_NAME == '' && secrets.BILLING_TOKEN != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BILLING_TOKEN }}
+          script: |
+            const username = process.env.USER_NAME;
+            const res = await github.request('GET /users/{username}/settings/billing/actions', { username });
+            core.setOutput('included', res.data.included_minutes || 0);
+            core.setOutput('used', res.data.used_minutes || 0);
+            core.setOutput('paid', res.data.total_paid_minutes || 0);
+
+      - name: Get shared storage billing (organization)
+        id: org_storage
+        if: env.ORG_NAME != '' && secrets.BILLING_TOKEN != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BILLING_TOKEN }}
+          script: |
+            const org = process.env.ORG_NAME;
+            const res = await github.request('GET /orgs/{org}/settings/billing/shared-storage', { org });
+            // storage_used は現時点の使用量（GB）
+            core.setOutput('storage_used_gb', Math.round(res.data.storage_used));
+
+      - name: Get shared storage billing (user)
+        id: user_storage
+        if: env.USER_NAME != '' && env.USER_NAME != 'your-username' && env.ORG_NAME == '' && secrets.BILLING_TOKEN != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BILLING_TOKEN }}
+          script: |
+            const username = process.env.USER_NAME;
+            const res = await github.request('GET /users/{username}/settings/billing/shared-storage', { username });
+            core.setOutput('storage_used_gb', Math.round(res.data.storage_used));
+
+      - name: Warn when billing token is missing
+        if: secrets.BILLING_TOKEN == ''
+        run: echo "::warning title=Billing token missing::BILLING_TOKEN is not set. Budget guard skipped."
+
+      - name: Decide to continue or stop
+        id: decision
+        shell: bash
+        run: |
+          USED_MINUTES="${{ steps.org_billing.outputs.used || steps.user_billing.outputs.used }}"
+          INCLUDED_MINUTES="${{ steps.org_billing.outputs.included || steps.user_billing.outputs.included }}"
+          STORAGE_USED_GB="${{ steps.org_storage.outputs.storage_used_gb || steps.user_storage.outputs.storage_used_gb }}"
+          MAX_MIN="${MAX_ACTIONS_MINUTES}"
+          MAX_STO="${MAX_STORAGE_GB}"
+          WARN_PCT=$(python - <<'PY'
+          import os
+          print(int(float(os.environ['WARN_RATIO']) * 100))
+PY
+          )
+
+          echo "Used minutes: ${USED_MINUTES} / Limit: ${MAX_MIN}"
+          echo "Storage used: ${STORAGE_USED_GB} GB / Limit: ${MAX_STO} GB"
+
+          EXIT=0
+
+          # Minutes: 90%で警告、100%超過で停止
+          if [ -n "${USED_MINUTES}" ] && [ -n "${MAX_MIN}" ]; then
+            if [ "${USED_MINUTES}" -ge "${MAX_MIN}" ]; then
+              echo "::error title=Budget exceeded::Actions minutes exceeded monthly limit (${USED_MINUTES} >= ${MAX_MIN})."
+              EXIT=1
+            elif [ $((USED_MINUTES*100 / MAX_MIN)) -ge "${WARN_PCT}" ]; then
+              echo "::warning title=Budget near limit::Actions minutes at ${USED_MINUTES}/${MAX_MIN}."
+            fi
+          fi
+
+          # Storage: 90%で警告、100%超過で停止
+          if [ -n "${STORAGE_USED_GB}" ] && [ -n "${MAX_STO}" ]; then
+            if [ "${STORAGE_USED_GB}" -ge "${MAX_STO}" ]; then
+              echo "::error title=Storage exceeded::Shared storage exceeded limit (${STORAGE_USED_GB}GB >= ${MAX_STO}GB)."
+              EXIT=1
+            elif [ $((STORAGE_USED_GB*100 / MAX_STO)) -ge "${WARN_PCT}" ]; then
+              echo "::warning title=Storage near limit::Shared storage at ${STORAGE_USED_GB}GB/${MAX_STO}GB."
+            fi
+          fi
+
+          # 超過なら即終了（後続ジョブは走らない）
+          if [ "${EXIT}" -ne 0 ]; then
+            echo "Stopping workflow early to avoid overage."
+            exit 1
+          fi
+
+  # 以降の重いCIは「budget-guard」が通った時だけ実行
+  build_test:
+    needs: [ budget-guard ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip heavy CI (placeholder)
+        run: echo "Skipping build/test here. Use dedicated workflows (pester.yml, psscriptanalyzer.yml)."
+
+  # 例：PR時の軽量ジョブ（ユニットテストのみ）
+  pr_unit:
+    if: github.event_name == 'pull_request'
+    needs: [ budget-guard ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip unit placeholder
+        run: echo "Skipping unit tests here. Use dedicated workflows (pester.yml)."
