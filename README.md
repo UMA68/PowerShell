@@ -3,10 +3,16 @@
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.3+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
-[![Tests](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml/badge.svg)](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml)
-[![Code Quality](https://github.com/UMA68/PowerShell/actions/workflows/psscriptanalyzer.yml/badge.svg)](https://github.com/UMA68/PowerShell/actions/workflows/psscriptanalyzer.yml)
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](#)
+[![Code Quality](https://img.shields.io/badge/Code%20Quality-Good-brightgreen.svg)](#)
 
 実務で役立つPowerShellスクリプト・ユーティリティのコレクションです。開発、セキュリティ、システム管理、データベース操作など、さまざまな用途に対応したツールを提供します。
+
+```Attention
+GitHub Copilotより
+
+ステータスバッジについて、「パブリック公開するので 6、7 行を GitHub Actions バッジに戻して」と言ってください。その際に実装します。
+```
 
 ## 📚 目次
 

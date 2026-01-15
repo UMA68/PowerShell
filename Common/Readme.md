@@ -5,10 +5,13 @@
 ## 前提条件
 
 - PowerShell 5.1以上
-- 必要に応じてPowerShell-Yaml (0.4.7+) — Import-YamlConfigで利用
-	- インストール例: `Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7`
+- 必要に応じてPowerShell-Yaml (0.4.7+) — `Import-YamlConfig` で利用
+	- インストール: `Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force`
 	- バージョン確認: `Get-Module PowerShell-Yaml -ListAvailable | Select Name,Version`
-- ShowDialogオプションはWindowsのCOM (`WScript.Shell`) 依存。Linux/macOSでは無効または例外になるためオフにしてください。
+	- アンインストール: `Uninstall-Module -Name PowerShell-Yaml`
+- ShowDialogオプション（ダイアログ表示）はWindowsのCOM (`WScript.Shell`) に依存
+	- Linux/macOSでは `ShowDialog` は無効または例外が発生するため、パラメーターを省略するか `$false` を指定してください
+- 各スクリプトの詳細情報は `-Verbose` フラグで確認可能（例：`Get-Help Test-Command -Verbose`）
 
 ## 使い方
 
@@ -30,7 +33,7 @@ if (-not (Test-Command -ComName "nkf32")) { return }
 if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.4.7")) { return }
 $paths = Get-ScriptPaths -EnvFileName "Env.yaml"
 $config = Import-YamlConfig -YamlPath $paths.EnvFile
-$key    = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.Key"  # 無ければ生成手順を案内して終了するなどのフォールバックを実装
+$key    = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.Key"
 Write-CommonLog -Message "起動完了" -LogPath "$($paths.Log)/app.log" -Level INFO
 
 # 典型的な失敗時のログ・中断パターン
@@ -46,13 +49,17 @@ if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.
 
 ## スクリプト一覧
 
-- [CheckCommand.ps1](Common/CheckCommand.ps1) — `Test-Command`: コマンドの存在を確認。`ShowDialog` で未検出時にポップアップ。
-- [FindModule.ps1](Common/FindModule.ps1) — `Test-ModuleInstalled`: モジュールの存在と最小バージョンを確認。必要に応じてダイアログ表示。
-- [Get-EncryptionKey.ps1](Common/Get-EncryptionKey.ps1) — `Get-EncryptionKey`: 鍵ファイルを読み込み、16/24/32バイトのみ受け付け。
-- [Get-ScriptPaths.ps1](Common/Get-ScriptPaths.ps1) — `Get-ScriptPaths`: 実行スクリプトを基点に主要ディレクトリ（PowerShellルート、YAML、LOG、Common）と環境ファイルパスを返却。
-- [Import-YamlConfig.ps1](Common/Import-YamlConfig.ps1) — `Import-YamlConfig`: YAMLをOrderedDictionaryで読み込み。PowerShell-Yaml依存。
-- [NoDoubleActivation.ps1](Common/NoDoubleActivation.ps1) — `Test-NoDoubleActivation`: Mutexで二重起動を防止。`ShowDialog` で警告を表示可能。
-- [Write-CommonLog.ps1](Common/Write-CommonLog.ps1) — `Write-CommonLog`: タイムスタンプ付きログ出力。INFO/WARN/ERROR/DEBUG、機密情報マスク、Quietでコンソール抑制。
+| 関数 | ファイル | 説明 | 戻り値 | 主なパラメーター |
+| --- | --- | --- | --- | --- |
+| `Test-Command` | [CheckCommand.ps1](CheckCommand.ps1) | コマンドの存在を確認 | `[bool]` | `-ComName`, `-ShowDialog` |
+| `Test-ModuleInstalled` | [FindModule.ps1](FindModule.ps1) | モジュール存在とバージョンを確認 | `[bool]` | `-ModuleName`, `-MinimumVersion`, `-ShowDialog` |
+| `Get-EncryptionKey` | [Get-EncryptionKey.ps1](Get-EncryptionKey.ps1) | 暗号化用鍵（16/24/32 B）を読み込み | `[byte[]]` | `-KeyPath` |
+| `Get-ScriptPaths` | [Get-ScriptPaths.ps1](Get-ScriptPaths.ps1) | パス情報ハッシュテーブルを計算 | `[hashtable]` | `-ScriptPath`, `-EnvFileName` |
+| `Import-YamlConfig` | [Import-YamlConfig.ps1](Import-YamlConfig.ps1) | YAML を OrderedDictionary で読み込み | `[OrderedDictionary]` | `-YamlPath` |
+| `Test-NoDoubleActivation` | [NoDoubleActivation.ps1](NoDoubleActivation.ps1) | Mutex で二重起動を防止 | `[bool]` | `-Thread`, `-ShowDialog` |
+| `Write-CommonLog` | [Write-CommonLog.ps1](Write-CommonLog.ps1) | タイムスタンプ付きログ出力 | `[void]` | `-Message`, `-LogPath`, `-Level`, `-SensitivePatterns`, `-Quiet` |
+
+詳細は各ファイルの `Get-Help` を参照してください。
 
 ## Encryption.Key について
 
@@ -79,11 +86,55 @@ Common/Encryption.Key
 | --- | --- | --- | --- |
 | Test-Command | `$true` / `$false` | なし（未検出は `$false`） | 未検出時に WARN/ERROR をログし中断 |
 | Test-ModuleInstalled | `$true` / `$false` | なし（不足は `$false`） | 不足時に ERROR をログし中断 |
-| Get-EncryptionKey | `[byte[]]` | サイズ不整合・アクセス不可で例外 | ERROR をログし中断 |
-| Get-ScriptPaths | `[hashtable]` | パス計算失敗で例外 | ERROR をログし中断 |
-| Import-YamlConfig | `OrderedDictionary` | モジュール未導入・YAML不備で例外 | ERROR をログし中断 |
-| Test-NoDoubleActivation | `$true` / `$false` | なし（多重起動は `$false`） | 多重起動時に INFO/WARN をログし終了 |
-| Write-CommonLog | なし | 書き込み不可で例外 | コンソール表示し中断 |
+| Get-EncryptionKey | `[byte[]]` | 無効サイズ・アクセス不可で例外 | 例外をキャッチし ERROR ログして中断 |
+| Get-ScriptPaths | `[hashtable]` | パス計算失敗で例外 | 例外をキャッチし ERROR ログして中断 |
+| Import-YamlConfig | `OrderedDictionary` \| `$null` | モジュール未導入・YAML 不備で例外、空ファイルは $null | 例外/null をキャッチし ERROR ログして中断 |
+| Test-NoDoubleActivation | `$true` / `$false` | なし（多重起動は `$false`） | 多重起動時に INFO/WARN ログして終了 |
+| Write-CommonLog | `[void]` | 書き込み不可で例外 | 例外をキャッチし中断 |
+
+詳細な例外型（UnauthorizedAccessException、IOExceptionなど）は各スクリプトのヘルプ（`Get-Help 関数名`）を参照してください。
+
+## Get-ScriptPaths が返却するパス構造
+
+```Shell
+PowerShell ルート/
+├─ Upper (スクリプト実行フォルダの親)
+│  ├─ YAML (paths.Yaml - 設定ファイル)
+│  ├─ LOG (paths.Log - ログファイル)
+│  └─ Script (paths.Script - スクリプト実行ディレクトリ)
+├─ Common (paths.Common - 共通スクリプト)
+└─ PowerShell (paths.PowerShell - プロジェクトルート)
+```
+
+例：リポジトリが `C:\repo\PowerShell` の場合
+
+- `paths.PowerShell` → `C:\repo\`
+- `paths.Upper` → `C:\repo\PowerShell\Script`（スクリプト実行フォルダーの親）
+- `paths.Yaml` → `C:\repo\PowerShell\Script\YAML`
+- `paths.Log` → `C:\repo\PowerShell\Script\LOG`
+- `paths.Common` → `C:\repo\PowerShell\Common`
+
+## Verbose/Debug 情報の活用
+
+各関数は `-Verbose` フラグで詳細情報を出力します：
+
+```powershell
+# Test-Command の例
+Test-Command -ComName "powershell" -Verbose
+# VERBOSE: コマンド 'powershell' が見つかりました。(型: Application, パス: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe)
+
+# Get-ScriptPaths の例
+Get-ScriptPaths -Verbose
+# VERBOSE: パス計算完了: Script=C:\repo\PowerShell\Script, PowerShell=C:\repo\
+
+# Get-EncryptionKey の例
+Get-EncryptionKey -KeyPath "C:\Keys\aes256.key" -Verbose
+# VERBOSE: 鍵ファイルを読み込みました。パス: C:\Keys\aes256.key、鍵サイズ: 32 バイト
+
+# Test-ModuleInstalled の例
+Test-ModuleInstalled -ModuleName "SqlServer" -MinimumVersion "22.1.1" -Verbose
+# VERBOSE: モジュール 'SqlServer' (バージョン: 22.2.0) が見つかりました。
+```
 
 ## 併用のヒント
 
@@ -100,3 +151,33 @@ Common/Encryption.Key
 			return
 	}
 	```
+
+## 機密情報マスキングについて
+
+`Write-CommonLog` は `-SensitivePatterns` パラメーターで機密情報をマスキングします：
+
+```powershell
+# 例: パスワードと API キーを自動マスク
+Write-CommonLog `
+    -Message "ログイン試行: password=MySecret123, api_key=abcd1234efgh5678" `
+    -LogPath "C:\Logs\app.log" `
+    -SensitivePatterns @('password', 'api_key')
+# ログ出力: 2026-01-14 14:30:00 [INFO] - ログイン試行: password=***, api_key=***
+```
+
+マスク対象：パターン直後に `:` `=` またはスペースが続く値をすべて置き換え
+
+## セキュリティのベストプラクティス
+
+### Get-EncryptionKey の安全な使用
+
+- 鍵ファイルは `.gitignore` に指定してバージョン管理から除外
+- ファイルアクセス権を制限（例：所有者のみ読み取り可能）
+- 本番環境ではAzure Key VaultやHashiCorp Vaultなどの鍵管理システム推奨
+- 参考: [暗号化鍵の作成/Readme.md](../暗号化鍵の作成/Readme.md)
+
+### ログ出力のベストプラクティス
+
+- `Write-CommonLog` で自動的に機密情報をマスク
+- ログレベルを適切に設定（DEBUGは開発時のみ有効にする）
+- ログファイルのアクセス権を制限
