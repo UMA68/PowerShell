@@ -18,6 +18,7 @@
 - **並列処理**: 複数DLLを同時に処理して高速化（`-Parallel`）
 - **リトライロジック**: 失敗時の自動リトライ（最大3回）
 - **タイムアウト制御**: 大容量DLLにも対応（デフォルト300秒）
+- **完全な非対話実行対応**: スケジューラー・CI/CD統合（`-NoKeyWait`）
 - **YAML設定**: 柔軟なカスタマイズが可能
 
 ### 📊 レポート機能
@@ -140,6 +141,23 @@ Dlls/New/    # 新バージョンのDLLファイルを配置
 .\Script\DecompileDll.ps1 -DiffTool Custom
 ```
 
+### スケジューラー実行・自動化
+
+タスクスケジューラーやCI/CDパイプラインから実行する場合は、`-NoKeyWait`を使用します。
+
+```powershell
+# スケジューラー実行用（完全に非対話）
+.\Script\DecompileDll.ps1 -NoKeyWait -Force
+
+# 並列処理 + 非対話実行
+.\Script\DecompileDll.ps1 -Parallel -NoKeyWait -Force
+
+# カスタム設定 + 非対話実行
+.\Script\DecompileDll.ps1 -EnvYaml "CustomConfig.yaml" -NoKeyWait -Force
+```
+
+**注意**: `-NoKeyWait`を使用すると、処理完了後にキー入力待ちをスキップします。差分ツールも自動起動されないため、手動で比較してください。
+
 ### その他のオプション
 
 ```powershell
@@ -182,11 +200,11 @@ Retry:
 
 # 終了コード
 ExitCodes:
- Success: 0
- GeneralError: 1
- OSNotSupported: 3
- FileNotFound: 4
- DecompileFailed: 5
+ Success: 0            # 正常終了
+ GeneralError: 1       # 一般エラー（YAML読込失敗など）
+ OSNotSupported: 3     # OS非対応（Windows 10/11以外）
+ FileNotFound: 4       # ファイル/フォルダーが見つからない
+ DecompileFailed: 5    # 逆コンパイル失敗
 
 # 表示色設定
 Colors:
@@ -401,7 +419,7 @@ foreach ($config in $configs) {
 ### CI/CD統合
 
 ```powershell
-# 自動テスト用
+# 自動テスト用（検証のみ）
 .\Script\DecompileDll.ps1 -WhatIf -Verbose
 if ($LASTEXITCODE -eq 0) {
     Write-Host "検証成功" -ForegroundColor Green
@@ -409,6 +427,14 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "検証失敗: $LASTEXITCODE" -ForegroundColor Red
     exit $LASTEXITCODE
 }
+
+# CI/CDパイプラインでの実行
+.\Script\DecompileDll.ps1 -Parallel -NoKeyWait -Force -Verbose
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "逆コンパイル失敗: 終了コード $LASTEXITCODE" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+Write-Host "逆コンパイル成功" -ForegroundColor Green
 ```
 
 ## パラメータリファレンス
@@ -422,10 +448,21 @@ if ($LASTEXITCODE -eq 0) {
 | `-Parallel` | switch | - | 並列処理モードを有効化 |
 | `-ThrottleLimit` | int | 4 | 並列処理の最大スレッド数（1-10） |
 | `-Force` | switch | - | 確認プロンプトをスキップ |
+| `-NoKeyWait` | switch | - | キー入力待機をスキップ（スケジューラー・CI/CD用） |
 | `-WhatIf` | switch | - | 実行せずに動作を確認 |
 | `-Verbose` | switch | - | 詳細ログを表示 |
 
 ## バージョン履歴
+
+### v2.1.0 (2026-01-15)
+
+- 🤖 完全な非対話実行対応（`-NoKeyWait`パラメータ追加）
+- 🛠️ ShowConfig機能の実装（設定内容表示）
+- 🔧 COM オブジェクト管理の改善（`Show-ErrorPopup`の安全性向上）
+- 📝 変数スコープの統一（`$script:timestamp`への一元化）
+- 🎯 終了コード参照の統一（全て`$script:`プレフィックス付き）
+- ✅ PSScriptAnalyzer完全準拠（0違反達成）
+- 📖 ヘルプドキュメントの全面更新
 
 ### v2.0.0 (2025-12-03)
 
