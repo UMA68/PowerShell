@@ -128,9 +128,9 @@
         https://github.com/UMA68/PowerShell
 #>
 
-[CmdletBinding(SupportsShouldProcess=$true)]
+[CmdletBinding(SupportsShouldProcess = $true)]
 param (
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$SkipAdminCheck  # 管理者権限チェックをスキップ（デバッグ用）
 )
 
@@ -144,6 +144,16 @@ begin {
     
     # ===== Helper 関数: 例外タイプに基づくログレベル決定 =====
     function Get-ExceptionLogLevel {
+        <#
+        .SYNOPSIS
+            例外の種類に応じたログレベルを決定します。
+        .DESCRIPTION
+            例外オブジェクトを受け取り、その型に基づいて適切なログレベル(ERROR/WARN/DEBUG)を返します。
+        .PARAMETER Exception
+            ログレベルを判定する例外オブジェクト
+        .OUTPUTS
+            System.String - ログレベル文字列 ('ERROR', 'WARN', 'DEBUG')
+        #>
         param([Exception]$Exception)
         $exceptionType = $Exception.GetType().FullName
         switch -regex ($exceptionType) { # 正規表現マッチング
@@ -161,25 +171,49 @@ begin {
     
     # ===== Helper 関数: ログファイルの条件付きオープン =====
     function Open-LogIfNeeded {
+        <#
+        .SYNOPSIS
+            ログファイルが存在する場合に既定のアプリケーションで開きます。
+        .DESCRIPTION
+            指定されたログファイルパスが存在する場合、Invoke-Itemを使用してファイルを開きます。
+        .PARAMETER LogPath
+            開くログファイルのパス
+        #>
         param([string]$LogPath)
         if ($LogPath -and (Test-Path -Path $LogPath)) { # ログファイルが存在する場合
             try {
                 Invoke-Item -Path $LogPath -ErrorAction SilentlyContinue
-            } catch {}
+            } catch {
+                Write-Warning "Failed to open log file: $($_.Exception.Message)"
+            }
         }
     }
     
     # ===== Helper 関数: プロセスツリーの再帰的削除 =====
     function Stop-ProcessTree {
+        <#
+        .SYNOPSIS
+            指定されたプロセスとその子プロセスを再帰的に停止します。
+        .DESCRIPTION
+            指定されたプロセスIDのプロセスとそのすべての子プロセスを再帰的に検索して停止します。
+            ShouldProcessをサポートし、-WhatIfおよび-Confirmパラメータが使用可能です。
+        .PARAMETER ProcessId
+            停止するプロセスのプロセスID
+        #>
+        [CmdletBinding(SupportsShouldProcess = $true)]
         param([int]$ProcessId)
         try {
             $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
             if ($process) { # プロセスが存在する場合
                 Get-CimInstance -ClassName Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue | 
                     ForEach-Object { Stop-ProcessTree -ProcessId $_.ProcessId }
-                $process.Kill()
+                if ($PSCmdlet.ShouldProcess("PID $ProcessId", "Stop process tree")) {
+                    $process.Kill()
+                }
             }
-        } catch {}
+        } catch {
+            Write-Warning "Failed to stop process tree for PID ${ProcessId}: $($_.Exception.Message)"
+        }
     }
     
     # スクリプトの実行環境を取得
@@ -243,7 +277,7 @@ begin {
 
     # ログディレクトリの作成
     if (-not (Test-Path -Path $LogDir)) { # ログディレクトリが存在しない場合
-        try {   # ログディレクトリの作成
+        try { # ログディレクトリの作成
             New-Item -Path $LogDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
         } catch {
             $iconError = [int]$script:config.PopupIcon.Error
@@ -256,23 +290,26 @@ begin {
     }
     
     # 古いログファイルのクリーンアップ
-    try {   # 古いログファイルの削除処理
+    try { # 古いログファイルの削除処理
         $logRetentionDays = $script:config.LogCleanup.RetentionDays # ログ保持日数を取得
         $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)        # 保持日数を過ぎた日付を計算
         $logFileName = $script:config.LOG.FILENAME                  # ログファイル名を取得    
         $logExtension = $script:config.LOG.EXTENSION                # 古いログファイルを取得
-        $oldLogs = Get-ChildItem -Path $LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
-                   Where-Object { $_.LastWriteTime -lt $cutoffDate }    # 保持日数を過ぎたログファイルをフィルタリング
+        $oldLogs = Get-ChildItem -Path $LogDir -Filter "\${logFileName}_*\${logExtension}" -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt $cutoffDate }    # 保持日数を過ぎたログファイルをフィルタリング
         
         if ($oldLogs -and $oldLogs.Count -gt 0) { # 古いログファイルが存在する場合
             foreach ($oldLog in $oldLogs) { # 古いログファイルを削除
-                Remove-Item -Path $oldLog.FullName -Force -ErrorAction SilentlyContinue
+                if ($PSCmdlet.ShouldProcess($oldLog.FullName, "Remove old log file")) {
+                    Remove-Item -Path $oldLog.FullName -Force -ErrorAction SilentlyContinue
+                }
             }
             $script:CleanedLogCount = $oldLogs.Count # 削除されたログファイルの数
         } else { # 古いログファイルが存在しない場合
             $script:CleanedLogCount = 0 # 削除されたログファイルはない
         }
     } catch {
+        Write-Warning "Log cleanup failed: $($_.Exception.Message)"
         $script:CleanedLogCount = -1
     }
     
@@ -370,6 +407,20 @@ process {
 
     # メニュー表示関数
     function Show-Menu {
+        <#
+        .SYNOPSIS
+            .NET Uninstall Tool管理メニューを表示します。
+        
+        .DESCRIPTION
+            インストール、アンインストール、終了の選択肢を持つメニューを画面に表示します。
+        
+        .EXAMPLE
+            Show-Menu
+            メニューを表示します。
+        
+        .NOTES
+            この関数はヘルパー関数として内部で使用されます。
+        #>
         Write-Information ""
         Write-Information "=== .NET Uninstall Tool 管理メニュー ==="
         Write-Information "1. インストール"
@@ -378,8 +429,25 @@ process {
         Write-Information ""
     }
 
-    # インストール関数
     function Install-UninstallTool {
+        <#
+        .SYNOPSIS
+            .NET Uninstall ToolのMSIインストーラーを実行します。
+        
+        .DESCRIPTION
+            MSIファイルの存在確認、ブロック解除を行った後、msiexecを使用してインストールを実行します。
+            タイムアウト設定に基づいてインストールプロセスを監視し、完了を待機します。
+        
+        .EXAMPLE
+            Install-UninstallTool
+            .NET Uninstall Toolをインストールします。
+        
+        .OUTPUTS
+            System.Int32 - 終了コード (0=成功, その他=エラー)
+        
+        .NOTES
+            この関数は管理者権限が必要です。
+        #>
         Write-CommonLog -Message "Starting installation process..." -LogPath $script:Log -Level "INFO"
         
         $msiFileName = $script:config.MSI.FileName
@@ -420,7 +488,7 @@ process {
             return $script:config.ExitCode.Success
         }
         
-        try {   # インストール実行処理
+        try { # インストール実行処理
             $timeoutSeconds = $script:config.Timeout.InstallSeconds         # タイムアウト秒数の取得
             $processInfo = New-Object System.Diagnostics.ProcessStartInfo   # プロセス情報オブジェクトの作成
             $processInfo.FileName = "msiexec.exe"                           # msiexec.exe の指定
@@ -444,7 +512,9 @@ process {
                 try {
                     $process.Kill()
                     Write-CommonLog -Message "Process terminated due to timeout" -LogPath $script:Log -Level "WARN"
-                } catch {}
+                } catch {
+                    Write-CommonLog -Message "Failed to terminate process after timeout: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
+                }
                 Write-Error "⚠️ インストールがタイムアウトしました"
                 return $script:config.ExitCode.InstallFailed
             }
@@ -494,6 +564,25 @@ process {
 
     # アンインストール関数
     function Uninstall-UninstallTool {
+        <#
+        .SYNOPSIS
+            .NET Uninstall Toolをアンインストールします。
+        
+        .DESCRIPTION
+            レジストリから製品情報を検索し、msiexecを使用してアンインストールを実行します。
+            アンインストール後、インストールフォルダが存在する場合は削除します。
+            ShouldProcessをサポートし、-WhatIfおよび-Confirmパラメータが使用可能です。
+        
+        .EXAMPLE
+            Uninstall-UninstallTool
+            .NET Uninstall Toolをアンインストールします。
+        
+        .OUTPUTS
+            System.Int32 - 終了コード (0=成功, その他=エラー)
+        
+        .NOTES
+            この関数は管理者権限が必要です。
+        #>
         Write-CommonLog -Message "Starting uninstallation process..." -LogPath $script:Log -Level "INFO"
         
         $uninstallKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall"
@@ -566,7 +655,9 @@ process {
                 try {
                     $process.Kill()
                     Write-CommonLog -Message "Process terminated due to timeout" -LogPath $script:Log -Level "WARN"
-                } catch {}
+                } catch {
+                    Write-CommonLog -Message "Failed to terminate process after timeout: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
+                }
                 Write-Error "⚠️ アンインストールがタイムアウトしました"
                 return $script:config.ExitCode.UninstallFailed
             }
@@ -596,9 +687,13 @@ process {
         if ($installLocation -and (Test-Path $installLocation)) { # インストール場所が存在する場合
             Write-CommonLog -Message "Removing remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
             try {
-                Remove-Item $installLocation -Recurse -Force -ErrorAction Stop
-                Write-CommonLog -Message "Removed remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
-                Write-Information "🧹 残存フォルダを削除しました: $installLocation"
+                if ($PSCmdlet.ShouldProcess($installLocation, "Remove remaining folder")) {
+                    Remove-Item $installLocation -Recurse -Force -ErrorAction Stop
+                    Write-CommonLog -Message "Removed remaining folder: $installLocation" -LogPath $script:Log -Level "INFO"
+                    Write-Information "🧹 残存フォルダを削除しました: $installLocation"
+                } else {
+                    Write-CommonLog -Message "[WhatIf] Would remove folder: $installLocation" -LogPath $script:Log -Level "INFO"
+                }
             } catch {
                 Write-CommonLog -Message "Failed to remove folder: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
                 Write-Warning "⚠️ 残存フォルダの削除に失敗しました: $installLocation"
@@ -669,7 +764,9 @@ end {
         try {
             $script:mutex.ReleaseMutex()
             $script:mutex.Dispose()
-        } catch {}
+        } catch {
+            Write-Warning "Failed to release mutex: $($_.Exception.Message)"
+        }
     }
     
     # COMオブジェクトのクリーンアップ
@@ -677,14 +774,18 @@ end {
         try {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
             $script:comObject = $null
-        } catch {}
+        } catch {
+            Write-Warning "Failed to release COM object: $($_.Exception.Message)"
+        }
     }
     
     # ログファイルの自動オープン（常に実行）
     if ($script:Log -and (Test-Path -Path $script:Log)) { # ログファイルが存在する場合
         try {
             Open-LogIfNeeded -LogPath $script:Log
-        } catch {}
+        } catch {
+            Write-Warning "Failed to open log at end of script: $($_.Exception.Message)"
+        }
     }
     
     # 最終的な exit コード処理
