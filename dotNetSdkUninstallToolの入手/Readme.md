@@ -2,7 +2,7 @@
 
 English: [Readme.en.md](./Readme.en.md)
 
-.NET Uninstall Tool（`dotnet-core-uninstall`）のインストール/アンインストールを、対話式メニューとYAML設定で安全・簡単に管理するためのスクリプトです（v1.1.0）。ドライラン（`-WhatIf`）対応で、実際に変更を加える前に「何が行われるか」を確認できます。ログは常に作成され、実行後に自動で開きます。
+.NET Uninstall Tool（`dotnet-core-uninstall`）のインストール/アンインストールを、対話式メニューとYAML設定で安全・簡単に管理するためのスクリプトです（v1.2.0）。ドライラン（`-WhatIf`）と対話的確認（`-Confirm`）に対応し、実際に変更を加える前に「何が行われるか」を確認できます。ログは常に作成され、実行後に自動で開きます。
 
 ---
 
@@ -11,6 +11,7 @@ English: [Readme.en.md](./Readme.en.md)
 - [.NET Uninstall Tool 管理スクリプト（DotNetUninstallTool.ps1）](#net-uninstall-tool-管理スクリプトdotnetuninstalltoolps1)
   - [目次](#目次)
   - [特長](#特長)
+  - [v1.2.0 の改善](#v120-の改善)
   - [v1.1.0 の改善](#v110-の改善)
   - [前提条件](#前提条件)
   - [配置と構成](#配置と構成)
@@ -22,7 +23,8 @@ English: [Readme.en.md](./Readme.en.md)
   - [終了コード](#終了コード)
   - [トラブルシューティング](#トラブルシューティング)
   - [手動インストール（参考）](#手動インストール参考)
-  - [エラーハンドリング（v1.1.0）](#エラーハンドリングv110)
+  - [エラーハンドリング（v1.1.0以降）](#エラーハンドリングv110以降)
+    - [空のcatchブロックの排除（v1.2.0）](#空のcatchブロックの排除v120)
     - [CanExecuteProcess フラグによるフロー制御](#canexecuteprocess-フラグによるフロー制御)
     - [Get-ExceptionLogLevel 関数](#get-exceptionloglevel-関数)
     - [Helper 関数](#helper-関数)
@@ -41,6 +43,30 @@ English: [Readme.en.md](./Readme.en.md)
 - ログ生成と自動ローテーション、終了時のログ自動オープン
 - 二重起動防止（Mutex）
 - ドライラン（`-WhatIf`）対応：実行計画のみをログへ出力し、変更は行いません
+- 対話的確認（`-Confirm`）対応：状態変更操作前に確認プロンプトを表示
+
+---
+
+## v1.2.0 の改善
+
+✅ **コード品質の大幅向上：**
+
+- **PSScriptAnalyzer警告の完全解消**（Warning以上すべて対応済み）
+- **空のcatchブロックの排除**：すべてのcatchブロックに適切なエラーログ（Write-Warning）を追加
+- **ShouldProcessサポートの拡張**：
+  - `Stop-ProcessTree`関数に`SupportsShouldProcess`を追加
+  - ログローテーション削除に`ShouldProcess`ガードを追加
+  - フォルダ削除に`ShouldProcess`ガードを追加
+  - `-WhatIf`と`-Confirm`パラメータの完全サポート
+- **コーディングスタイルの統一**：
+  - 演算子前後のスペースを統一（PSUseConsistentWhitespace準拠）
+  - try開き波括弧後のスペースを統一
+  - パイプライン継続のインデントを修正
+- **完全なヘルプコメント**：
+  - すべての関数に`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`/`.NOTES`を追加
+  - PowerShellベストプラクティス完全準拠
+
+詳細は以下の「エラーハンドリング」セクションを参照。
 
 ---
 
@@ -116,7 +142,7 @@ pwsh -NoProfile -File ".\dotNetSdkUninstallToolの入手\Script\DotNetUninstallT
 
 ## ドライランの挙動
 
-- `ShouldProcess`で保護された操作（`Unblock-File`/`msiexec`/フォルダー削除）は実行されません。
+- `ShouldProcess`で保護された操作（プロセス終了/ログローテーション/`Unblock-File`/`msiexec`/フォルダー削除）は実行されません。
 - その代わり「何を実行するか」を `[WhatIf]` 行としてログ出力します。
 - ログの作成・追記・終了時のログオープンは `-WhatIf` の影響を受けず、常に実行されます。
 
@@ -222,7 +248,22 @@ dotnet-core-uninstall list
 
 ---
 
-## エラーハンドリング（v1.1.0）
+## エラーハンドリング（v1.1.0以降）
+
+### 空のcatchブロックの排除（v1.2.0）
+
+v1.2.0では、すべての空のcatchブロックに適切なエラーログを追加しました：
+
+- **ログファイルオープン失敗**: `Write-Warning "Failed to open log file: ...`
+- **プロセスツリー停止失敗**: `Write-Warning "Failed to stop process tree for PID ...: ...`
+- **ログクリーンアップ失敗**: `Write-Warning "Failed to clean up old logs: ...`
+- **インストールタイムアウト**: `Write-CommonLog ... "Installation timed out after $timeoutSeconds seconds"`
+- **アンインストールタイムアウト**: `Write-CommonLog ... "Uninstallation timed out after $timeoutSeconds seconds"`
+- **Mutex解放失敗**: `Write-Warning "Failed to release mutex: ...`
+- **COMオブジェクト解放失敗**: `Write-Warning "Failed to release COM object: ...`
+- **終了時ログオープン失敗**: `Write-Warning "Failed to open log at end of script: ...`
+
+これにより、すべての例外が適切にログ記録され、トラブルシューティングが容易になりました。
 
 ### CanExecuteProcess フラグによるフロー制御
 
@@ -252,7 +293,9 @@ dotnet-core-uninstall list
 
 - **Get-ExceptionLogLevel(Exception)** - 例外型から適切なログレベルを返す
 - **Open-LogIfNeeded(LogPath)** - ログファイルを処理で開く（存在チェック付き）
-- **Stop-ProcessTree(ProcessId)** - プロセスとその子プロセスを再帰的に削除
+- **Stop-ProcessTree(ProcessId)** - プロセスとその子プロセスを再帰的に削除（v1.2.0でShouldProcessサポート追加）
+
+すべての関数には完全なヘルプコメント（.SYNOPSIS/.DESCRIPTION/.PARAMETER/.EXAMPLE/.OUTPUTS/.NOTES）が含まれています。
 
 ---
 
