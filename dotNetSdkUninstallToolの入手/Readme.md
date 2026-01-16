@@ -56,8 +56,8 @@ English: [Readme.en.md](./Readme.en.md)
 - **ShouldProcessサポートの拡張**：
   - `Stop-ProcessTree`関数に`SupportsShouldProcess`を追加
   - ログローテーション削除に`ShouldProcess`ガードを追加
-  - フォルダ削除に`ShouldProcess`ガードを追加
-  - `-WhatIf`と`-Confirm`パラメータの完全サポート
+  - フォルダー削除に`ShouldProcess`ガードを追加
+  - `-WhatIf`と`-Confirm`パラメーターの完全サポート
 - **コーディングスタイルの統一**：
   - 演算子前後のスペースを統一（PSUseConsistentWhitespace準拠）
   - try開き波括弧後のスペースを統一
