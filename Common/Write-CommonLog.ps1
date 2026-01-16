@@ -221,45 +221,43 @@ function Write-CommonLog {
                 }
             }
             
-            # ログファイルに書き込み
-            if ($PSCmdlet.ShouldProcess($LogPath, "ログを書き込み")) {
-                try {
-                    # ファイルロック対策: retry で書き込みを試行
-                    $maxRetries = 3
-                    $retryCount = 0
-                    $writeSuccess = $false
-                    
-                    while (!$writeSuccess -and $retryCount -lt $maxRetries) {
-                        try {
-                            Add-Content -Path $LogPath -Value $maskedMessage -Encoding UTF8 -ErrorAction Stop
-                            $writeSuccess = $true
-                            Write-Verbose "ログを書き込みました: $LogPath"
+            # ログファイルに書き込み（-WhatIf でも常に実行）
+            try {
+                # ファイルロック対策: retry で書き込みを試行
+                $maxRetries = 3
+                $retryCount = 0
+                $writeSuccess = $false
+                
+                while (!$writeSuccess -and $retryCount -lt $maxRetries) {
+                    try {
+                        Add-Content -Path $LogPath -Value $maskedMessage -Encoding UTF8 -ErrorAction Stop -WhatIf:$false
+                        $writeSuccess = $true
+                        Write-Verbose "ログを書き込みました: $LogPath"
+                    }
+                    catch [System.IO.IOException] {
+                        # ファイルロック: 短時間待機して再試行
+                        if ($retryCount -lt $maxRetries - 1) {
+                            Start-Sleep -Milliseconds 100
+                            $retryCount++
                         }
-                        catch [System.IO.IOException] {
-                            # ファイルロック: 短時間待機して再試行
-                            if ($retryCount -lt $maxRetries - 1) {
-                                Start-Sleep -Milliseconds 100
-                                $retryCount++
-                            }
-                            else {
-                                throw
-                            }
+                        else {
+                            throw
                         }
                     }
-                    
-                    if (!$writeSuccess) {
-                        Write-Error "ログファイルへの書き込みに失敗しました（最大 $maxRetries 回試行）: $LogPath"
-                    }
                 }
-                catch [System.UnauthorizedAccessException] {
-                    Write-Error "ログファイルへのアクセス権がありません: $LogPath。管理者権限が必要な可能性があります。"
+                
+                if (!$writeSuccess) {
+                    Write-Error "ログファイルへの書き込みに失敗しました（最大 $maxRetries 回試行）: $LogPath"
                 }
-                catch [System.IO.IOException] {
-                    Write-Error "ログファイルの書き込み中にI/Oエラーが発生しました: $LogPath`n詳細: $($_.Exception.Message)"
-                }
-                catch {
-                    Write-Error "ログファイルへの書き込みに失敗しました。パス: $LogPath`n詳細: $($_.Exception.Message)"
-                }
+            }
+            catch [System.UnauthorizedAccessException] {
+                Write-Error "ログファイルへのアクセス権がありません: $LogPath。管理者権限が必要な可能性があります。"
+            }
+            catch [System.IO.IOException] {
+                Write-Error "ログファイルの書き込み中にI/Oエラーが発生しました: $LogPath`n詳細: $($_.Exception.Message)"
+            }
+            catch {
+                Write-Error "ログファイルへの書き込みに失敗しました。パス: $LogPath`n詳細: $($_.Exception.Message)"
             }
         }
         catch [System.IO.IOException] {
