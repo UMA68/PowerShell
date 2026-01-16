@@ -2,7 +2,7 @@
 
 日本語: [Readme.md](./Readme.md)
 
-This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet-core-uninstall`) with an interactive menu and a YAML-driven configuration (v1.1.0). It supports a dry-run mode (`-WhatIf`) so you can preview actions safely. A log file is always created and automatically opened at the end.
+This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet-core-uninstall`) with an interactive menu and a YAML-driven configuration (v1.2.0). It supports dry-run (`-WhatIf`) and interactive confirmation (`-Confirm`) modes so you can preview and confirm actions safely. A log file is always created and automatically opened at the end.
 
 ---
 
@@ -11,6 +11,7 @@ This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet
 - [.NET Uninstall Tool Manager (DotNetUninstallTool.ps1)](#net-uninstall-tool-manager-dotnetuninstalltoolps1)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
+  - [v1.2.0 Improvements](#v120-improvements)
   - [v1.1.0 Improvements](#v110-improvements)
   - [Prerequisites](#prerequisites)
   - [Folder Layout](#folder-layout)
@@ -20,7 +21,8 @@ This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet
   - [YAML Config](#yaml-config)
   - [Flow](#flow)
   - [Exit Codes](#exit-codes)
-  - [Error Handling](#error-handling)
+  - [Error Handling (v1.1.0+)](#error-handling-v110)
+    - [Elimination of Empty Catch Blocks (v1.2.0)](#elimination-of-empty-catch-blocks-v120)
     - [CanExecuteProcess Flag](#canexecuteprocess-flag)
     - [Get-ExceptionLogLevel Function](#get-exceptionloglevel-function)
     - [Helper Functions](#helper-functions)
@@ -41,6 +43,33 @@ This script manages installing and uninstalling the .NET Uninstall Tool (`dotnet
 - Log creation and auto-rotation; opens the log file at the end
 - Double-run protection with a Mutex
 - Dry-run (`-WhatIf`) support: logs the plan without making changes
+- Interactive confirmation (`-Confirm`) support: prompts before state-changing operations
+
+---
+
+## v1.2.0 Improvements
+
+✅ **Significant Code Quality Improvements:**
+
+- **Complete PSScriptAnalyzer Warning Resolution** (all Warning-level and above addressed)
+- **Elimination of Empty Catch Blocks**: Added appropriate error logging (Write-Warning) to all catch blocks
+- **Extended ShouldProcess Support**:
+  - Added `SupportsShouldProcess` to `Stop-ProcessTree` function
+  - Added `ShouldProcess` guards to log rotation deletion
+  - Added `ShouldProcess` guards to folder deletion
+  - Full support for `-WhatIf` and `-Confirm` parameters
+- **Unified Coding Style**:
+  - Unified spacing around operators (PSUseConsistentWhitespace compliant)
+  - Unified spacing after opening braces in try statements
+  - Fixed pipeline continuation indentation
+- **Complete Help Comments**:
+  - Added comprehensive help comments to all functions
+  - Get-ExceptionLogLevel, Open-LogIfNeeded, Stop-ProcessTree
+  - Show-Menu, Install-UninstallTool, Uninstall-UninstallTool
+  - Includes .SYNOPSIS/.DESCRIPTION/.PARAMETER/.EXAMPLE/.OUTPUTS/.NOTES
+- **Extended Interactive Confirmation Support** with -Confirm parameter
+
+See "Error Handling" section below for details.
 
 ---
 
@@ -76,14 +105,14 @@ See "Error Handling" section below for details.
 
 ## Folder Layout
 
-```Shell
+```text
 dotNetSdkUninstallToolの入手/
 ├─ Readme.md                         ← Japanese documentation
 ├─ Readme.en.md                      ← This file
 ├─ Script/
-│   └─ DotNetUninstallTool.ps1       ← The script to run (v1.1.0)
+│   └─ DotNetUninstallTool.ps1       ← The script to run (v1.2.0)
 ├─ YAML/
-│   └─ DotNetUninstallTool.yaml      ← Config (ScriptVersion: 1.1.0)
+│   └─ DotNetUninstallTool.yaml      ← Config (ScriptVersion: 1.2.0)
 ├─ dotNetSdkUninstallTool/
 │   └─ dotnet-core-uninstall.msi     ← MSI for installation
 └─ LOG/                               ← Execution logs (auto-created/rotated)
@@ -117,7 +146,7 @@ pwsh -NoProfile -File ".\dotNetSdkUninstallToolの入手\Script\DotNetUninstallT
 
 ## WhatIf Behavior
 
-- Operations guarded by `ShouldProcess` (Unblock-File / msiexec / folder deletion) are not executed.
+- Operations guarded by `ShouldProcess` (process termination / log rotation / Unblock-File / msiexec / folder deletion) are not executed.
 - Instead, the script logs what would be executed as `[WhatIf]` lines.
 - Log creation/appending and opening the log file at the end are always executed (not affected by `-WhatIf`).
 
@@ -140,7 +169,7 @@ Key sections (with examples):
 
 - `Project`
   - `Name`: ".NET Uninstall Tool Management"
-  - `ScriptVersion`: "1.1.0"
+  - `ScriptVersion`: "1.2.0"
 - `MSI`
   - `FileName`: "dotnet-core-uninstall.msi"
   - `ProductName`: "*Uninstall Tool*" (registry DisplayName search pattern)
@@ -194,7 +223,22 @@ Key sections (with examples):
 
 ---
 
-## Error Handling
+## Error Handling (v1.1.0+)
+
+### Elimination of Empty Catch Blocks (v1.2.0)
+
+In v1.2.0, appropriate error logging was added to all previously empty catch blocks:
+
+- **Log file open failure**: `Write-Warning "Failed to open log file: ..."`
+- **Process tree stop failure**: `Write-Warning "Failed to stop process tree for PID ...: ..."`
+- **Log cleanup failure**: `Write-Warning "Failed to clean up old logs: ..."`
+- **Install timeout**: `Write-CommonLog ... "Installation timed out after $timeoutSeconds seconds"`
+- **Uninstall timeout**: `Write-CommonLog ... "Uninstallation timed out after $timeoutSeconds seconds"`
+- **Mutex release failure**: `Write-Warning "Failed to release mutex: ..."`
+- **COM object release failure**: `Write-Warning "Failed to release COM object: ..."`
+- **End-of-script log open failure**: `Write-Warning "Failed to open log at end of script: ..."`
+
+This ensures all exceptions are properly logged, making troubleshooting much easier.
 
 ### CanExecuteProcess Flag
 
@@ -224,7 +268,9 @@ Automatically determines the appropriate log level based on exception type:
 
 - **Get-ExceptionLogLevel(Exception)** – Returns appropriate log level from exception type
 - **Open-LogIfNeeded(LogPath)** – Opens log file (with existence check)
-- **Stop-ProcessTree(ProcessId)** – Recursively kills process and children
+- **Stop-ProcessTree(ProcessId)** – Recursively kills process and children (v1.2.0: added ShouldProcess support)
+
+All functions include comprehensive help comments (.SYNOPSIS/.DESCRIPTION/.PARAMETER/.EXAMPLE/.OUTPUTS/.NOTES).
 
 ---
 
@@ -261,3 +307,4 @@ dotnet-core-uninstall list
 
 - Repository: <https://github.com/UMA68/PowerShell>
 - License: See `LICENSE` in this repository
+
