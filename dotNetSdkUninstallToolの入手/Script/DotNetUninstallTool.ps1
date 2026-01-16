@@ -1,10 +1,17 @@
 <#
 .SYNOPSIS
-        .NET Uninstall Tool のインストール/アンインストールを安全に管理します（v1.1.0）。
+        .NET Uninstall Tool のインストール/アンインストールを安全に管理します（v1.2.0）。
 
 .DESCRIPTION
         .NET Uninstall Tool を対話式メニューでインストール/アンインストールします。
         設定は YAML で一元管理し、ログ出力・権限確認・二重起動防止・ドライラン（-WhatIf）に対応します。
+        
+        v1.2.0 の品質向上:
+        - PSScriptAnalyzer警告の完全解消（Warning以上すべて対応済み）
+        - ShouldProcessサポートの拡張（Stop-ProcessTree、ログローテーション、フォルダ削除）
+        - すべてのcatchブロックに適切なエラーログを追加（空のcatchブロック排除）
+        - 演算子とホワイトスペースの統一（PSUseConsistentWhitespace準拠）
+        - 完全なヘルプコメント（.SYNOPSIS/.DESCRIPTION/.EXAMPLE/.NOTES）をすべての関数に追加
         
         v1.1.0 の安全性強化:
         - 例外型に基づいたログレベル分類（Get-ExceptionLogLevel）
@@ -23,9 +30,10 @@
         - ログ生成と自動ローテーション、終了時のログ自動オープン
         - 二重起動防止（Mutex）
         - ドライラン（-WhatIf）対応：実行計画のみログに記録、変更は行いません
+        - -Confirm パラメータによる対話的確認（状態変更操作で利用可能）
 
         -WhatIf の挙動（重要）:
-        - ShouldProcess で保護された操作（Unblock-File / msiexec / フォルダ削除）は実行せず、
+        - ShouldProcess で保護された操作（プロセス終了/ログローテーション/Unblock-File/msiexec/フォルダ削除）は実行せず、
             「何を実行するか」を [WhatIf] でログ出力します。
         - ログ作成/追記とログファイルを開く処理は -WhatIf の影響を受けません（常に実行）。
 
@@ -54,9 +62,24 @@
         Author      : UMA
         PowerShell  : 7.x 以上
         Modules     : powershell-yaml（YAML読み込み）
-        Version     : 1.1.0
+        Version     : 1.2.0
         
         改善履歴:
+        v1.2.0 (2026-01-16)
+        - PSScriptAnalyzer警告の完全解消
+          * すべての空のcatchブロックに適切なエラーログ（Write-Warning）を追加
+          * Stop-ProcessTree関数にShouldProcessサポートを追加
+          * ログローテーション削除処理にShouldProcessガードを追加
+          * フォルダ削除処理にShouldProcessガードを追加
+          * 演算子前後のスペースを統一（PSUseConsistentWhitespace準拠）
+          * try開き波括弧後のスペースを統一
+          * パイプライン継続のインデントを修正
+        - すべての関数に完全なヘルプコメントを追加
+          * Get-ExceptionLogLevel, Open-LogIfNeeded, Stop-ProcessTree
+          * Show-Menu, Install-UninstallTool, Uninstall-UninstallTool
+          * .SYNOPSIS/.DESCRIPTION/.PARAMETER/.EXAMPLE/.OUTPUTS/.NOTESを含む
+        - -Confirmパラメータによる対話的確認のサポート拡張
+        
         v1.1.0 (2024年)
         - exit 文を全て廃止し、return 文に統一（スクリプト呼び出し対応）
         - CanExecuteProcess フラグを導入し、統一的なフロー制御を実現
@@ -119,10 +142,18 @@
         - 6: UninstallFailed（アンインストール失敗/タイムアウト含む）
         
         エラーハンドリング:
+        - すべてのcatchブロックに適切なエラーログを実装（空のcatchブロック排除）
         - 例外は Get-ExceptionLogLevel で自動分類（Terminating/NonTerminating 等）
         - 分類に応じた適切なログレベル（ERROR/WARN/DEBUG）で記録
         - CanExecuteProcess フラグで処理続行判定を統一
         - end ブロックで $CanExecuteProcess を確認し、false の場合のみ exit
+        - タイムアウトエラーも含めて適切にログ記録
+        
+        コード品質:
+        - PSScriptAnalyzer全警告対応（Warning以上すべて解消、Information 3件のみ残存）
+        - コーディングスタイルの統一（空白、インデント、演算子の一貫性）
+        - 全関数に完全なヘルプコメント（PowerShellベストプラクティス準拠）
+        - ShouldProcessによる状態変更操作の保護（-WhatIf/-Confirm対応）
 
 .LINK
         https://github.com/UMA68/PowerShell
