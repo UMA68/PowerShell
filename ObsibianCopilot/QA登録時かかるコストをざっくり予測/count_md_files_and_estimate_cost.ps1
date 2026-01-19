@@ -115,6 +115,11 @@
     スケジューラから呼び出す場合はこのオプションを推奨します。
 
 .EXAMPLE
+    .\count_md_files_and_estimate_cost.ps1 -InformationAction Continue
+    情報ストリーム（Write-Informationの出力）を必ず表示します。
+    `$InformationPreference` が SilentlyContinue などに変わっている環境向け。
+
+.EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-4o -OutputTokenRatio 0.5 -ShowModelComparison
     GPT-4o価格プリセット($2.50/1M)を適用し、出力トークン比率50%でモデル比較を実行します。
 
