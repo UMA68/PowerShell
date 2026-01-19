@@ -5,13 +5,16 @@
 .DESCRIPTION
     Write-CommonLog 関数のユニットテスト
     - ログファイルの作成と書き込み
-    - ログレベルの検証
-    - メッセージのフォーマット検証
+    - ログレベルの検証（INFO, WARN, ERROR, DEBUG）
+    - メッセージのフォーマット検証（タイムスタンプ、ログレベル）
+    - エラーハンドリング
+    - エンコーディング（UTF-8、マルチバイト文字）
+    - パフォーマンステスト
 
 .NOTES
     Author: Test Suite
-    Version: 1.0.0
-    Last Updated: 2026-01-13
+    Version: 1.1.0
+    Last Updated: 2026-01-19
     Pester Version: 5.7.1 compatible
 #>
 

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="10" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-01-19" time="17:12:13">
+  <environment user-domain="AzureAD" clr-version="9.0.10" user="徳永光浩" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk0\Partition3" cwd="C:\Users\徳永光浩\GitHub\PowerShell" machine-name="FMV_LOOX" os-version="10.0.26200" nunit-version="2.5.8.0" />
+  <culture-info current-culture="ja-JP" current-uiculture="ja-JP" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="1.5195" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="C:\Users\徳永光浩\GitHub\PowerShell\Tests\Integration\ReleaseProcess.Tests.ps1" executed="True" result="Success" success="True" time="1.5195" asserts="0" description="C:\Users\徳永光浩\GitHub\PowerShell\Tests\Integration\ReleaseProcess.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="リリースバッチ統合テスト" executed="True" result="Success" success="True" time="0.9855" asserts="0" description="リリースバッチ統合テスト">
+            <results>
+              <test-suite type="TestFixture" name="リリースバッチ統合テスト.基本的なファイルコピー" executed="True" result="Success" success="True" time="0.269" asserts="0" description="リリースバッチ統合テスト.基本的なファイルコピー">
+                <results>
+                  <test-case description="ファイルが正しくコピーされる" name="リリースバッチ統合テスト.基本的なファイルコピー.ファイルが正しくコピーされる" time="0.0537" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="複数ファイルが一括コピーできる" name="リリースバッチ統合テスト.基本的なファイルコピー.複数ファイルが一括コピーできる" time="0.0992" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ディレクトリ構造が保持されてコピーされる" name="リリースバッチ統合テスト.基本的なファイルコピー.ディレクトリ構造が保持されてコピーされる" time="0.1067" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="リリースバッチ統合テスト.ファイル上書き処理" executed="True" result="Success" success="True" time="0.3614" asserts="0" description="リリースバッチ統合テスト.ファイル上書き処理">
+                <results>
+                  <test-case description="既存ファイルがリネームされて上書きできる" name="リリースバッチ統合テスト.ファイル上書き処理.既存ファイルがリネームされて上書きできる" time="0.0842" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="リリースバッチ統合テスト.ログ出力" executed="True" result="Success" success="True" time="0.502" asserts="0" description="リリースバッチ統合テスト.ログ出力">
+                <results>
+                  <test-case description="ログファイルが作成される" name="リリースバッチ統合テスト.ログ出力.ログファイルが作成される" time="0.069" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ログにタイムスタンプが記録される" name="リリースバッチ統合テスト.ログ出力.ログにタイムスタンプが記録される" time="0.0639" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="リリースバッチ統合テスト.権限とアクセス" executed="True" result="Success" success="True" time="0.614" asserts="0" description="リリースバッチ統合テスト.権限とアクセス">
+                <results>
+                  <test-case description="ファイルが読み取り可能である" name="リリースバッチ統合テスト.権限とアクセス.ファイルが読み取り可能である" time="0.0529" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ファイルが書き込み可能である" name="リリースバッチ統合テスト.権限とアクセス.ファイルが書き込み可能である" time="0.0536" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="リリースバッチ統合テスト.エラーハンドリング" executed="True" result="Success" success="True" time="0.7849" asserts="0" description="リリースバッチ統合テスト.エラーハンドリング">
+                <results>
+                  <test-case description="存在しないコピー元ファイルの場合、エラーが発生" name="リリースバッチ統合テスト.エラーハンドリング.存在しないコピー元ファイルの場合、エラーが発生" time="0.1056" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="コピー先のディレクトリが存在しない場合、自動作成できる" name="リリースバッチ統合テスト.エラーハンドリング.コピー先のディレクトリが存在しない場合、自動作成できる" time="0.0598" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

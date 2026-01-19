@@ -105,9 +105,8 @@ Describe 'リリースバッチ統合テスト' {
             # Assert
             Test-Path $destFile | Should -BeTrue
             (Get-Content $destFile) | Should -Not -Be 'Old content'
-            # 新しいファイルの作成時刻が元のファイルと異なることを確認
-            $newTime = (Get-Item $destFile).CreationTime
-            $newTime | Should -Not -Be $originalTime
+            # バックアップファイルが作成されていることを確認（メタデータに依存しない検証）
+            Test-Path $backupName | Should -BeTrue
         }
     }
     
@@ -168,7 +167,7 @@ Describe 'リリースバッチ統合テスト' {
             $destFile = Join-Path $script:DestDir 'output.txt'
             
             # Act & Assert
-            { Copy-Item -Path $nonExistentFile -Destination $destFile } | Should -Throw
+            { Copy-Item -Path $nonExistentFile -Destination $destFile -ErrorAction Stop } | Should -Throw
         }
         
         It 'コピー先のディレクトリが存在しない場合、自動作成できる' {
@@ -188,7 +187,7 @@ Describe 'リリースバッチ統合テスト' {
     }
     
     Context 'パフォーマンス' {
-        It '大量ファイルのコピーが効率的に実行される', 'Performance' {
+        It '大量ファイルのコピーが効率的に実行される' -Tag 'Performance' {
             # Arrange
             # 100個のファイルを作成
             $bulkDir = Join-Path $script:SourceDir 'bulk'
@@ -200,13 +199,15 @@ Describe 'リリースバッチ統合テスト' {
             
             # Act
             $startTime = Get-Date
-            Copy-Item -Path (Join-Path $bulkDir '*') -Destination (Join-Path $script:DestDir 'bulk') -Recurse -Force
+            $destBulkDir = Join-Path $script:DestDir 'bulk'
+            New-Item -ItemType Directory -Path $destBulkDir -Force | Out-Null
+            Copy-Item -Path (Join-Path $bulkDir '*') -Destination $destBulkDir -Recurse -Force
             $endTime = Get-Date
             $duration = ($endTime - $startTime).TotalSeconds
             
             # Assert
             $duration | Should -BeLessThan 5  # 5秒以内に完了
-            @(Get-ChildItem -Path (Join-Path $script:DestDir 'bulk') -Recurse).Count | Should -Be 100
+            @(Get-ChildItem -Path $destBulkDir).Count | Should -Be 100
         }
     }
 }
