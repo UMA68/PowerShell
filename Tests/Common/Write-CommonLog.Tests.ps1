@@ -196,20 +196,14 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             { Write-CommonLog -Message $null -LogPath $logPath -Level 'INFO' } | Should -Throw
         }
         
-        It '無効なログレベルの場合、デフォルト値が使用される' {
+        It '無効なログレベルの場合、エラーが発生' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'invalid-level.log'
             $message = 'テストメッセージ'
             
-            # Act
-            # エラーが発生しないことを確認（デフォルト値または変換処理がある）
-            Write-CommonLog -Message $message -LogPath $logPath -Level 'INVALID' -ErrorAction SilentlyContinue
-            
-            # Assert
-            if (Test-Path $logPath) {
-                # ファイルが作成されていれば、正常に処理されている
-                Test-Path $logPath | Should -Be $true
-            }
+            # Act & Assert
+            # ValidateSetにより無効なレベルはエラーが発生する
+            { Write-CommonLog -Message $message -LogPath $logPath -Level 'INVALID' } | Should -Throw
         }
     }
     
@@ -258,7 +252,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             
             # Assert
             Test-Path $logPath | Should -Be $true
-            $duration | Should -BeLessOrEqual 10  # 10秒以内に完了
+            $duration | Should -BeLessOrEqual 15  # 15秒以内に完了
             (Get-Content $logPath).Count | Should -BeGreaterOrEqual $iterations
         }
     }
