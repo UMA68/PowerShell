@@ -92,11 +92,18 @@
 .NOTES
     File Name      : CheckCommand.ps1
     Author         : UMA68
-    Version        : 1.2.0
-    Release Date   : 2026-01-14
+    Version        : 1.3.0
+    Release Date   : 2026-01-19
     Prerequisite   : PowerShell 5.1 以上
     
     変更履歴:
+    v1.3.0 (2026-01-19)
+        - パラメータ ComName を Mandatory = $false に変更（ユーザー対話的入力の回避）
+        - コマンド名の前後の空白を自動削除する機能を実装
+        - 空白のみの入力を ValidateScript で検証し、明示的にエラーをスロー
+        - パラメーター検証を改善（Trim 処理の追加）
+        - ヘルプドキュメントを現状実装に合わせて更新
+    
     v1.2.0 (2026-01-14)
         - ValidateScript により詳細なパラメーター検証を統一実装
         - コマンド検索範囲（Cmdlet、Function、ExternalScript など）をドキュメント記載
@@ -118,16 +125,6 @@
     
     v1.0.0 (2025-12-10)
         - 初版リリース
-    
-    既知の制限:
-    - ワイルドカード文字は警告のみで、パラメーターは受け入れられます
-    - 外部スクリプト検出は PATH 環境変数に依存します
-    - COM オブジェクト使用時（-ShowDialog）はマーシャリングコスト増加
-    - 予期しないエラー（アクセス権など）も $false を返すため、詳細はエラーストリームを確認
-    
-    セキュリティに関する注意:
-    - 動的にコマンド名を構築する場合は入力検証を実施してください
-    - ワイルドカード文字による予期しない展開に注意してください
 
 .LINK
     GitHub: https://github.com/UMA68/PowerShell
