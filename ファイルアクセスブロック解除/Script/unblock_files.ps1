@@ -144,7 +144,7 @@
     Wiki: https://github.com/UMA68/PowerShell/wiki
 #>
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateScript({ # フォルダ名の検証
         # フォルダ名としての有効性を検証
         if ([string]::IsNullOrWhiteSpace($_)) { throw "TargetFolder cannot be empty or whitespace." }
@@ -154,7 +154,7 @@ param(
     })]
     [string]$TargetFolder = "FileAccessBlock",          # 処理対象フォルダ（相対パス）
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateScript({ # ファイル名の検証
         # ファイル名としての有効性を検証
         if ([string]::IsNullOrWhiteSpace($_)) { throw "LogPrefix cannot be empty or whitespace." }
@@ -164,10 +164,10 @@ param(
     })]
     [string]$LogPrefix = "unblock_",                    # ログファイル名プレフィックス
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string[]]$ExcludeExtensions = @('.log', '.xlsx'),  # 除外する拡張子の配列
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateScript({ # 正規表現として妥当か検証
         try {
             [void]($_ -match $_)
@@ -178,11 +178,11 @@ param(
     })]
     [string]$ExcludeFolderPattern = '\\Script\\',       # 除外するフォルダパターン（正規表現）
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$VerboseLogging = $false                    # 詳細ログ出力フラグ
 )
 
-begin{
+begin {
     # COMオブジェクト管理用スクリプトブロック（relMain.ps1と同様のパターン）
     $script:ShowPopup = { # COMオブジェクトを使ったポップアップ表示
         param([string]$Message, [string]$Title)
@@ -192,7 +192,12 @@ begin{
             $obj.Popup($Message, 0, $Title, 0x30) | Out-Null
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { 
+                    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null 
+                } catch {
+                    # COMオブジェクト解放時のエラーは無視（リソース解放のベストエフォート）
+                    Write-Verbose "Failed to release COM object: $_"
+                }
                 $obj = $null
             }
         }
@@ -206,10 +211,10 @@ begin{
     $script:comPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"
 
     # 共通スクリプトのインポート
-    try{
+    try {
         . (Join-Path -Path $script:comPath -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
         . (Join-Path -Path $script:comPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop  
-    }catch{
+    } catch {
         & $script:ShowPopup -Message "PowerShell ファイルを読み込めませんでした。処理を終了します。`r`n`r`n$($_.Exception.Message)" -Title "Module Check"
         return
     }
@@ -222,7 +227,7 @@ begin{
     $script:HostName = $env:COMPUTERNAME
     
     # ログの保存先を指定
-    $script:logFilePath = Join-Path -Path $script:UpperPath -ChildPath ($LogPrefix+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
+    $script:logFilePath = Join-Path -Path $script:UpperPath -ChildPath ($LogPrefix + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
     
     # ログディレクトリが存在しなければ作成
     $logDir = Split-Path -Parent $script:logFilePath
@@ -239,7 +244,7 @@ begin{
     $script:startTime = Get-Date
     $script:CanExecuteProcess = $true  # 処理実行フラグ（relMain.ps1パターン）
 }
-process{
+process {
     # ログ記録開始
     Write-CommonLog -Message "Script started." -LogPath $script:logFilePath -Level "INFO"
     Write-CommonLog -Message "HOST: $script:HostName" -LogPath $script:logFilePath -Level "INFO"
@@ -267,7 +272,7 @@ process{
         Where-Object { # 除外パターンに一致しないフォルダと拡張子をフィルタリング
             $_.FullName -notmatch $ExcludeFolderPattern -and
             $_.Extension -notin $ExcludeExtensions
-        } |  # 除外パターンに一致するフォルダとファイルを除外
+        } | # 除外パターンに一致するフォルダとファイルを除外
         ForEach-Object { # 各ファイルに対する処理開始
             $script:totalFiles++
             
@@ -296,7 +301,7 @@ process{
             }
             # Zone.Identifierストリームが存在する場合、Unblock-Fileを実行
             if ($hasZoneId) { # ストリームが存在する場合
-                try{
+                try {
                     # Unblock-Fileコマンドレット実行
                     Write-CommonLog -Message "Zone.Identifier found for file: $filePath. Unblocking file." -LogPath $script:logFilePath -Level "WARN"
                     Unblock-File -Path $filePath -ErrorAction Stop
@@ -323,7 +328,7 @@ process{
         Write-CommonLog -Message "No files found in the target directory." -LogPath $script:logFilePath -Level "WARN"
     }
 }
-end{
+end {
     # 処理終了時刻と処理時間の計算
     $script:endTime = Get-Date
     $script:elapsedTime = $script:endTime - $script:startTime
