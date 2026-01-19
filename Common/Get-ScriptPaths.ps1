@@ -153,6 +153,17 @@ function Get-ScriptPaths {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = '複数のパスを返すため複数形が適切')]
     param(
         [Parameter(Mandatory = $false)]
+        [ValidateScript({
+            # null の場合は省略として扱う
+            if ($null -eq $_) { 
+                return $true 
+            }
+            # 空白のみの場合はエラー
+            if ([string]::IsNullOrWhiteSpace($_)) {
+                throw "ScriptPath パラメータに空白のみの値は指定できません。"
+            }
+            return $true
+        })]
         [string]$ScriptPath,        # 基準となるスクリプトのパス
         
         [Parameter(Mandatory = $false)]
@@ -177,14 +188,6 @@ function Get-ScriptPaths {
             if ([string]::IsNullOrEmpty($ScriptPath)) {
                 $ScriptPath = (Get-Location).Path
                 Write-Warning "スクリプトパスが取得できませんでした。カレントディレクトリを使用します: $ScriptPath"
-            }
-        }
-        
-        # パスの検証
-        if (!(Test-Path -Path $ScriptPath -PathType Leaf)) {
-            # ファイルでない場合、ディレクトリとして扱う
-            if (!(Test-Path -Path $ScriptPath -PathType Container)) {
-                Write-Error "指定されたパスが存在しません: $ScriptPath" -ErrorAction Stop
             }
         }
     }
