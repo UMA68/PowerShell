@@ -176,7 +176,7 @@ YAML フォルダに配置されている設定ファイルを指定します。
 # SQLファイルを実行するスクリプト
 
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateScript({ # ファイル名の検証
         # ファイル名としての有効性を検証
         if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
@@ -191,7 +191,7 @@ param(
         $true   # バリデーション(検証)成功
     })]
     [string]$DecryptionKey = "Encryption.Key",  # 復号化鍵ファイル名
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateScript({ # yamlファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
         if ([string]::IsNullOrWhiteSpace($_)) { # 空文字チェック
@@ -227,7 +227,7 @@ begin {
         }
         finally {
             if ($null -ne $obj) { # COMオブジェクトの解放
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_ }
                 $obj = $null
             }
         }
@@ -313,7 +313,7 @@ begin {
     # YAML設定のバージョンと実行バージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $pwsAssumVer = $script:YamlOBJ.PowerShell.Version
-    if ($pwsVerChk -ne $pwsAssumVer) {  # バージョン不一致
+    if ($pwsVerChk -ne $pwsAssumVer) { # バージョン不一致
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
@@ -324,7 +324,7 @@ begin {
             }
         } finally {
             if ($null -ne $obj) { # COMオブジェクト解放
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_ }
                 $obj = $null
             }
         }
@@ -499,13 +499,13 @@ process {
             # ====================================
             # invoke-sqlcmd パラメータをスプラッティングで構築
             $invokeParams = @{ # invoke-sqlcmd パラメータ
-                ErrorAction     = 'Stop'
-                InputFile       = $sqlFile.FullName
-                ServerInstance  = $script:ServerInstance
-                Database        = $script:Database
-                Username        = $script:Username
-                Password        = $script:password
-                QueryTimeout    = 0
+                ErrorAction = 'Stop'
+                InputFile = $sqlFile.FullName
+                ServerInstance = $script:ServerInstance
+                Database = $script:Database
+                Username = $script:Username
+                Password = $script:Password
+                QueryTimeout = 0
             }
             
             # SQL Server 2019以降の場合のみ TrustServerCertificate を追加
