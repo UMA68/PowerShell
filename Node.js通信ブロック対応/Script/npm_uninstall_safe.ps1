@@ -48,31 +48,31 @@
     Prerequisite   : PowerShell 5.1以降, 管理者権限, Node.js, ファイアウォールルール
 #>
 
-[CmdletBinding(SupportsShouldProcess=$true)]
+[CmdletBinding(SupportsShouldProcess = $true)]
 param (
-    [Parameter(Mandatory=$false)]
-    [ValidateSet("uninstall","update","ci")]
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("uninstall", "update", "ci")]
     [string]$Command = "uninstall",
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string[]]$Packages,
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$Global,
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$DryRun,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$SkipAdminCheck,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string[]]$ExtraArgs,
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$RuleName = "Block Node.js Outbound",
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$LogPath = (Join-Path (Join-Path $PSScriptRoot "..\LOG") ("npm_safe_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date)))
 )
 
@@ -84,7 +84,23 @@ $script:EXIT_NPM_FAILED = 3
 $script:EXIT_FIREWALL_ERROR = 4
 $script:EXIT_INVALID_ARGS = 5
 
-# ログヘルパー関数
+<#
+.SYNOPSIS
+    ログメッセージを記録し、画面に出力します。
+
+.DESCRIPTION
+    指定されたレベルでログファイルにメッセージを記録し、
+    レベルに応じた色で画面に出力します。
+
+.PARAMETER Message
+    ログに記録するメッセージ
+
+.PARAMETER Level
+    ログレベル（INFO, SUCCESS, WARNING, ERROR）
+
+.EXAMPLE
+    Write-Log "処理を開始します" "INFO"
+#>
 function Write-Log {
     param(
         [string]$Message,
@@ -103,20 +119,50 @@ function Write-Log {
     Add-Content -Path $LogPath -Value $logMessage -Encoding UTF8 -ErrorAction SilentlyContinue
     
     switch ($Level) {
-        "SUCCESS" { Write-Host $Message -ForegroundColor Green }
+        "SUCCESS" { Write-Information $Message -InformationAction Continue }
         "WARNING" { Write-Warning $Message }
-        "ERROR"   { Write-Host $Message -ForegroundColor Red }
-        default   { Write-Host $Message -ForegroundColor Cyan }
+        "ERROR" { Write-Information $Message -InformationAction Continue }
+        default { Write-Information $Message -InformationAction Continue }
     }
 }
 
-# 管理者権限チェック
+<#
+.SYNOPSIS
+    現在のセッションが管理者権限で実行されているかを確認します。
+
+.DESCRIPTION
+    現在のユーザープリンシパルが管理者ロールを持っているかを判定します。
+
+.OUTPUTS
+    System.Boolean
+    管理者権限がある場合はTrue、ない場合はFalse
+
+.EXAMPLE
+    if (Test-AdminPrivilege) { Write-Host "管理者です" }
+#>
 function Test-AdminPrivilege {
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# ファイアウォールルール存在チェック
+<#
+.SYNOPSIS
+    指定された名前のファイアウォールルールが存在するかを確認します。
+
+.DESCRIPTION
+    Get-NetFirewallRuleを使用して、指定された表示名のファイアウォールルールの
+    存在を確認します。
+
+.PARAMETER DisplayName
+    確認するファイアウォールルールの表示名
+
+.OUTPUTS
+    System.Boolean
+    ルールが存在する場合はTrue、存在しない場合はFalse
+
+.EXAMPLE
+    Test-FirewallRule -DisplayName "Block Node.js Outbound"
+#>
 function Test-FirewallRule {
     param([string]$DisplayName)
     
@@ -128,7 +174,24 @@ function Test-FirewallRule {
     }
 }
 
-# ファイアウォールルール状態取得
+<#
+.SYNOPSIS
+    指定された名前のファイアウォールルールの有効/無効状態を取得します。
+
+.DESCRIPTION
+    Get-NetFirewallRuleを使用して、指定された表示名のファイアウォールルールの
+    Enabledプロパティを取得します。
+
+.PARAMETER DisplayName
+    確認するファイアウォールルールの表示名
+
+.OUTPUTS
+    System.String または $null
+    ルールが有効な場合は"True"、無効な場合は"False"、取得失敗時は$null
+
+.EXAMPLE
+    Get-FirewallRuleState -DisplayName "Block Node.js Outbound"
+#>
 function Get-FirewallRuleState {
     param([string]$DisplayName)
     
