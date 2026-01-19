@@ -73,26 +73,42 @@ Start-Process pwsh -Verb RunAs -ArgumentList "-NoExit -Command `"cd '$(Split-Pat
 
 ```yaml
 Project:
-  Name: DotNetSdk_Uninstall
-  Version: "1.1.0"
+  Name: "Uninstall .NET SDK"
+  ScriptVersion: "1.1.0"
 
-Uninstall:
+PowerShell:
+  Version: 7.5.4
+
+Module:
+  Powershell-Yaml:
+    Name: powershell-yaml
+    Version: 0.4.7
+
+LogCleanup:
+  Enabled: true
+  RetentionDays: 30  # ログ保持期間（日）
+
+LOG:
+  FILENAME: DotNetSdk_Uninstall
+  EXTENSION: .log
+
+Timeout:
   UninstallSeconds: 300  # タイムアウト秒数
-  VersionPattern: "^\\d+\\.\\d+\\.\\d+$"  # バージョン形式
 
-Popup:
-  Error: 16
-  Warning: 48
-  Information: 64
+PopupIcon:
+  Error: 0x10        # 停止アイコン
+  Warning: 0x30      # 警告アイコン
+  Information: 0x40  # 情報アイコン
 
-RetentionDays: 30  # ログ保持期間（日）
+Validation:
+  VersionPattern: '^\d+\.\d+\.\d+(\.\d+)?$'  # x.y.z または x.y.z.w
 
 ExitCode:
   Success: 0
   GeneralError: 1
-  UserCanceled: 2
-  InsufficientPermission: 3
-  VersionValidationError: 4
+  UserCancelled: 2
+  InsufficientPrivileges: 3
+  VersionError: 4
   UninstallFailed: 5
 ```
 
@@ -203,12 +219,13 @@ YAML/DotNetUninst.yaml が存在することを確認してください
 ```Shell
 DotnetSdk削除/
 ├── Readme.md                               # このファイル
+├── DotNetSdk_削除.ps1 - ショートカット.lnk  # 実行ショートカット
 ├── Script/
 │   └── DotNetSdk_Uninstall.ps1            # メインスクリプト（v1.1.0）
 ├── YAML/
 │   └── DotNetUninst.yaml                  # 設定ファイル
 └── LOG/
-    └── （実行時に生成）
+    └── （実行時に生成されるログファイル）
 ```
 
 ## 改善履歴
@@ -228,7 +245,7 @@ DotnetSdk削除/
 ## 参考資料
 
 - [dotnet-core-uninstall ツール](https://github.com/dotnet/cli-lab/releases)
-- [PowerShell 公式ドキュメント](https://learn.microsoft.com/ja-jp/powershell/)
+- [PowerShell 公式ドキュメント](https://learn.microsoft.com/powershell/)
 - [powershell-yaml モジュール](https://github.com/cloudbase/powershell-yaml)
 
 ## ライセンス
