@@ -111,7 +111,7 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
     Context '正常系: YAML ファイル読み込み' {
         It 'シンプルな YAML ファイルを読み込める' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             $result | Should -Not -BeNullOrEmpty
@@ -122,7 +122,7 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
         
         It 'ネストされた YAML ファイルを読み込める' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:NestedYamlPath
+            $result = Import-YamlConfig -YamlPath $script:NestedYamlPath
             
             # Assert
             $result.Database | Should -Not -BeNullOrEmpty
@@ -133,7 +133,7 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
         
         It '配列を含む YAML ファイルを読み込める' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:ArrayYamlPath
+            $result = Import-YamlConfig -YamlPath $script:ArrayYamlPath
             
             # Assert
             $result.Servers | Should -Not -BeNullOrEmpty
@@ -144,7 +144,7 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
         
         It 'OrderedDictionary として返却される' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             # OrderedDictionary または Hashtable であることを確認
@@ -154,11 +154,11 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
         
         It 'キーが保持される' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
-            $result.ContainsKey('Project') | Should -BeTrue
-            $result.ContainsKey('Configuration') | Should -BeTrue
+            $result.Contains('Project') | Should -BeTrue
+            $result.Contains('Configuration') | Should -BeTrue
         }
     }
     
@@ -168,29 +168,29 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
             $nonExistentPath = Join-Path $script:TestRoot 'nonexistent.yaml'
             
             # Act & Assert
-            { Import-YamlConfig -Path $nonExistentPath } | Should -Throw
+            { Import-YamlConfig -YamlPath $nonExistentPath } | Should -Throw
         }
         
         It 'パスが null の場合、エラーが発生' -Tag 'Negative' {
             # Act & Assert
-            { Import-YamlConfig -Path $null } | Should -Throw
+            { Import-YamlConfig -YamlPath $null } | Should -Throw
         }
         
         It 'パスが空文字列の場合、エラーが発生' -Tag 'Negative' {
             # Act & Assert
-            { Import-YamlConfig -Path '' } | Should -Throw
+            { Import-YamlConfig -YamlPath '' } | Should -Throw
         }
         
         It '不正な YAML ファイルの場合、エラーが発生' -Tag 'Negative' {
             # Act & Assert
-            { Import-YamlConfig -Path $script:InvalidYamlPath } | Should -Throw
+            { Import-YamlConfig -YamlPath $script:InvalidYamlPath } | Should -Throw
         }
     }
     
     Context 'ファイル形式' {
         It '.yaml 拡張子が処理できる' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             $result | Should -Not -BeNullOrEmpty
@@ -202,7 +202,7 @@ Describe 'Import-YamlConfig' -Tag 'Unit', 'Common' {
             Set-Content -Path $ymlPath -Value $script:SimpleYaml -Encoding UTF8
             
             # Act
-            $result = Import-YamlConfig -Path $ymlPath
+            $result = Import-YamlConfig -YamlPath $ymlPath
             
             # Assert
             $result | Should -Not -BeNullOrEmpty
@@ -222,7 +222,7 @@ Project:
             Set-Content -Path $utf8Path -Value $utf8Yaml -Encoding UTF8
             
             # Act
-            $result = Import-YamlConfig -Path $utf8Path
+            $result = Import-YamlConfig -YamlPath $utf8Path
             
             # Assert
             $result.Project.Name | Should -Be 'テストプロジェクト'
@@ -232,7 +232,7 @@ Project:
     Context 'データ型の検証' {
         It 'ブール値が正しく解析される' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             $result.Configuration.Debug -is [bool] | Should -BeTrue
@@ -241,7 +241,7 @@ Project:
         
         It '数値が正しく解析される' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             $result.Configuration.MaxRetries -is [int] | Should -BeTrue
@@ -250,7 +250,7 @@ Project:
         
         It '文字列が正しく解析される' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:SimpleYamlPath
+            $result = Import-YamlConfig -YamlPath $script:SimpleYamlPath
             
             # Assert
             $result.Project.Name -is [string] | Should -BeTrue
@@ -260,7 +260,7 @@ Project:
     Context 'ネストの深さ' {
         It '3 階層のネストが処理できる' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:NestedYamlPath
+            $result = Import-YamlConfig -YamlPath $script:NestedYamlPath
             
             # Assert
             $result.Database.Credentials.Username | Should -Not -BeNullOrEmpty
@@ -268,7 +268,7 @@ Project:
         
         It '複数の配列が処理できる' -Tag 'Positive' {
             # Act
-            $result = Import-YamlConfig -Path $script:ArrayYamlPath
+            $result = Import-YamlConfig -YamlPath $script:ArrayYamlPath
             
             # Assert
             $result.Servers | Should -Not -BeNullOrEmpty
