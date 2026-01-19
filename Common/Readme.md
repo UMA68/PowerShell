@@ -36,6 +36,9 @@ $config = Import-YamlConfig -YamlPath $paths.EnvFile
 $key    = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.Key"
 Write-CommonLog -Message "起動完了" -LogPath "$($paths.Log)/app.log" -Level INFO
 
+# Test-Command について
+# - ComName パラメータを省略した場合はデフォルト値 "nkf32" が使用されます
+# - 前後の空白は自動削除されます（例: "  Get-Process  " → "Get-Process"）
 # 典型的な失敗時のログ・中断パターン
 if (-not (Test-Command -ComName "nkf32")) {
 	Write-CommonLog -Message "nkf32 が見つかりません" -LogPath "$($paths.Log)/app.log" -Level WARN
@@ -49,15 +52,15 @@ if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.
 
 ## スクリプト一覧
 
-| 関数 | ファイル | 説明 | 戻り値 | 主なパラメーター |
-| --- | --- | --- | --- | --- |
-| `Test-Command` | [CheckCommand.ps1](CheckCommand.ps1) | コマンドの存在を確認 | `[bool]` | `-ComName`, `-ShowDialog` |
-| `Test-ModuleInstalled` | [FindModule.ps1](FindModule.ps1) | モジュール存在とバージョンを確認 | `[bool]` | `-ModuleName`, `-MinimumVersion`, `-ShowDialog` |
-| `Get-EncryptionKey` | [Get-EncryptionKey.ps1](Get-EncryptionKey.ps1) | 暗号化用鍵（16/24/32 B）を読み込み | `[byte[]]` | `-KeyPath` |
-| `Get-ScriptPaths` | [Get-ScriptPaths.ps1](Get-ScriptPaths.ps1) | パス情報ハッシュテーブルを計算 | `[hashtable]` | `-ScriptPath`, `-EnvFileName` |
-| `Import-YamlConfig` | [Import-YamlConfig.ps1](Import-YamlConfig.ps1) | YAML を OrderedDictionary で読み込み | `[OrderedDictionary]` | `-YamlPath` |
-| `Test-NoDoubleActivation` | [NoDoubleActivation.ps1](NoDoubleActivation.ps1) | Mutex で二重起動を防止 | `[bool]` | `-Thread`, `-ShowDialog` |
-| `Write-CommonLog` | [Write-CommonLog.ps1](Write-CommonLog.ps1) | タイムスタンプ付きログ出力 | `[void]` | `-Message`, `-LogPath`, `-Level`, `-SensitivePatterns`, `-Quiet` |
+| 関数 | ファイル | 説明 | 戻り値 | 主なパラメーター | バージョン |
+| --- | --- | --- | --- | --- | --- |
+| `Test-Command` | [CheckCommand.ps1](CheckCommand.ps1) | コマンドの存在を確認 | `[bool]` | `-ComName` (opt), `-ShowDialog` | v1.3.0 |
+| `Test-ModuleInstalled` | [FindModule.ps1](FindModule.ps1) | モジュール存在とバージョンを確認 | `[bool]` | `-ModuleName`, `-MinimumVersion`, `-ShowDialog` | - |
+| `Get-EncryptionKey` | [Get-EncryptionKey.ps1](Get-EncryptionKey.ps1) | 暗号化用鍵（16/24/32 B）を読み込み | `[byte[]]` | `-KeyPath` | - |
+| `Get-ScriptPaths` | [Get-ScriptPaths.ps1](Get-ScriptPaths.ps1) | パス情報ハッシュテーブルを計算 | `[hashtable]` | `-ScriptPath`, `-EnvFileName` | - |
+| `Import-YamlConfig` | [Import-YamlConfig.ps1](Import-YamlConfig.ps1) | YAML を OrderedDictionary で読み込み | `[OrderedDictionary]` | `-YamlPath` | - |
+| `Test-NoDoubleActivation` | [NoDoubleActivation.ps1](NoDoubleActivation.ps1) | Mutex で二重起動を防止 | `[bool]` | `-Thread`, `-ShowDialog` | - |
+| `Write-CommonLog` | [Write-CommonLog.ps1](Write-CommonLog.ps1) | タイムスタンプ付きログ出力 | `[void]` | `-Message`, `-LogPath`, `-Level`, `-SensitivePatterns`, `-Quiet` | - |
 
 詳細は各ファイルの `Get-Help` を参照してください。
 
