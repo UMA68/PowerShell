@@ -167,5 +167,5 @@ Get-Help .\count_md_files_and_estimate_cost.ps1 -Full
 - スクリプトはPowerShell 5.0+ で動作（Windows PowerShell / PowerShell 7系で確認）
 - YAML設定ファイルはサポートしていません
 - 出力トークン比率を指定しない場合（デフォルト0）は入力トークンのみ計算
-- `-ShowTopFiles` は最大 1000 まで指定可能
+- `-ShowTopFiles` は最大1000まで指定可能
 - ディレクトリ除外は境界を考慮した正規表現で判定（`.obsidian` / `.git` / `.trash` が既定）
