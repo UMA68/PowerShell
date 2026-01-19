@@ -12,41 +12,41 @@
     Author: Test Suite
     Version: 1.0.0
     Last Updated: 2026-01-13
+    Pester Version: 3.4.0 compatible
 #>
 
-BeforeAll {
-    # テスト環境のセットアップ
-    $script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "PSReleaseTest_$(New-Guid)"
-    $script:SourceDir = Join-Path $script:TestRoot 'Source'
-    $script:DestDir = Join-Path $script:TestRoot 'Destination'
-    $script:LogDir = Join-Path $script:TestRoot 'LOG'
-    
-    # ディレクトリの作成
-    New-Item -ItemType Directory -Path $script:SourceDir -Force | Out-Null
-    New-Item -ItemType Directory -Path $script:DestDir -Force | Out-Null
-    New-Item -ItemType Directory -Path $script:LogDir -Force | Out-Null
-    
-    # テスト用のサンプルファイルを作成
-    @('file1.txt', 'file2.txt', 'config.ini', 'app.exe') | ForEach-Object {
-        Set-Content -Path (Join-Path $script:SourceDir $_) -Value "Test content for $_" -Encoding UTF8
+Describe 'リリースバッチ統合テスト' {
+    BeforeAll {
+        # テスト環境のセットアップ
+        $script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "PSReleaseTest_$(New-Guid)"
+        $script:SourceDir = Join-Path $script:TestRoot 'Source'
+        $script:DestDir = Join-Path $script:TestRoot 'Destination'
+        $script:LogDir = Join-Path $script:TestRoot 'LOG'
+        
+        # ディレクトリの作成
+        New-Item -ItemType Directory -Path $script:SourceDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $script:DestDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $script:LogDir -Force | Out-Null
+        
+        # テスト用のサンプルファイルを作成
+        @('file1.txt', 'file2.txt', 'config.ini', 'app.exe') | ForEach-Object {
+            Set-Content -Path (Join-Path $script:SourceDir $_) -Value "Test content for $_" -Encoding UTF8
+        }
+        
+        # テスト用のサンプルサブディレクトリを作成
+        $libDir = Join-Path $script:SourceDir 'lib'
+        New-Item -ItemType Directory -Path $libDir -Force | Out-Null
+        Set-Content -Path (Join-Path $libDir 'library.dll') -Value 'DLL content' -Encoding UTF8
     }
-    
-    # テスト用のサンプルサブディレクトリを作成
-    $libDir = Join-Path $script:SourceDir 'lib'
-    New-Item -ItemType Directory -Path $libDir -Force | Out-Null
-    Set-Content -Path (Join-Path $libDir 'library.dll') -Value 'DLL content' -Encoding UTF8
-}
 
-AfterAll {
-    # テスト用のディレクトリをクリーンアップ
-    if (Test-Path $script:TestRoot) {
-        Remove-Item -Path $script:TestRoot -Recurse -Force
+    AfterAll {
+        # テスト用のディレクトリをクリーンアップ
+        if (Test-Path $script:TestRoot) {
+            Remove-Item -Path $script:TestRoot -Recurse -Force
+        }
     }
-}
-
-Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     Context '基本的なファイルコピー' {
-        It 'ファイルが正しくコピーされる' -Tag 'Positive' {
+        It 'ファイルが正しくコピーされる' {
             # Arrange
             $sourceFile = Join-Path $script:SourceDir 'file1.txt'
             $destFile = Join-Path $script:DestDir 'file1.txt'
@@ -59,7 +59,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             (Get-Content $sourceFile) | Should -Be (Get-Content $destFile)
         }
         
-        It '複数ファイルが一括コピーできる' -Tag 'Positive' {
+        It '複数ファイルが一括コピーできる' {
             # Arrange
             $sourcePattern = Join-Path $script:SourceDir '*.txt'
             
@@ -70,7 +70,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             @(Get-ChildItem -Path (Join-Path $script:DestDir '*.txt')).Count | Should -Be 2
         }
         
-        It 'ディレクトリ構造が保持されてコピーされる' -Tag 'Positive' {
+        It 'ディレクトリ構造が保持されてコピーされる' {
             # Arrange
             $sourceSubDir = Join-Path $script:SourceDir 'lib'
             $destSubDir = Join-Path $script:DestDir 'lib'
@@ -85,7 +85,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     }
     
     Context 'ファイル上書き処理' {
-        It '既存ファイルがリネームされて上書きできる' -Tag 'Positive' {
+        It '既存ファイルがリネームされて上書きできる' {
             # Arrange
             $sourceFile = Join-Path $script:SourceDir 'file1.txt'
             $destFile = Join-Path $script:DestDir 'file1.txt'
@@ -112,7 +112,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     }
     
     Context 'ログ出力' {
-        It 'ログファイルが作成される' -Tag 'Positive' {
+        It 'ログファイルが作成される' {
             # Arrange
             $logPath = Join-Path $script:LogDir 'release.log'
             
@@ -123,7 +123,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             Test-Path $logPath | Should -BeTrue
         }
         
-        It 'ログにタイムスタンプが記録される' -Tag 'Positive' {
+        It 'ログにタイムスタンプが記録される' {
             # Arrange
             $logPath = Join-Path $script:LogDir 'timestamped.log'
             
@@ -138,7 +138,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     }
     
     Context '権限とアクセス' {
-        It 'ファイルが読み取り可能である' -Tag 'Positive' {
+        It 'ファイルが読み取り可能である' {
             # Arrange
             $sourceFile = Join-Path $script:SourceDir 'file1.txt'
             
@@ -149,7 +149,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             $content | Should -Not -BeNullOrEmpty
         }
         
-        It 'ファイルが書き込み可能である' -Tag 'Positive' {
+        It 'ファイルが書き込み可能である' {
             # Arrange
             $testFile = Join-Path $script:DestDir 'writable.txt'
             
@@ -162,7 +162,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     }
     
     Context 'エラーハンドリング' {
-        It '存在しないコピー元ファイルの場合、エラーが発生' -Tag 'Negative' {
+        It '存在しないコピー元ファイルの場合、エラーが発生' {
             # Arrange
             $nonExistentFile = Join-Path $script:SourceDir 'nonexistent.txt'
             $destFile = Join-Path $script:DestDir 'output.txt'
@@ -171,7 +171,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             { Copy-Item -Path $nonExistentFile -Destination $destFile } | Should -Throw
         }
         
-        It 'コピー先のディレクトリが存在しない場合、自動作成できる' -Tag 'Positive' {
+        It 'コピー先のディレクトリが存在しない場合、自動作成できる' {
             # Arrange
             $sourceFile = Join-Path $script:SourceDir 'file1.txt'
             $newDestDir = Join-Path $script:DestDir 'subdir'
@@ -188,7 +188,7 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
     }
     
     Context 'パフォーマンス' {
-        It '大量ファイルのコピーが効率的に実行される' -Tag 'Positive', 'Performance' {
+        It '大量ファイルのコピーが効率的に実行される', 'Performance' {
             # Arrange
             # 100個のファイルを作成
             $bulkDir = Join-Path $script:SourceDir 'bulk'
@@ -210,3 +210,4 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
         }
     }
 }
+
