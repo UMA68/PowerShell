@@ -3,7 +3,16 @@
 # Excelに出力する
 # =============================
 
-# モジュール確認関数
+<#
+.SYNOPSIS
+指定されたモジュールが利用可能かチェックします。
+
+.PARAMETER ModuleName
+確認するモジュールの名前
+
+.OUTPUTS
+Boolean
+#>
 function Test-ModuleAvailable {
     param([string]$ModuleName)
     $null -ne (Get-Module -ListAvailable -Name $ModuleName -ErrorAction SilentlyContinue)
@@ -72,18 +81,18 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropS
 [string]$sql = "SELECT * FROM [$databaseName].dbo.[$TableName] ;"
 
 # 出力ファイルの存在確認と削除
-if(Test-Path $outputPath){
+if (Test-Path $outputPath) {
     # 出力先のファイルが存在します。削除してもよろしいですか？
     $outputFileName = Split-Path -Leaf $outputPath
          
         # ダイアログ表示を行う
         $obj = New-Object -ComObject WScript.Shell
         try {
-            $ret = $obj.Popup($outputFileName+"が存在します。削除してもよろしいですか？",0,"確認",0x4) # YesとNoのボタンを表示
+            $ret = $obj.Popup($outputFileName + "が存在します。削除してもよろしいですか？", 0, "確認", 0x4) # YesとNoのボタンを表示
         } finally {
             [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
         }
-        if($ret -eq 6){ # Yesが押された場合
+        if ($ret -eq 6) { # Yesが押された場合
             try {
                 Remove-Item $outputPath -Force -ErrorAction Stop
             }
@@ -93,17 +102,17 @@ if(Test-Path $outputPath){
                 
                 $obj = New-Object -ComObject WScript.Shell
                 try {
-                    $obj.Popup("ファイルが他のプロセスで使用中です。Excelを閉じてから再実行してください。",0,"エラー",0x10)
+                    $obj.Popup("ファイルが他のプロセスで使用中です。Excelを閉じてから再実行してください。", 0, "エラー", 0x10)
                 } finally {
                     [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
                 }
                 exit 1
             }
-        }else{  # Noが押された場合
+        } else { # Noが押された場合
             # 処理を終了します
             $obj = New-Object -ComObject WScript.Shell
             try {
-                $obj.Popup("処理を終了します。"+$outputFileName+"を退避してください",0,"警告",0x30)   # OKボタンを表示
+                $obj.Popup("処理を終了します。" + $outputFileName + "を退避してください", 0, "警告", 0x30)   # OKボタンを表示
             } finally {
                 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
             }
@@ -112,16 +121,16 @@ if(Test-Path $outputPath){
 }
 
 # SQLの実行（エラーハンドリング付き）
-try{
+try {
     $data = Invoke-Sqlcmd -TrustServerCertificate -ServerInstance $serverName -Database $databaseName -User $userId -Password $password -Query $sql -ErrorAction Stop 
-}catch{
+} catch {
     Write-Warning "SQLの実行に失敗しました。"
     Write-Error $_.Exception.Message
 
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
     try {
-        $obj.Popup("SQLの実行に失敗しました。処理を終了します",0,"エラー",0x10)
+        $obj.Popup("SQLの実行に失敗しました。処理を終了します", 0, "エラー", 0x10)
     } finally {
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
     }
@@ -142,7 +151,7 @@ if ($null -eq $data -or $data.Count -eq 0) {
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
     try {
-        $obj.Popup("データが取得できません。処理を終了します",0,"警告",0x30)
+        $obj.Popup("データが取得できません。処理を終了します", 0, "警告", 0x30)
     } finally {
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
     }
@@ -171,7 +180,7 @@ catch {
     # ダイアログ表示を行う
     $obj = New-Object -ComObject WScript.Shell
     try {
-        $obj.Popup("Excelファイルの作成に失敗しました。処理を終了します",0,"エラー",0x10)
+        $obj.Popup("Excelファイルの作成に失敗しました。処理を終了します", 0, "エラー", 0x10)
     } finally {
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($obj) | Out-Null
     }
