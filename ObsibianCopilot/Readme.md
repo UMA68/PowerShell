@@ -4,7 +4,7 @@
 
 Copilot Pluginで、OpenAIをAPI越しに利用している。
 
-実際のファイルサイズに基づいてトークン数を推定し、ChatGPT API使用時のコストを見積もるPowerShellスクリプトを作成した。
+実際のファイルサイズに基づいてトークン数を推定し、ChatGPT API使用時のコストを見積もるPowerShellスクリプトです。
 
 ## 主な機能
 
@@ -46,10 +46,10 @@ Copilot Pluginで、OpenAIをAPI越しに利用している。
 ### モデル比較と出力トークンを含めた見積もり
 
 ```PowerShell
-.\count_md_files_and_estimate_cost.ps1 -ShowModelComparison -OutputTokenRatio 0.5
+.\count_md_files_and_estimate_cost.ps1 -ShowModelComparison -OutputTokenRatio 0.5 -NoKeyWait
 ```
 
-### 実行結果の例
+### 実行結果の例（サンプル）
 
 ```PowerShell
 ===== Analysis Results =====
@@ -127,17 +127,20 @@ Get-Help .\count_md_files_and_estimate_cost.ps1 -Full
 
 # モデル比較＋出力トークン30%想定＋CSV出力
 .\count_md_files_and_estimate_cost.ps1 -ShowModelComparison -OutputTokenRatio 0.3 -ExportToFile .\result.csv
+
+# 情報メッセージを必ず表示（InformationAction）
+.\count_md_files_and_estimate_cost.ps1 -InformationAction Continue
 ```
 
-### プリセット（価格プロファイル）
+### 価格プリセットとモデル別試算
 
-スクリプトは柔軟に価格を指定できます（`-CostPerMillionTokens`）。よく使うモデル別のプリセット値は以下です。
+スクリプトは柔軟に価格を指定できます（`-CostPerMillionTokens`）。よく使うモデル別のプリセット値は以下です。`-PricingProfile` を指定した場合、`-CostPerMillionTokens` の値は上書きされます。
 
 - GPT-4o: 入力 `$2.50/1M tokens`、出力 `$10.00/1M tokens`
 - GPT-4o-mini: 入力 `$0.15/1M tokens`、出力 `$0.60/1M tokens`
 - GPT-3.5-turbo: 入力 `$0.50/1M tokens`、出力 `$1.50/1M tokens`
 
-モデル別の簡易指定例（入力価格プリセットを使用し、出力は`-OutputTokenRatio`に応じて自動算出）:
+モデル別の簡易指定例（入力価格プリセットを使用し、出力は `-OutputTokenRatio` に応じて自動算出。出力コストは入力単価の3倍で計算）:
 
 ```PowerShell
 # GPT-4o（入力$2.50）で試算（PricingProfile推奨）
@@ -161,7 +164,8 @@ Get-Help .\count_md_files_and_estimate_cost.ps1 -Full
 - トークン推定はファイルサイズ基準の概算であり、内容や言語で±10%程度の誤差が生じる可能性があります
 - 大量ファイル処理時は実行時間が長くなる場合があります
 - Obsidian Vaultのパスは適宜変更してください
-- スクリプトはPowerShell 7.3.9以降で動作確認済みです
+- スクリプトはPowerShell 5.0+ で動作（Windows PowerShell / PowerShell 7系で確認）
 - YAML設定ファイルはサポートしていません
-- 将来のバージョンで暗号化機能を実装予定です
-- 必須モジュール: `SqlServer` (バージョン: 22.1.1)
+- 出力トークン比率を指定しない場合（デフォルト0）は入力トークンのみ計算
+- `-ShowTopFiles` は最大 1000 まで指定可能
+- ディレクトリ除外は境界を考慮した正規表現で判定（`.obsidian` / `.git` / `.trash` が既定）
