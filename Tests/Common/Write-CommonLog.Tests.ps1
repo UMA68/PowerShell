@@ -12,28 +12,28 @@
     Author: Test Suite
     Version: 1.0.0
     Last Updated: 2026-01-13
+    Pester Version: 5.7.1 compatible
 #>
 
-BeforeAll {
-    # テスト対象の関数を読み込み
-    $commonPath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $commonPath 'Common\Write-CommonLog.ps1')
-    
-    # テスト用の一時ディレクトリを作成
-    $script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "PSLogTest_$(New-Guid)"
-    New-Item -ItemType Directory -Path $script:TestRoot -Force | Out-Null
-}
-
-AfterAll {
-    # テスト用のディレクトリをクリーンアップ
-    if (Test-Path $script:TestRoot) {
-        Remove-Item -Path $script:TestRoot -Recurse -Force
-    }
-}
-
 Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
+    BeforeAll {
+        # テスト対象の関数を読み込み
+        $commonPath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        . (Join-Path $commonPath 'Common\Write-CommonLog.ps1')
+        
+        # テスト用の一時ディレクトリを作成
+        $script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "PSLogTest_$(New-Guid)"
+        New-Item -ItemType Directory -Path $script:TestRoot -Force | Out-Null
+    }
+
+    AfterAll {
+        # テスト用のディレクトリをクリーンアップ
+        if (Test-Path $script:TestRoot) {
+            Remove-Item -Path $script:TestRoot -Recurse -Force
+        }
+    }
     Context '正常系: ログファイル作成と書き込み' {
-        It 'ログメッセージを書き込み、ファイルが作成される' -Tag 'Positive' {
+        It 'ログメッセージを書き込み、ファイルが作成される' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'test.log'
             $message = 'テストメッセージ'
@@ -42,11 +42,11 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
             
             # Assert
-            Test-Path $logPath | Should -BeTrue
+            Test-Path $logPath | Should -Be $true
             (Get-Content $logPath).Count | Should -BeGreaterThan 0
         }
         
-        It '複数のメッセージが追記される' -Tag 'Positive' {
+        It '複数のメッセージが追記される' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'append.log'
             $message1 = 'メッセージ1'
@@ -58,12 +58,12 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             
             # Assert
             $content = Get-Content $logPath
-            $content.Count | Should -BeGreaterThanOrEqual 2
-            $content | Should -Match $message1
-            $content | Should -Match $message2
+            $content.Count | Should -BeGreaterOrEqual 2
+            $content -join ' ' | Should -Match $message1
+            $content -join ' ' | Should -Match $message2
         }
         
-        It 'ログファイルのディレクトリが存在しない場合、自動作成される' -Tag 'Positive' {
+        It 'ログファイルのディレクトリが存在しない場合、自動作成される' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'subdir\nested\test.log'
             $message = 'テストメッセージ'
@@ -72,12 +72,12 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
             
             # Assert
-            Test-Path $logPath | Should -BeTrue
+            Test-Path $logPath | Should -Be $true
         }
     }
     
     Context 'ログレベルの検証' {
-        It 'INFO レベルのログが書き込まれる' -Tag 'Positive' {
+        It 'INFO レベルのログが書き込まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'info.log'
             $message = 'INFO メッセージ'
@@ -91,21 +91,21 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             $content | Should -Match $message
         }
         
-        It 'WARNING レベルのログが書き込まれる' -Tag 'Positive' {
+        It 'WARN レベルのログが書き込まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'warning.log'
-            $message = 'WARNING メッセージ'
+            $message = 'WARN メッセージ'
             
             # Act
-            Write-CommonLog -Message $message -LogPath $logPath -Level 'WARNING'
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'WARN'
             
             # Assert
             $content = Get-Content $logPath
-            $content | Should -Match 'WARNING'
+            $content | Should -Match 'WARN'
             $content | Should -Match $message
         }
         
-        It 'ERROR レベルのログが書き込まれる' -Tag 'Positive' {
+        It 'ERROR レベルのログが書き込まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'error.log'
             $message = 'ERROR メッセージ'
@@ -119,7 +119,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             $content | Should -Match $message
         }
         
-        It 'DEBUG レベルのログが書き込まれる' -Tag 'Positive' {
+        It 'DEBUG レベルのログが書き込まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'debug.log'
             $message = 'DEBUG メッセージ'
@@ -135,7 +135,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
     }
     
     Context 'ログメッセージのフォーマット' {
-        It 'ログメッセージにタイムスタンプが含まれる' -Tag 'Positive' {
+        It 'ログメッセージにタイムスタンプが含まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'timestamp.log'
             $message = 'タイムスタンプテスト'
@@ -149,20 +149,20 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             $content | Should -Match '\d{4}-\d{2}-\d{2}'
         }
         
-        It 'ログメッセージにログレベルが含まれる' -Tag 'Positive' {
+        It 'ログメッセージにログレベルが含まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'level.log'
             $message = 'レベルテスト'
             
             # Act
-            Write-CommonLog -Message $message -LogPath $logPath -Level 'WARNING'
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'WARN'
             
             # Assert
             $content = Get-Content $logPath
-            $content | Should -Match 'WARNING'
+            $content | Should -Match 'WARN'
         }
         
-        It 'ログメッセージが正しく含まれる' -Tag 'Positive' {
+        It 'ログメッセージが正しく含まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'message.log'
             $message = '特定のメッセージテキスト'
@@ -172,12 +172,12 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             
             # Assert
             $content = Get-Content $logPath
-            $content | Should -Match [regex]::Escape($message)
+            $content -join ' ' | Should -Match ([regex]::Escape($message))
         }
     }
     
     Context 'エラーハンドリング' {
-        It 'ログパスが null の場合、エラーが発生' -Tag 'Negative' {
+        It 'ログパスが null の場合、エラーが発生' {
             # Arrange
             $message = 'テストメッセージ'
             
@@ -185,7 +185,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             { Write-CommonLog -Message $message -LogPath $null -Level 'INFO' } | Should -Throw
         }
         
-        It 'メッセージが null の場合、エラーが発生' -Tag 'Negative' {
+        It 'メッセージが null の場合、エラーが発生' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'null.log'
             
@@ -193,7 +193,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             { Write-CommonLog -Message $null -LogPath $logPath -Level 'INFO' } | Should -Throw
         }
         
-        It '無効なログレベルの場合、デフォルト値が使用される' -Tag 'Positive' {
+        It '無効なログレベルの場合、デフォルト値が使用される' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'invalid-level.log'
             $message = 'テストメッセージ'
@@ -205,13 +205,13 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             # Assert
             if (Test-Path $logPath) {
                 # ファイルが作成されていれば、正常に処理されている
-                Test-Path $logPath | Should -BeTrue
+                Test-Path $logPath | Should -Be $true
             }
         }
     }
     
     Context 'エンコーディング' {
-        It 'UTF-8 でエンコードされている' -Tag 'Positive' {
+        It 'UTF-8 でエンコードされている' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'encoding.log'
             $message = '日本語テストメッセージ'
@@ -220,12 +220,12 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
             
             # Assert
-            Test-Path $logPath | Should -BeTrue
+            Test-Path $logPath | Should -Be $true
             $content = Get-Content $logPath -Encoding UTF8
             $content | Should -Match '日本語'
         }
         
-        It 'マルチバイト文字が正しく書き込まれる' -Tag 'Positive' {
+        It 'マルチバイト文字が正しく書き込まれる' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'multibyte.log'
             $message = '🎉 絵文字テスト 中文'
@@ -240,7 +240,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
     }
     
     Context 'パフォーマンス' {
-        It '大量のログメッセージが効率的に書き込まれる' -Tag 'Positive', 'Performance' {
+        It '大量のログメッセージが効率的に書き込まれる' -Tag 'Performance' {
             # Arrange
             $logPath = Join-Path $script:TestRoot 'large.log'
             $iterations = 1000
@@ -254,9 +254,11 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             $duration = ($endTime - $startTime).TotalSeconds
             
             # Assert
-            Test-Path $logPath | Should -BeTrue
-            $duration | Should -BeLessThan 10  # 10秒以内に完了
-            (Get-Content $logPath).Count | Should -BeGreaterThanOrEqual $iterations
+            Test-Path $logPath | Should -Be $true
+            $duration | Should -BeLessOrEqual 10  # 10秒以内に完了
+            (Get-Content $logPath).Count | Should -BeGreaterOrEqual $iterations
         }
     }
 }
+
+
