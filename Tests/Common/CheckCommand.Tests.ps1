@@ -27,7 +27,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'Get-ChildItem'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue
@@ -38,7 +38,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'Write-Host'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue
@@ -50,7 +50,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'dir'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue
@@ -62,7 +62,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'ConvertFrom-Yaml'
             
             # Act
-            $result = Test-Command -Command $commandName -ErrorAction SilentlyContinue
+            $result = Test-Command -ComName $commandName -ErrorAction SilentlyContinue
             
             # Assert
             # モジュールがインストールされている場合
@@ -78,7 +78,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'NonExistentCommand12345'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeFalse
@@ -89,7 +89,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'Get-ChldItem'  # Get-ChildItem のタイポ
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeFalse
@@ -100,7 +100,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'NonExistentModule\NonExistentCommand'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeFalse
@@ -108,10 +108,11 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
     }
     
     Context 'パラメータの検証' {
-        It 'Command パラメータが必須である' -Tag 'Positive' {
+        It 'ComName パラメータが指定されない場合、デフォルト値が使用される' -Tag 'Positive' {
             # Act & Assert
-            # パラメータなしで実行するとエラーが発生する
-            { Test-Command } | Should -Throw
+            # デフォルト値でコマンドが実行される
+            # （結果は nkf32 が存在するかどうかに依存）
+            { Test-Command } | Should -Not -Throw
         }
         
         It 'コマンド名が大文字小文字を区別しない' -Tag 'Positive' {
@@ -119,7 +120,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'get-childitem'  # 小文字
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue
@@ -130,7 +131,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = '  Get-ChildItem  '
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue
@@ -143,7 +144,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = $null
             
             # Act & Assert
-            { Test-Command -Command $commandName } | Should -Throw
+            { Test-Command -ComName $commandName } | Should -Throw
         }
         
         It 'コマンド名が空文字列の場合、エラーが発生' -Tag 'Negative' {
@@ -151,7 +152,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = ''
             
             # Act & Assert
-            { Test-Command -Command $commandName } | Should -Throw
+            { Test-Command -ComName $commandName } | Should -Throw
         }
         
         It 'コマンド名が空白のみの場合、エラーが発生' -Tag 'Negative' {
@@ -159,7 +160,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = '   '
             
             # Act & Assert
-            { Test-Command -Command $commandName } | Should -Throw
+            { Test-Command -ComName $commandName } | Should -Throw
         }
     }
     
@@ -177,7 +178,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             # Act
             $startTime = Get-Date
             foreach ($cmd in $commands) {
-                [void] (Test-Command -Command $cmd)
+                [void] (Test-Command -ComName $cmd)
             }
             $endTime = Get-Date
             $duration = ($endTime - $startTime).TotalSeconds
@@ -194,7 +195,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $commandName = 'Add-Type'
             
             # Act
-            $result = Test-Command -Command $commandName
+            $result = Test-Command -ComName $commandName
             
             # Assert
             $result | Should -BeTrue

@@ -140,12 +140,16 @@ function Test-Command {
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({
-                if ($_ -match '[\*\?\[\]]') {
-                    Write-Warning "コマンド名にワイルドカード文字が含まれています: $_"
+                $trimmedValue = $_.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmedValue)) {
+                    throw "コマンド名が空白のみです。"
+                }
+                if ($trimmedValue -match '[\*\?\[\]]') {
+                    Write-Warning "コマンド名にワイルドカード文字が含まれています: $trimmedValue"
                 }
                 $true
             })]
-        [string]$ComName = "nkf32",     # 存在確認対象のコマンド名
+        [string]$ComName,
         
         [Parameter(Mandatory = $false)]
         [switch]$ShowDialog = $false    # ダイアログ表示オプション
@@ -153,22 +157,25 @@ function Test-Command {
     
     process {
         try {
-            # 指定したコマンドの存在を確認
-            $command = Get-Command -Name $ComName -ErrorAction Stop
+            # 前後の空白を削除
+            $trimmedComName = $ComName.Trim()
             
-            Write-Verbose "コマンド '$ComName' が見つかりました。(型: $($command.CommandType), パス: $($command.Source))"
+            # 指定したコマンドの存在を確認
+            $command = Get-Command -Name $trimmedComName -ErrorAction Stop
+            
+            Write-Verbose "コマンド '$trimmedComName' が見つかりました。(型: $($command.CommandType), パス: $($command.Source))"
             return $true
         }
         catch [System.Management.Automation.CommandNotFoundException] {
             # コマンドが見つからない場合
-            $errorMessage = "コマンド '$ComName' が見つかりません。パスが通っていることを確認してください。"
+            $errorMessage = "コマンド '$trimmedComName' が見つかりません。パスが通っていることを確認してください。"
             
             if ($ShowDialog) {
                 # ダイアログで警告を表示
                 $obj = New-Object -ComObject WScript.Shell
                 try {
                     $obj.Popup(
-                        "コマンド '$ComName' が見つかりません。`r`nパスが通っていることを確認してください。",
+                        "コマンド '$trimmedComName' が見つかりません。`r`nパスが通っていることを確認してください。",
                         0,
                         "警告",
                         0x30
