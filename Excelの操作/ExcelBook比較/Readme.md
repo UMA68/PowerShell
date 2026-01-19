@@ -80,7 +80,7 @@ Set-Location "$HOME\GitHub\PowerShell\Excelの操作\ExcelBook比較"
 7. ✅ オートフィルターと先頭行固定を設定
 
 ```Terminal
-処理が正常に完了しました。Excelファイルは開いたままです。
+INFO: 処理が正常に完了しました。Excelファイルは開いたままです。
 ```
 
 ## スクリプト詳細
@@ -227,6 +227,13 @@ $HIGHLIGHT_COLOR = 38  # 赤色
 - [Excel COM オブジェクト](https://docs.microsoft.com/office/vba/api/overview/excel)
 
 ## バージョン履歴
+
+### v2.1.0 (2026-01-19)
+
+- PSScriptAnalyzer対応による品質改善
+- Write-Host → Write-Informationに変更（ホスト互換性向上）
+- コードスタイルの統一（スペース、中括弧の配置）
+- ベストプラクティスへの準拠
 
 ### v2.0.0 (2026-01-05)
 
