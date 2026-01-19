@@ -11,7 +11,7 @@ Tests/
 │   ├── Get-ScriptPaths.Tests.ps1                # ✅ 実装完了 (40テストケース)
 │   ├── Write-CommonLog.Tests.ps1                # ✅ 実装完了 (30テストケース)
 │   ├── Import-YamlConfig.Tests.ps1              # ✅ 実装完了 (35テストケース)
-│   └── CheckCommand.Tests.ps1                   # ✅ 実装完了 (24テストケース)
+│   └── CheckCommand.Tests.ps1                   # ✅ 実装完了 (15テストケース)
 ├── Integration/                                 # 統合テスト
 │   ├── ReleaseProcess.Tests.ps1                 # ✅ 実装完了 (17テストケース)
 │   ├── DecompileDLL.Tests.ps1                   # 📋 テンプレート
