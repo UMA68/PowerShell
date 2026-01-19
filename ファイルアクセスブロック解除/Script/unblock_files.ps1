@@ -83,9 +83,9 @@
 .NOTES
     File Name      : unblock_files.ps1
     Author         : UMA68
-    Version        : 2.1.0
+    Version        : 2.1.1
     Release Date   : 2025-12-12
-    Last Modified  : 2025-12-12
+    Last Modified  : 2026-01-19
     
     前提条件:
     - PowerShell 7.3.9 以上
@@ -118,6 +118,12 @@
     - Success rate                 : 成功率（%）
     
     変更履歴:
+    v2.1.1 (2026-01-19)
+        - PSScriptAnalyzer準拠対応（コード品質改善）
+        - ホワイトスペースの一貫性修正（開き括弧前、演算子周辺）
+        - 空のcatchブロック改善（Write-Verbose追加）
+        - コーディング規約遵守による可読性向上
+    
     v2.1.0 (2025-12-12)
         - FileNotFoundException例外ハンドリング追加（Zone.Identifier不在時）
         - accessErrorFilesカウンターの明確化（skippedFilesから変更）
