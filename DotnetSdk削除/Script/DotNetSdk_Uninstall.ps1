@@ -162,18 +162,18 @@
 #>
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory=$false)]
-    [ValidateScript({ # YAML設定に基づく
+    [Parameter(Mandatory = $false)]
+    [ValidateScript({
         # SdkVersion のバージョン形式を検証（x.x.xxx または x.x.xxx,x.x.xxx の形式）
-        if ([string]::IsNullOrWhiteSpace($_)) { # 空文字列は許可（対話的な入力を促す）
+        if ([string]::IsNullOrWhiteSpace($_)) {
             # 空文字列は許可（対話的な入力を促す）
             $true
-        } else { # バージョンが指定されている場合
+        } else {
             # バージョン形式を検証（例：9.0.301 または 9.0.301,8.0.100）
             $versions = $_ -split ','
-            foreach ($version in $versions) { # 各バージョンを検証
+            foreach ($version in $versions) {
                 $version = $version.Trim()
-                if ($version -notmatch '^\d+\.\d+\.\d+$') { # x.x.xxx 形式でない場合
+                if ($version -notmatch '^\d+\.\d+\.\d+$') {
                     throw "バージョン形式が正しくありません。x.x.xxx 形式で指定してください: $_"
                 }
             }
@@ -182,10 +182,10 @@ param (
     })]
     [string]$SdkVersion,            # 削除する .NET SDKバージョン（省略時は対話的に入力を求める）
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$WhatIf,                # ドライランモード（削除せず確認のみ）
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$SkipAdminCheck         # 管理者権限チェックをスキップします。デバッグ用途のみで使用してください。
 )
 
@@ -194,7 +194,14 @@ begin {
     $script:CanExecuteProcess = $true
     $script:ExitCode = 0
     
-    # ヘルパー関数: 例外タイプに基づくログレベル決定（改善 #3）
+    <#
+    .SYNOPSIS
+        例外の型に基づいてログレベルを決定します
+    .DESCRIPTION
+        与えられた例外オブジェクトの型を調べ、適切なログレベル（ERROR/WARN）を返します
+    .PARAMETER Exception
+        分析する例外オブジェクト
+    #>
     function Get-ExceptionLogLevel {
         param([Exception]$Exception)
         $exceptionType = $Exception.GetType().FullName
@@ -215,7 +222,16 @@ begin {
         }
     }
     
-    # ヘルパー関数: ログファイルの条件付きオープン（改善 #4）
+    <#
+    .SYNOPSIS
+        ログファイルを条件付きでオープンします
+    .DESCRIPTION
+        インタラクティブモード時にログファイルが存在すればエクスプローラーで開きます
+    .PARAMETER LogPath
+        開くログファイルのパス
+    .PARAMETER Interactive
+        インタラクティブモードの場合は $true
+    #>
     function Open-LogIfNeeded {
         param([string]$LogPath, [bool]$Interactive)
         if ($Interactive -and (Test-Path $LogPath)) { # インタラクティブモードかつログファイルが存在する場合
@@ -227,8 +243,16 @@ begin {
         }
     }
     
-    # ヘルパー関数: プロセスツリー再帰削除（改善 #4）
+    <#
+    .SYNOPSIS
+        プロセスツリーを再帰的に停止します
+    .DESCRIPTION
+        指定されたプロセスと、そのプロセスの全ての子プロセスを再帰的に停止します
+    .PARAMETER ProcessId
+        停止するプロセスのID
+    #>
     function Stop-ProcessTree {
+        [CmdletBinding(SupportsShouldProcess = $true)]
         param([int]$ProcessId)
         try {
             Get-Process | Where-Object { $_.Parent.Id -eq $ProcessId -and $_.Id -ne $ProcessId } | ForEach-Object {
@@ -236,10 +260,12 @@ begin {
             }
             $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
             if ($process) { # プロセスが存在する場合
-                $process | Stop-Process -Force -ErrorAction SilentlyContinue
+                if ($PSCmdlet.ShouldProcess("Process $ProcessId", "Stop")) {
+                    $process | Stop-Process -Force -ErrorAction SilentlyContinue
+                }
             }
         } catch {
-            # エラーを無視して続行
+            Write-Error "Failed to stop process tree: $_"
         }
     }
     
@@ -336,8 +362,8 @@ begin {
         $cutoffDate = (Get-Date).AddDays(-$logRetentionDays)
         $logFileName = $script:config.LOG.FILENAME
         $logExtension = $script:config.LOG.EXTENSION
-        $oldLogs = Get-ChildItem -Path $script:LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue | 
-                   Where-Object { $_.LastWriteTime -lt $cutoffDate }
+        $oldLogs = Get-ChildItem -Path $script:LogDir -Filter "${logFileName}_*${logExtension}" -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt $cutoffDate }
         
         if ($oldLogs -and $oldLogs.Count -gt 0) { # 古いログファイルが存在する場合
             foreach ($oldLog in $oldLogs) { # 古いログファイルを削除
@@ -489,8 +515,8 @@ process {
         } catch {
             # InputBoxが使えない場合は単純なプロンプトにフォールバック
             Write-CommonLog -Message "InputBox not available, using console input." -LogPath $script:Log -Level "WARN"
-            Write-Host "`nインストールされている .NET SDKバージョン:"
-            $installedSdks | ForEach-Object { Write-Host "  $_" }
+            Write-Output "`nインストールされている .NET SDKバージョン:"
+            $installedSdks | ForEach-Object { Write-Output "  $_" }
             $SdkVersion = Read-Host "`n削除したい .NET SDKのバージョンを入力してください (例: 9.0.301 または 9.0.301,8.0.100)"
         }
         
@@ -795,7 +821,7 @@ end {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
             $script:comObject = $null
         } catch {
-            # COM解放エラーは無視
+            Write-Verbose "Warning: COM object release failed (non-critical): $_"
         }
     }
     

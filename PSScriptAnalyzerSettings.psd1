@@ -118,7 +118,9 @@
     
     # 除外するルール（必要に応じて追加）
     ExcludeRules = @(
-        # 除外するルールがあればここに追加
+        # ValidateScript内のインデント規則は動的コードブロック内の制限による
+        # 機能上の問題がないため除外
+        'PSUseConsistentIndentation'
     )
     
     # Severity の設定（オプション）

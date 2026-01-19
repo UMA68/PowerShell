@@ -2,6 +2,12 @@
 
 .NET SDKを安全にアンインストールするためのPowerShellスクリプト（v1.1.0）
 
+## はじめに
+
+削除ツールを作っておいて何ですが、 .NET SDKの削除は実施しない方が賢明です。古いSDKは通常、システムに悪影響を与えません。むしろ、将来のプロジェクトで必要になる可能性があります。 ただし、特定の状況下でSDKを削除する必要がある場合に、このスクリプトが役立ちます。
+
+なので、.NET SDK削除によるシステム不安定化のリスクを理解した上で、慎重に使用してください。
+
 ## 概要
 
 このスクリプトは、インストールされている .NET SDKを **安全** に削除します。以下の特徴があります：
@@ -23,6 +29,15 @@
 - **DotNetUninst.yaml** が `YAML` フォルダーに存在
 
 ## 使用方法
+
+### 管理者権限での起動（推奨）
+
+```powershell
+# 管理者として新しい PowerShell を起動し、スクリプトを実行
+Start-Process pwsh -Verb RunAs -ArgumentList "-NoExit -Command `"cd '$(Split-Path $PSCommandPath)'; .\DotNetSdk_Uninstall.ps1`""
+```
+
+> 権限不足の場合は必ず管理者権限で実行してください。`-SkipAdminCheck` はデバッグ専用です。
 
 ### 基本的な実行
 
@@ -173,7 +188,8 @@ Install-Module -Name powershell-yaml -Repository PSGallery
 ### 管理者権限がない場合
 
 ```powershell
-# PowerShell を管理者権限で実行してから実行
+# 管理者権限の PowerShell を起動して実行
+Start-Process pwsh -Verb RunAs -ArgumentList "-NoExit -Command `"cd '$(Split-Path $PSCommandPath)'; .\DotNetSdk_Uninstall.ps1`""
 ```
 
 ### YAML ファイルが見つからない場合
@@ -203,6 +219,9 @@ DotnetSdk削除/
 - CanExecuteProcessフラグ導入（統一的なフロー制御）
 - Get-ExceptionLogLevel関数実装（例外型の自動分類、9パターン対応）
 - Helper関数追加（Open-LogIfNeeded, Stop-ProcessTree）
+- Stop-ProcessTreeにShouldProcessサポートを追加（-WhatIf/-Confirm対応）
+- 全catchでエラーログを残すよう改善（空catch排除）
+- Write-Hostを排除し、パイプライン出力に変更
 - endブロック強化（COMオブジェクト確実解放）
 - 全catchブロック（7個）に例外分類ロジック統合
 
