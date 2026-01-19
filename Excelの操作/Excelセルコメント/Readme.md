@@ -70,7 +70,7 @@ Set-Location "$HOME\GitHub\PowerShell\Excelの操作\Excelセルコメント"
 8. ✅ ファイルを保存
 
 ```Terminal
-セルへの書き込みが完了しました。
+INFO: セルへの書き込みが完了しました。
 ```
 
 ## スクリプト詳細
@@ -86,9 +86,9 @@ Set-Location "$HOME\GitHub\PowerShell\Excelの操作\Excelセルコメント"
 - セルA2の値をクリア
 
 ```powershell
-if ($worksheet.Cells.Item(1,1).Value2 -ne $null) {
-    $worksheet.Cells.Item(1,1).Value2 = ""
-    $comment = $worksheet.Cells.Item(1,1).Comment
+if ($worksheet.Cells.Item(1, 1).Value2 -ne $null) {
+    $worksheet.Cells.Item(1, 1).Value2 = ""
+    $comment = $worksheet.Cells.Item(1, 1).Comment
     if ($null -ne $comment) {
         $comment.Delete()
     }
@@ -100,8 +100,8 @@ if ($worksheet.Cells.Item(1,1).Value2 -ne $null) {
 セルA1に値とコメントを記入：
 
 ```powershell
-$worksheet.Cells.Item(1,1).Value2 = "Hello"
-$comment = $worksheet.Cells.Item(1,1).AddComment("Hello World を記入")
+$worksheet.Cells.Item(1, 1).Value2 = "Hello"
+$comment = $worksheet.Cells.Item(1, 1).AddComment("Hello World を記入")
 $comment.Shape.TextFrame.AutoSize = $true
 $comment.Visible = $false
 ```
@@ -111,9 +111,9 @@ $comment.Visible = $false
 セルA1のコメント内容をセルA2に出力：
 
 ```powershell
-if ($null -ne $worksheet.Cells.Item(1,1).Comment) {
-    $strCom = $worksheet.Cells.Item(1,1).Comment.Shape.TextFrame.Characters.Text
-    $worksheet.Cells.Item(2,1).Value2 = $strCom
+if ($null -ne $worksheet.Cells.Item(1, 1).Comment) {
+    $strCom = $worksheet.Cells.Item(1, 1).Comment.Shape.TextFrame.Characters.Text
+    $worksheet.Cells.Item(2, 1).Value2 = $strCom
 }
 ```
 
@@ -179,8 +179,8 @@ Write-Error: エラーが発生しました: Unable to cast object of type...
 
 ```powershell
 # セルB2に書き込む場合
-$worksheet.Cells.Item(2,2).Value2 = "Hello"
-$comment = $worksheet.Cells.Item(2,2).AddComment("コメント")
+$worksheet.Cells.Item(2, 2).Value2 = "Hello"
+$comment = $worksheet.Cells.Item(2, 2).AddComment("コメント")
 ```
 
 セルの指定方法：
@@ -190,15 +190,15 @@ $comment = $worksheet.Cells.Item(2,2).AddComment("コメント")
 ### コメント内容をカスタマイズする場合
 
 ```powershell
-$comment = $worksheet.Cells.Item(1,1).AddComment("カスタムコメント")
+$comment = $worksheet.Cells.Item(1, 1).AddComment("カスタムコメント")
 ```
 
 ### 複数セルにコメントを追加する場合
 
 ```powershell
 for ($i = 1; $i -le 10; $i++) {
-    $worksheet.Cells.Item($i,1).Value2 = "Row $i"
-    $worksheet.Cells.Item($i,1).AddComment("Row $i のコメント")
+    $worksheet.Cells.Item($i, 1).Value2 = "Row $i"
+    $worksheet.Cells.Item($i, 1).AddComment("Row $i のコメント")
 }
 ```
 
@@ -225,6 +225,13 @@ for ($i = 1; $i -le 10; $i++) {
    ```
 
 ## バージョン履歴
+
+### v2.1.0 (2026-01-19)
+
+- PSScriptAnalyzer対応による品質改善
+- Write-Host → Write-Informationに変更（ホスト互換性向上）
+- コードスタイルの統一（カンマ後のスペース、中括弧の配置）
+- ベストプラクティスへの準拠
 
 ### v2.0.0 (2026-01-05)
 
