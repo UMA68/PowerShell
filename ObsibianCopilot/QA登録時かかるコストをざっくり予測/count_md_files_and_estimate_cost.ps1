@@ -29,7 +29,8 @@
 .PARAMETER CostPerMillionTokens
     100万トークンあたりの入力コスト（USD）。デフォルトは 2.50 (GPT-4o入力価格) です。
     使用するモデルに応じて変更してください。
-    参考: GPT-4o=2.50、GPT-4o-mini=0.15、GPT-3.5-turbo=0.50
+    PricingProfileパラメータで価格プリセットを指定すると、このパラメータは上書きされます。
+    参考: GPT-4o = 2.50、GPT-4o-mini = 0.15、GPT-3.5-turbo = 0.50
 
 .PARAMETER ShowTopFiles
     最もサイズが大きいファイルを表示する数。デフォルトは 10 です。
@@ -65,65 +66,76 @@
 
 .PARAMETER PricingProfile
     価格プリセットを指定します。入力トークン単価（CostPerMillionTokens）を上書きします。
-    指定可能な値: `gpt-4o`, `4o-mini`, `gpt-3.5`
-    例: `-PricingProfile gpt-4o` は入力 $2.50/1M tokens を適用します。
+    指定可能な値: `gpt-4o` (入力 $2.50/1M), `4o-mini` (入力 $0.15/1M), `gpt-3.5` (入力 $0.50/1M)
+    このパラメータが指定されるとCostPerMillionTokensは無視されます。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1
-    デフォルト設定でコストを見積もります（入力トークンのみ、GPT-4o価格）。
+    デフォルト設定でコストを見積もります。
+    - Vault: $HOME\GitHub\obsidian
+    - 入力トークンコスト: GPT-4o ($2.50/1M)
+    - 出力トークン: 計算なし
 
 .EXAMPLE
-    .\count_md_files_and_estimate_cost.ps1 -VaultPath "C:\MyVault" -CostPerMillionTokens 0.15
-    カスタムパスとGPT-4o-miniのコスト単価で見積もります。
+    .\count_md_files_and_estimate_cost.ps1 -VaultPath "C:\MyVault" -PricingProfile 4o-mini
+    カスタムパスとGPT-4o-miniの価格プリセットで見積もります。
+    入力コストは $0.15/1M tokenで計算されます。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -ShowModelComparison
     GPT-4o、GPT-4o-mini、GPT-3.5-turboの3モデルのコスト比較を表示します。
+    各モデルの入力コストのみ表示されます。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -OutputTokenRatio 0.5 -ShowModelComparison
-    入力トークンの50%の出力を想定し、入力+出力の合計コストを複数モデルで比較します。
+    入力トークンの50%の出力トークンを想定し、3モデルの入力+出力の合計コストを比較します。
+    出力トークンコストは入力の3倍で計算されます。
 
 .EXAMPLE
-    .\count_md_files_and_estimate_cost.ps1 -ExportToFile "result.csv"
-    結果をCSVファイルに出力します（タイムスタンプ、トークン数、コスト、Top 5ディレクトリなど）。
+    .\count_md_files_and_estimate_cost.ps1 -ExportToFile "result.csv" -ShowTopFiles 15
+    結果をCSVファイルに出力し、Top 15の大容量ファイルを表示します。
+    Top 5ディレクトリとTop 15ファイル情報がエクスポートに含まれます。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -ShowProgress -ExcludeFolders @(".obsidian", ".git", "drafts")
     進捗表示を有効にし、カスタム除外フォルダを指定して実行します。
+    処理状況が100ファイルごと、またはパーセンテージで表示されます。
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -ShowModelComparison -ExportToFile "result.json" -ShowTopFiles 20 -OutputTokenRatio 0.3
-    すべての機能を使用して詳細な分析を実行します：
-    - 3モデルのコスト比較（入力+出力）
+    すべての機能を使用した詳細分析：
+    - 3モデル比較（入力+出力、出力比率30%）
     - JSON形式でエクスポート
-    - Top 20の大容量ファイルを表示
-    - 出力トークン比率30%を想定
+    - Top 20の大容量ファイル表示
+    - 出力トークンコストも計算
 
 .EXAMPLE
     .\count_md_files_and_estimate_cost.ps1 -NoKeyWait
     タスクスケジューラなどの非対話実行時に、終了時のキー待機を無効化します。
+    スケジューラから呼び出す場合はこのオプションを推奨します。
 
 .EXAMPLE
-    .\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-4o -OutputTokenRatio 0.5
-    GPT-4oの入力価格プリセット（$2.50/1M tokens）を適用し、出力トークン比率50%で試算します。
+    .\count_md_files_and_estimate_cost.ps1 -PricingProfile gpt-4o -OutputTokenRatio 0.5 -ShowModelComparison
+    GPT-4o価格プリセット($2.50/1M)を適用し、出力トークン比率50%でモデル比較を実行します。
 
 .NOTES
     File Name      : count_md_files_and_estimate_cost.ps1
     Author         : UMA
-    Prerequisite   : PowerShell
+    Prerequisite   : PowerShell 5.0以上
     Cost Reference : https://openai.com/api/pricing/
+    Version        : v1.1.0
     
     主要機能:
     - ディレクトリ別統計表示（サイズ順にソート）
     - 複数モデルのコスト比較（GPT-4o、GPT-4o-mini、GPT-3.5-turbo）
     - 入力・出力トークンの個別・合計コスト計算
     - CSV/JSON形式でのエクスポート（TopFiles/TopDirectoriesを含む詳細統計）
-    - 最大ファイルサイズTop N表示（デフォルト10件）
+    - 最大ファイルサイズTop N表示（デフォルト10件、最大1000件）
     - 不要フォルダの自動除外（.obsidian、.git、.trash）
     - 進捗表示機能（100ファイルごと／パーセンテージ付き）
-    - エラー耐性処理（個別ファイルエラーをスキップ）
+    - エラー耐性処理（個別ファイルエラーをスキップして続行）
     - 実行終了時の一時停止機能（-NoKeyWaitで無効化可能）
+    - ホワイトスペース標準化対応（PSScriptAnalyzer準拠）
     
     価格情報（2024年時点）:
     GPT-4o        : 入力 $2.50/1M tokens, 出力 $10.00/1M tokens
@@ -132,8 +144,27 @@
     
     トークン推定方法:
     ファイルサイズ(bytes) ÷ 2 (UTF-8推定) ÷ CharsPerToken = トークン数
+    
+    除外フォルダの判定:
+    ディレクトリ境界を考慮した正規表現で判定されます。
+    例: ".obsidian" は "/path/.obsidian/file.md" に一致しますが
+        "/path/obsidian/file.md" には一致しません。
+    
+    出力トークンコスト計算:
+    出力トークンのコスト単価は入力の3倍で計算されます（GPT標準価格モデル）。
+    例: -OutputTokenRatio 0.5 で入力100Kトークンの場合
+        → 出力50Kトークンを想定
+        → 出力コスト = (50K / 1M) × (単価 × 3)
 
     変更履歴:
+    - v1.1.0 (2026-01-19)
+      * ホワイトスペース標準化（PSScriptAnalyzer準拠、37個の警告を解消）
+      * パラメータセクションの代入演算子前後にスペース追加
+      * ValidateSet値の後にスペース追加
+      * ハッシュテーブルと配列初期化のスペース修正
+      * スクリプトブロック括弧のスペース修正
+      * ヘルプドキュメント更新（例を詳細化）
+      
     - v1.1.0 (2025-12-12)
       * exitを廃止し安全な終了フローへ移行（endブロックの後処理を保証）
       * 正確な除外フォルダ判定（ディレクトリ境界を考慮した正規表現）
