@@ -7,11 +7,13 @@
     - 正常系: パスが正しく計算されることを検証
     - パラメータ: EnvFileName パラメータの検証
     - 異常系: エラーハンドリングの検証
+    - パスの構造: パスの階層関係の検証
+    - パス形式: 絶対パスとパス区切り文字の検証
 
 .NOTES
     Author: Test Suite
-    Version: 1.0.0
-    Last Updated: 2026-01-13
+    Version: 1.1.0
+    Last Updated: 2026-01-19
 #>
 
 BeforeAll {
