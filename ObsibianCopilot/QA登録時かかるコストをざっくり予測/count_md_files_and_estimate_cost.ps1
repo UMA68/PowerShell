@@ -143,34 +143,34 @@
       * エクスポートの拡張子検証とTopFilesの出力を追加
 #>
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]$VaultPath = "$HOME\GitHub\obsidian",   # Obsidian Vaultのパス
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateRange(0.1, [double]::MaxValue)]        # 1トークンあたりの文字数
     [double]$CharsPerToken = 2.5,                   # 日本語の場合は約2-3文字/トークン
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateRange(0.0001, [double]::MaxValue)]
     [double]$CostPerMillionTokens = 2.50,   # GPT-4o入力価格(100万トークンあたり）（2024年時点）
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateRange(1, 1000)]
     [int]$ShowTopFiles = 10,                # 最大表示する大容量ファイル数
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$ShowModelComparison = $false,  # 複数モデル比較表示フラグ
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$ExportToFile = "",     # 結果をエクスポートするファイル名（CSVまたはJSON）
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateRange(0, 10)]
     [double]$OutputTokenRatio = 0,  # 出力トークン数の入力トークン数に対する比率
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string[]]$ExcludeFolders = @(".obsidian", ".git", ".trash"),   # 除外フォルダ
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$ShowProgress = $false,  # 進捗表示フラグ
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$NoKeyWait = $false      # 非対話環境でキー待機を無効化
     ,
-    [Parameter(Mandatory=$false)]
-    [ValidateSet('gpt-4o','4o-mini','gpt-3.5')]
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('gpt-4o', '4o-mini', 'gpt-3.5')]
     [string]$PricingProfile          # 価格プリセット（入力トークン単価を上書き）
 )
 
@@ -190,9 +190,9 @@ begin {
     # 価格プリセットの適用（入力トークン単価を上書き）
     if ($PSBoundParameters.ContainsKey('PricingProfile') -and -not [string]::IsNullOrEmpty($PricingProfile)) { # 価格プリセットが指定されている場合
         switch ($PricingProfile) {
-            'gpt-4o'   { $CostPerMillionTokens = 2.50 }
-            '4o-mini'  { $CostPerMillionTokens = 0.15 }
-            'gpt-3.5'  { $CostPerMillionTokens = 0.50 }
+            'gpt-4o' { $CostPerMillionTokens = 2.50 }
+            '4o-mini' { $CostPerMillionTokens = 0.15 }
+            'gpt-3.5' { $CostPerMillionTokens = 0.50 }
         }
         Write-Information "Pricing profile applied: $PricingProfile (Input: `$$CostPerMillionTokens per 1M tokens)"
     }
@@ -385,10 +385,10 @@ end {
     # 複数モデルの比較表示
     if ($ShowModelComparison) { # モデル比較表示フラグが有効な場合
         Write-Information "===== Model Cost Comparison ====="
-        $models = @( # GPTモデルの価格情報
-            @{Name="GPT-4o"; InputCost=2.50; OutputCost=10.00},
-            @{Name="GPT-4o-mini"; InputCost=0.15; OutputCost=0.60},
-            @{Name="GPT-3.5-turbo"; InputCost=0.50; OutputCost=1.50}
+        $models = @(
+            @{ Name = "GPT-4o"; InputCost = 2.50; OutputCost = 10.00 },
+            @{ Name = "GPT-4o-mini"; InputCost = 0.15; OutputCost = 0.60 },
+            @{ Name = "GPT-3.5-turbo"; InputCost = 0.50; OutputCost = 1.50 }
         )
         
         # 各モデルのコスト計算と表示
@@ -409,7 +409,7 @@ end {
     # ディレクトリ別統計を表示
     if ($script:dirStats.Count -gt 0) { # ディレクトリ統計が存在する場合
         Write-Information "===== Directory Statistics ====="
-        $sortedDirs = $script:dirStats.GetEnumerator() | Sort-Object {$_.Value.TotalSize} -Descending
+        $sortedDirs = $script:dirStats.GetEnumerator() | Sort-Object { $_.Value.TotalSize } -Descending
         # 各ディレクトリの統計を表示
         foreach ($dir in $sortedDirs) { # ディレクトリ名、ファイル数、合計サイズ(MB)
             $sizeMB = [math]::Round($dir.Value.TotalSize / 1MB, 2)
@@ -453,9 +453,9 @@ end {
                 OutputTokenRatio = $OutputTokenRatio            # 出力トークン比率
                 ExcludedFolders = ($ExcludeFolders -join ',')   # 除外フォルダ
                 # 追加情報 - Top 5ディレクトリ
-                TopDirectories = ($script:dirStats.GetEnumerator() | Sort-Object {$_.Value.TotalSize} -Descending | Select-Object -First 5 | ForEach-Object {"$($_.Key):$($_.Value.FileCount)files"}) -join ','
+                TopDirectories = ($script:dirStats.GetEnumerator() | Sort-Object { $_.Value.TotalSize } -Descending | Select-Object -First 5 | ForEach-Object { "$($_.Key):$($_.Value.FileCount)files" }) -join ','
                 # 追加情報 - Top Nファイル
-                TopFiles = ($script:fileSizes | Sort-Object -Property SizeKB -Descending | Select-Object -First $ShowTopFiles | ForEach-Object {"$($_.SizeKB)KB:$($_.Name)"}) -join ','
+                TopFiles = ($script:fileSizes | Sort-Object -Property SizeKB -Descending | Select-Object -First $ShowTopFiles | ForEach-Object { "$($_.SizeKB)KB:$($_.Name)" }) -join ','
             }
             
             # エクスポート形式に応じた出力
