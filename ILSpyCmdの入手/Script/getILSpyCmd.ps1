@@ -90,7 +90,7 @@
     Author         : UMA
     Prerequisite   : PowerShell 7.x, powershell-yaml module
     Version        : 1.4.0
-    Last Updated   : 2026-01-07
+    Last Updated   : 2026-01-19
     
     前提条件:
     - PowerShell 7.x 以上（7.3.9以上推奨）
@@ -826,5 +826,6 @@ end {
     # スクリプト終了コードを返す
     exit $script:ExitCode
 }
+
 
 
