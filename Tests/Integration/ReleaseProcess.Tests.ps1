@@ -105,6 +105,9 @@ Describe 'リリースバッチ統合テスト' -Tag 'Integration' {
             # Assert
             Test-Path $destFile | Should -BeTrue
             (Get-Content $destFile) | Should -Not -Be 'Old content'
+            # 新しいファイルの作成時刻が元のファイルと異なることを確認
+            $newTime = (Get-Item $destFile).CreationTime
+            $newTime | Should -Not -Be $originalTime
         }
     }
     
