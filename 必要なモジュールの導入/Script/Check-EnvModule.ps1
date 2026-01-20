@@ -66,30 +66,45 @@
 .NOTES
     ファイル名: Check-EnvModule.ps1
     作成者: UMA68
-    バージョン: 1.0.0
+    バージョン: 1.1.0
     作成日: 2025-12-09
+    最終更新: 2026-01-20
     
     前提条件:
     - インターネット接続（PowerShell Gallery へのアクセス）
     - Write-CommonLog 関数（ログ記録用）
     - $script:Log 変数（ログファイルパス）
     
+    依存関係:
+    - $script:ShowInConsoleFlag 変数（コンソール冗長出力制御）
+    
     動作仕様:
     - 指定バージョンの存在を確認
     - 複数バージョンが存在する場合は全て認識
     - 指定バージョンのみインストール
     - Scope: CurrentUser（管理者権限不要）
+    - $script:ShowInConsoleFlag が真の場合のみコンソールへ出力
     
     ログレベル:
     [EXIST]   : 指定バージョンが既にインストール済み
     [OTHER]   : 異なるバージョンが存在（追加インストール対象外）
     [NOTHING] : モジュール自体が存在しない
     [INSTALL] : モジュールをインストール中
+    [ERROR]   : モジュールのインストール失敗
     
     エラーハンドリング:
     - インストール失敗時はエラー情報をログに記録
     - ユーザーにエラーダイアログで通知
     - 処理は中断（exit）
+    
+    変更履歴:
+    v1.1.0 (2026-01-20)
+        - $script:ShowInConsoleFlag を使用したコンソール出力制御に対応
+        - Write-CommonLog の -Quiet パラメータを動的に制御
+        - ScriptAnalyzer 対応の修正（空のcatchブロック、スペース修正）
+    
+    v1.0.0 (2025-12-09)
+        - 初版リリース
 
 .LINK
     https://www.powershellgallery.com/
@@ -131,12 +146,14 @@ function Test-EnvModule {
                     # 指定バージョンが見つかった場合
                     $isVersionFound = $true
                     if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                        Write-CommonLog -Message "[EXIST] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO'
+                        $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                        Write-CommonLog -Message "[EXIST] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
                     }
                 } else { # 異なるバージョンが存在
                     # 異なるバージョンが存在
                     if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                        Write-CommonLog -Message "[OTHER] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO'
+                        $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                        Write-CommonLog -Message "[OTHER] $ModuleName Version: $($module.Version.ToString())" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
                     }
                 }
             }
@@ -145,11 +162,13 @@ function Test-EnvModule {
             if ($installedModules.Version.ToString() -eq $ModuleVersion) { # 指定バージョンが見つかった場合
                 $isVersionFound = $true
                 if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                    Write-CommonLog -Message "[EXIST] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO'
+                    $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                    Write-CommonLog -Message "[EXIST] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
                 }
             } else { # 異なるバージョンが存在
                 if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                    Write-CommonLog -Message "[OTHER] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO'
+                    $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                    Write-CommonLog -Message "[OTHER] $ModuleName Version: $($installedModules.Version.ToString())" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
                 }
             }
         }
@@ -158,7 +177,8 @@ function Test-EnvModule {
         # モジュール自体が存在しない
         # ====================================
         if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-            Write-CommonLog -Message "[NOTHING] $ModuleName" -LogPath $script:Log -Level 'INFO'
+            $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+            Write-CommonLog -Message "[NOTHING] $ModuleName" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
         }
     }
 
@@ -168,7 +188,8 @@ function Test-EnvModule {
     # 指定バージョンが存在しない場合はインストール
     if ($isVersionFound -eq $false) { # 指定バージョンが存在しない場合
         if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-            Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストール中..." -LogPath $script:Log -Level 'INFO'
+            $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+            Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストール中..." -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
         }
 
         try {
@@ -177,7 +198,8 @@ function Test-EnvModule {
 
             # インストール成功
             if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストールしました" -LogPath $script:Log -Level 'INFO'
+                $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストールしました" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
             }
             return $true
 
@@ -185,7 +207,8 @@ function Test-EnvModule {
             # インストール失敗時の処理
             $errorMsg = $_.Exception.Message
             if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                Write-CommonLog -Message "[ERROR] $ModuleName のインストールに失敗しました。エラー: $errorMsg" -LogPath $script:Log -Level 'ERROR'
+                $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                Write-CommonLog -Message "[ERROR] $ModuleName のインストールに失敗しました。エラー: $errorMsg" -LogPath $script:Log -Level 'ERROR' -Quiet:$quietMode
             }
 
             # エラーダイアログを表示

@@ -21,7 +21,13 @@
     省略時は "Env.yaml" が使用されます。
     
     ファイルは YAML フォルダ内に配置する必要があります。
-
+.PARAMETER ShowInConsole
+    コンソールに詳しいログを表示します。
+    省略時は $false （ログファイルを作成して表示しない）。
+    
+    次の場合に役立つです：
+    - デバッグ時のリアルタイム追記の確認
+    - インストール細控の空運での事実確認
 .EXAMPLE
     .\InstMain.ps1
     
@@ -39,6 +45,12 @@
     
     カスタム設定ファイル Production.yaml を使用してインストールします。
 
+.EXAMPLE
+    .\InstMain.ps1 -ShowInConsole
+    
+    コンソールに詳しいログを表示しながらインストールを実行します。
+    デバッグ時や処理細控の確認に宇いです。
+
 .INPUTS
     None
     パイプライン入力は受け付けません。
@@ -50,8 +62,8 @@
 .NOTES
     FileName:      InstMain.ps1
     Author:        UMA68
-    Version:       1.1.0
-    LastModified:  2025-12-11
+    Version:       1.2.0
+    LastModified:  2026-01-20
     Prerequisites: - PowerShell 5.1以上
                    - NoDoubleActivation.ps1 がCommonフォルダーに存在すること
                    - Write-CommonLog.ps1 がCommonフォルダーに存在すること
@@ -60,6 +72,12 @@
     RequiredModules: powershell-yaml (自動インストール)
     
     変更履歴:
+    v1.2.0 (2026-01-20)
+        - -ShowInConsole スイッチパラメータを追加
+        - コンソールへの詳しいログ表示に対応
+        - Check-EnvModule.ps1、Check-YamlModule.ps1を-Quietパラメータで制御
+        - ScriptAnalyzer専颁の修正（空のcatchブロック、スペースを追加）
+    
     v1.1.0 (2025-12-11)
         - begin-process-end 構造に変更
         - 二重起動チェックを begin ブロックで最優先実行
@@ -143,7 +161,8 @@
 # ================================================
 
 param (
-    [string]$envFileName = "Env.yaml" # オプションなしの場合は「Env.yaml」を使用する
+    [string]$envFileName = "Env.yaml", # オプションなしの場合は「Env.yaml」を使用する
+    [switch]$ShowInConsole = $false     # コンソールにログを表示するかどうか
 )
 
 begin {
@@ -151,6 +170,7 @@ begin {
     # 制御フローフラグの初期化
     # ====================================
     $script:CanExecuteProcess = $true  # Process ブロックを実行するかどうかのフラグ
+    $script:ShowInConsoleFlag = $ShowInConsole  # ShowInConsoleパラメータをスクリプトスコープに保存
     
     # ====================================
     # ディレクトリとパスの初期化
@@ -305,16 +325,16 @@ Process {
     # ログ記録の開始
     # ====================================
     # 実行環境情報をログファイルに記録
-    Write-CommonLog -Message ("HOST: " + $HostName) -LogPath $Log -Level 'INFO'   # ホスト名
-    Write-CommonLog -Message ("USER: " + $userName) -LogPath $Log -Level 'INFO'   # ユーザ名
+    Write-CommonLog -Message ("HOST: " + $HostName) -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)   # ホスト名
+    Write-CommonLog -Message ("USER: " + $userName) -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)   # ユーザ名
 
-    Write-CommonLog -Message ("Running PowerShell Version: " + $pwsVerChk) -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message ($yaml.Project) -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message ("Version: " + $yaml.Version) -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("Running PowerShell Version: " + $pwsVerChk) -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message ($yaml.Project) -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message ("Version: " + $yaml.Version) -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
 
-    Write-CommonLog -Message ("[[[START]]]") -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("[[[START]]]") -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
 
     # ====================================
     # モジュールのインストール処理
@@ -324,8 +344,8 @@ Process {
         Test-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
     }
 
-    Write-CommonLog -Message ("[[[END]]]") -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("[[[END]]]") -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
 }
 end {
     if (-not $script:CanExecuteProcess) {
@@ -352,12 +372,12 @@ end {
     # ログの見方を追記
     # ====================================
     # ログファイル末尾に凡例を追加
-    Write-CommonLog -Message " " -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "ログの見方" -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message " " -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "ログの見方" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "[EXIST] : yaml記述バージョンのモジュールを発見" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "[OTHER] : yaml記述バージョン以外のモジュールを発見" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "[NOTHING] : yaml記述モジュールが存在しない" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
+    Write-CommonLog -Message "[INSTALL] : yaml記述バージョンのモジュールが存在しないのでインストール" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
     
     # ====================================
     # ログファイルを開く

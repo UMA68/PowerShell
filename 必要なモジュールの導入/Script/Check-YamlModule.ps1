@@ -58,8 +58,9 @@
 .NOTES
     ファイル名: Check-YamlModule.ps1
     作成者: UMA68
-    バージョン: 1.0.0
+    バージョン: 1.1.0
     作成日: 2025-12-09
+    最終更新: 2026-01-20
     
     前提条件:
     - インターネット接続（PowerShell Gallery へのアクセス）
@@ -68,17 +69,28 @@
     依存関係:
     - Write-CommonLog 関数（ログ記録用）
     - $script:Log 変数（ログファイルパス）
+    - $script:ShowInConsoleFlag 変数（コンソール冗長出力制御）
     
     動作仕様:
     - 特定バージョンの存在を確認（複数バージョン対応）
     - インストール済みの場合は何もしない
     - 未インストールの場合は指定バージョンをインストール
     - エラー時はポップアップで通知して処理終了
+    - $script:ShowInConsoleFlag が真の場合のみコンソールへ出力
     
     モジュール情報:
     - 正式名称: powershell-yaml
     - リポジトリ: PowerShell Gallery
     - 用途: YAML ファイルの読み込み・変換
+    
+    変更履歴:
+    v1.1.0 (2026-01-20)
+        - $script:ShowInConsoleFlag を使用したコンソール出力制御に対応
+        - Write-CommonLog の -Quiet パラメータを動的に制御
+        - ScriptAnalyzer 対応の修正
+    
+    v1.0.0 (2025-12-09)
+        - 初版リリース
 
 .LINK
     https://www.powershellgallery.com/packages/powershell-yaml
@@ -117,7 +129,8 @@ function Test-YamlModule {
             
             # インストール成功をログに記録
             if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-                Write-CommonLog -Message "[INSTALL] powershell-yaml $Ver をインストールしました" -LogPath $script:Log -Level 'INFO'
+                $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+                Write-CommonLog -Message "[INSTALL] powershell-yaml $Ver をインストールしました" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
             }
             
             # 成功通知
@@ -144,7 +157,8 @@ function Test-YamlModule {
         # ====================================
         # インストール済みバージョン情報をログに記録
         if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
-            Write-CommonLog -Message "[EXIST] powershell-yaml $Ver は既にインストールされています" -LogPath $script:Log -Level 'INFO'
+            $quietMode = -not (Get-Variable -Name ShowInConsoleFlag -Scope Script -ErrorAction SilentlyContinue -ValueOnly)
+            Write-CommonLog -Message "[EXIST] powershell-yaml $Ver は既にインストールされています" -LogPath $script:Log -Level 'INFO' -Quiet:$quietMode
         }
         return $true
     }
