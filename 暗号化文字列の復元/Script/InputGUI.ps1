@@ -117,7 +117,7 @@ $cancelButton.Add_Click({ # キャンセル処理
 
 # Enter キーで OK、Escape キーでキャンセル
 $script:textBox.Add_KeyDown({ # キー押下イベントハンドラー
-    param($sender, $e)
+    param($eventSender, $e)
     if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) { # Enter キー
         $script:button.PerformClick()
         $e.SuppressKeyPress = $true
