@@ -102,11 +102,11 @@
 
 function Test-EnvModule {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$ModuleName,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [ValidatePattern('^\d+\.\d+\.\d+$')]
         [string]$ModuleVersion
@@ -195,7 +195,7 @@ function Test-EnvModule {
                 $obj.Popup("$ModuleName のインストールに失敗しました。`r`n処理を終了します。`r`n`r`nエラー: $errorMsg", 0, "エラー", 0x30) | Out-Null
             } finally {
                 if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                     $obj = $null
                 }
             }

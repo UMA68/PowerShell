@@ -91,7 +91,7 @@
 
 function Test-YamlModule {
     Param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidatePattern('^\d+\.\d+\.\d+$')]
         [string]$Ver = '0.4.7'
     )
@@ -110,7 +110,7 @@ function Test-YamlModule {
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup("powershell-yaml $Ver がインストールされていません。`r`nインストールを開始します。",0,"情報",0x40) | Out-Null
+            $obj.Popup("powershell-yaml $Ver がインストールされていません。`r`nインストールを開始します。", 0, "情報", 0x40) | Out-Null
             
             # PowerShell Gallery からモジュールをインストール
             Install-Module -Name "powershell-yaml" -RequiredVersion $Ver -Force -Scope CurrentUser -ErrorAction Stop
@@ -121,19 +121,19 @@ function Test-YamlModule {
             }
             
             # 成功通知
-            $obj.Popup("powershell-yaml $Ver のインストールが完了しました。",0,"完了",0x40) | Out-Null
+            $obj.Popup("powershell-yaml $Ver のインストールが完了しました。", 0, "完了", 0x40) | Out-Null
             return $true
             
         } catch {
             # インストール失敗時の処理
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                $obj.Popup("powershell-yaml のインストールに失敗しました。処理を終了します。`r`n`r`nエラー: "+$_.Exception.Message,0,"エラー",0x30) | Out-Null
+                $obj.Popup("powershell-yaml のインストールに失敗しました。処理を終了します。`r`n`r`nエラー: " + $_.Exception.Message, 0, "エラー", 0x30) | Out-Null
             }
             exit
         } finally {
             # COM オブジェクトのクリーンアップ
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
         }
@@ -143,7 +143,7 @@ function Test-YamlModule {
         # モジュール既にインストール済み
         # ====================================
         # インストール済みバージョン情報をログに記録
-        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) {   # Log変数が存在する場合のみログ記録
+        if (Get-Variable -Name Log -Scope Script -ErrorAction SilentlyContinue) { # Log変数が存在する場合のみログ記録
             Write-CommonLog -Message "[EXIST] powershell-yaml $Ver は既にインストールされています" -LogPath $script:Log -Level 'INFO'
         }
         return $true
