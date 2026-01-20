@@ -22,6 +22,9 @@
     
     パス区切り文字（\ / :）を含むことはできません。ファイル名のみを指定してください。
 
+.PARAMETER ShowInConsole
+    復号結果をコンソールにも表示する場合に指定します。デフォルトは非表示です（ダイアログのみ）。
+
 .EXAMPLE
     .\StringDecryption.ps1
     
@@ -37,17 +40,22 @@
     
     カスタム鍵ファイル（MyCustom.key）を使用して復号処理を実行します。
 
+.EXAMPLE
+    .\StringDecryption.ps1 -ShowInConsole
+    
+    復号結果をポップアップに加えてコンソールにも表示します（周囲の目視に注意してください）。
+
 .INPUTS
     なし。パイプライン入力は受け付けません。
 
 .OUTPUTS
     なし。復号結果はポップアップダイアログで表示されます。
-    セキュリティ上、コンソールログには出力されません。
+    セキュリティ上、コンソールログには出力されません（-ShowInConsole 指定時を除く）。
 
 .NOTES
     FileName:      StringDecryption.ps1
     Author:        UMA68
-    Version:       1.2.1
+    Version:       1.2.2
     LastModified:  2026-01-20
     Prerequisites: - PowerShell 5.1以上
                    - 鍵ファイル（Encryption.key）がCommonフォルダーに存在すること
@@ -55,6 +63,10 @@
                    - NoDoubleActivation.ps1 がCommonフォルダーに存在すること
     
     変更履歴:
+    v1.2.2 (2026-01-20)
+        - 復号結果をコンソールへ表示するオプション (-ShowInConsole) を追加
+        - デフォルトはこれまで通りポップアップのみ（セキュリティ重視）
+
     v1.2.1 (2026-01-20)
         - ScriptAnalyzer対応（空catchのエラーログ追加、ヘルプコメント整備）
         - COMオブジェクト解放失敗時のエラーハンドリングを強化
@@ -109,7 +121,10 @@ param (
         }
         $true
     })]
-    [string]$keyFileName = "Encryption.key" # オプションなしの場合は「Encryption.key」を使用する
+    [string]$keyFileName = "Encryption.key", # オプションなしの場合は「Encryption.key」を使用する
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ShowInConsole = $false
 )
 
 # ====================================
@@ -337,6 +352,11 @@ try {
     Write-Information "============================="
     Write-Information ""
     Write-Information "※ 上記の復号結果をコピーしてご利用ください"
+
+    if ($ShowInConsole) {
+        Write-Host "復号結果: $DecryptedString" -ForegroundColor Cyan
+        Write-Host "※ この情報はコンソールに残るため、周囲の目視にご注意ください" -ForegroundColor Yellow
+    }
 } catch {
     Write-Error "文字列の復号に失敗しました: $($_.Exception.Message)"
     $obj = $null
