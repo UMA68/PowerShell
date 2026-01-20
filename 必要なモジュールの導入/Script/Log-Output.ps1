@@ -3,7 +3,7 @@
     メッセージをコンソールとログファイルに同時出力する関数
 
 .DESCRIPTION
-    Log-Output 関数は、指定されたメッセージをコンソールに表示すると同時に、
+    Write-LogOutput 関数は、指定されたメッセージをコンソールに表示すると同時に、
     ログファイルに追記します。Tee-Object コマンドレットを使用して、
     デュアル出力を実現します。
     
@@ -22,7 +22,7 @@
     既存ファイルには追記（Append）されます。
 
 .EXAMPLE
-    Log-Output -Message "処理を開始しました" -LogPath "C:\Logs\app.log"
+    Write-LogOutput -Message "処理を開始しました" -LogPath "C:\Logs\app.log"
     
     説明:
     "処理を開始しました" というメッセージをコンソールに表示し、
@@ -30,7 +30,7 @@
 
 .EXAMPLE
     $logFile = "C:\Temp\debug.log"
-    Log-Output -Message "エラーが発生しました" -LogPath $logFile
+    Write-LogOutput -Message "エラーが発生しました" -LogPath $logFile
     
     説明:
     変数を使用してログファイルパスを指定する例。
@@ -38,7 +38,7 @@
 
 .EXAMPLE
     1..5 | ForEach-Object {
-        Log-Output -Message "処理 $_ を実行中" -LogPath "C:\Logs\process.log"
+        Write-LogOutput -Message "処理 $_ を実行中" -LogPath "C:\Logs\process.log"
     }
     
     説明:
@@ -77,9 +77,9 @@
         $logPath = Join-Path $logDir "app_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
         
         # 関数を使用
-        Log-Output -Message "アプリケーション起動" -LogPath $logPath
-        Log-Output -Message "設定ファイル読み込み完了" -LogPath $logPath
-        Log-Output -Message "処理完了" -LogPath $logPath
+        Write-LogOutput -Message "アプリケーション起動" -LogPath $logPath
+        Write-LogOutput -Message "設定ファイル読み込み完了" -LogPath $logPath
+        Write-LogOutput -Message "処理完了" -LogPath $logPath
 
 .LINK
     Tee-Object
@@ -88,19 +88,19 @@
 
 #>
 
-# ================================================
-# ログの書き込み関数
-# Log-Output -Message "String" -LogPath "LogFullPath"
-# ================================================
-function Log-Output {
+function Write-LogOutput {
+    # ================================================
+    # ログの書き込み関数
+    # Write-LogOutput -Message "String" -LogPath "LogFullPath"
+    # ================================================
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$Message,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$LogPath
     )
 
-    echo $Message | Tee-Object -FilePath $LogPath -Append | Out-Default
+    Write-Output $Message | Tee-Object -FilePath $LogPath -Append | Out-Default
 }
 
 
