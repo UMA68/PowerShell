@@ -67,9 +67,9 @@
 .NOTES
     File Name      : relMain.ps1
     Author         : UMA68
-    Version        : 1.3.0
+    Version        : 1.3.1
     Release Date   : 2025-12-12
-    Last Modified  : 2025-12-12
+    Last Modified  : 2026-01-20
     
     前提条件:
     - PowerShell 7.3.9 以上
@@ -103,6 +103,14 @@
             └── relMain_YYYYMMDD-HHmmss.log
     
     変更履歴:
+    v1.3.1 (2026-01-20)
+        - PSScriptAnalyzer 警告をすべて解決（PSUseConsistentWhitespace, PSAvoidUsingEmptyCatchBlock）
+        - コードスタイルの統一（スペース、括弧の位置の統一）
+        - 開き括弧前のスペース追加（begin, process, end, try, catch, foreach, switch, Measure-Command）
+        - 二項・代入演算子前後のスペース追加（=, +）
+        - 空の catch ブロックにエラー処理を追加（Write-Error ステートメント）
+        - パイプ前の括弧処理の修正
+    
     v1.3.0 (2025-12-12)
         - LOG.USERS配列による複数ユーザーへのログアクセス権付与機能
         - ユーザーSID解決時の実行ユーザー重複検出（実行ユーザーとUSERS配列の重複を自動スキップ）
@@ -147,8 +155,8 @@
 # ===================================
 
 param(
-    [Parameter(Mandatory=$false)]
-    [ValidateScript({ # ファイル名の検証
+    [Parameter(Mandatory = $false)]
+    [ValidateScript( { # ファイル名の検証
         # ファイル名としての有効性を検証
         if ($_ -match '[\\/:"*?<>|]') { # ファイル名に使用できない文字を検証
             throw "ファイル名に使用できない文字が含まれています: $_"
@@ -160,10 +168,10 @@ param(
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
         $true
-    })]
+    } )]
     [string]$DecryptionKey = "Encryption.Key" , # 暗号化鍵ファイル名（現在未使用・将来の暗号化機能用に予約）
-    [Parameter(Mandatory=$false)]
-    [ValidateScript({ # YAMLファイル名の検証
+    [Parameter(Mandatory = $false)]
+    [ValidateScript( { # YAMLファイル名の検証
         # ファイル名としての有効性を検証（.yaml または .yml 拡張子必須）
         if ($_ -notmatch '\.(yaml|yml)$') { # 拡張子チェック
             throw "YAMLファイルは .yaml または .yml 拡張子である必要があります: $_"
@@ -178,10 +186,10 @@ param(
             throw "ファイル名が長すぎます（最大255文字）: $($_.Length)文字"
         }
         $true
-    })]
+    } )]
     [string]$EnvYaml = "EnvDEV.yaml"            # DEV環境用:EnvDEV.yaml, STG環境用:EnvSTG.yaml, 本番環境用:EnvPRD.yaml
 )
-begin{
+begin {
     # プロセス実行可否フラグ（endブロックの安全なクリーンアップ用）
     $script:CanExecuteProcess = $true
     # エラーメッセージ定数（YAML読み込み前）
@@ -196,7 +204,7 @@ begin{
     $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path       # スクリプトの実行パスを取得
     $script:UpperPath = Split-Path -Parent $script:ScriptPath                   # スクリプトの親パスを取得
     $script:PowerShellDir = Split-Path -Parent $script:UpperPath                # スクリプトの親パスの親パスを取得
-    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML" | Join-Path -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
+    $script:YamlPath = (Join-Path -Path $script:UpperPath -ChildPath "YAML") | Join-Path -ChildPath $EnvYaml   # YAMLファイルのフルパスを取得
     
     # NOTE: 暗号化機能は現在未実装
     # 将来、リリース設定に機密情報（パスワード、APIキーなど）を含める場合、
@@ -204,23 +212,23 @@ begin{
     # 実装例は sqlMain.ps1 の復号化処理を参照
     # $script:KeyPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath $DecryptionKey
     
-    $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"       # 共通スクリプトのパス
+    $script:ComPath = (Join-Path -Path $script:PowerShellDir -ChildPath "Common")       # 共通スクリプトのパス
 
     # ユーザの特定
     $script:User = $env:USERNAME
     $script:HostName = $env:COMPUTERNAME
 
     # .ps1ファイルの読み込み
-    try{
+    try {
         . (Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "FindModule.ps1") -ErrorAction Stop
         . (Join-Path -Path $script:PowerShellDir -ChildPath "Common" | Join-Path -ChildPath "NoDoubleActivation.ps1") -ErrorAction Stop
         . (Join-Path -Path $script:ComPath -ChildPath "Write-CommonLog.ps1") -ErrorAction Stop
         . (Join-Path -Path $script:ScriptPath -ChildPath "CopyItemCustom.ps1") -ErrorAction Stop
-    }catch{
+    } catch {
         # スクリプトファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($ErrorMessages.ScriptReadError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
-        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error "Failed to release COM object: $_" }
         $obj = $null
         exit # 終了
     }
@@ -231,29 +239,28 @@ begin{
             # 警告を表示し終了
             $obj = New-Object -ComObject WScript.Shell
             $obj.Popup($ErrorMessages.ModuleNotInstalled, 0, "Module Check", 0x30) | Out-Null
-            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error "Failed to release COM object: $_" }
             $obj = $null
             exit # 終了
         }
-    }
-    catch {
+    } catch {
         # Test-ModuleInstalledを実行できない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($ErrorMessages.ModuleCheckError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
-        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error "Failed to release COM object: $_" }
         $obj = $null
         exit # 終了
     }
 
     # YAMLファイルの読み込み
-    try{
+    try {
         # YAMLは-Rawで読み込み、ConvertFrom-Yamlへ渡す
         $script:Yaml = Get-Content -Path $script:YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered -ErrorAction Stop
-    }catch{
+    } catch {
         # YAMLファイルが読めない場合は警告を表示し終了
         $obj = New-Object -ComObject WScript.Shell
         $obj.Popup($ErrorMessages.YamlReadError + "`r`n`r`n" + $_.Exception.Message, 0, "Module Check", 0x30) | Out-Null
-        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error "Failed to release COM object: $_" }
         $obj = $null
         exit # 終了
     }
@@ -275,7 +282,7 @@ begin{
         try {
             return [int]$obj.Popup($Message, 0, $Title, $Buttons)
         } finally {
-            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error "Failed to release COM object: $_" }
             $obj = $null
         }
     }
@@ -311,7 +318,7 @@ begin{
     }
 
     # ログの定義
-    $script:LogPath = Join-Path -Path $script:Yaml.LOG.PATH -ChildPath ($script:Yaml.LOG.FILENAME+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+$script:Yaml.LOG.EXTENSION) # ログの保存先
+    $script:LogPath = Join-Path -Path $script:Yaml.LOG.PATH -ChildPath ($script:Yaml.LOG.FILENAME + "_" + (Get-Date -Format "yyyyMMdd-HHmmss") + $script:Yaml.LOG.EXTENSION) # ログの保存先
     # ログファイルのディレクトリが存在しなければ作成
     $script:LogDir = Split-Path -Parent $script:LogPath
     if (-not (Test-Path -Path $script:LogDir)) { # ログディレクトリが存在しない場合
@@ -371,17 +378,17 @@ begin{
     }
 
 }
-process{
+process {
     if (-not $script:CanExecuteProcess) { return }
     # スクリプトバージョン情報をログに記録（デバッグ用）
     Write-Information "Script version: 1.2.0, Configuration version: $($script:yaml.Version)"
 
     # PowerShellのバージョンチェック
     $PwsVerChk = ($PSVersionTable.PSVersion).ToString()
-    if($script:Yaml.PowerShell.Version -ne $PwsVerChk){ # PowerShellバージョンが異なる場合
+    if ($script:Yaml.PowerShell.Version -ne $PwsVerChk) { # PowerShellバージョンが異なる場合
         # バージョンが異なる場合は、警告を表示
         [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "VERSION_WARNING" $PwsVerChk $script:Yaml.PowerShell.Version) -Title "WARNING" -Buttons 4
-        switch($Button){
+        switch ($Button) {
             6 { break } # OK(Continue)
             7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
             default { # 未知のボタン
@@ -394,7 +401,7 @@ process{
 
     # 実行するかどうかの確認
     [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "EXECUTE_CONFIRM") -Title "INQUIRY" -Buttons 4
-    switch($Button){
+    switch ($Button) {
         6 { break } # OK(Continue)
         7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
         default { # 未知のボタン
@@ -413,7 +420,7 @@ process{
     Write-CommonLog -Message $ProjectLine -LogPath $script:LogPath -Level 'INFO'                  # プロジェクト名の長さと同じ長さの=をログに出力
     
     # モジュールのインポート
-    foreach($ModuleType in $script:Yaml.Module.Keys){ # 各モジュールタイプごとに処理
+    foreach ($ModuleType in $script:Yaml.Module.Keys) { # 各モジュールタイプごとに処理
         $ModuleName = $script:Yaml.Module.$ModuleType.Name         # モジュール名
         $ModuleVersion = $script:Yaml.Module.$ModuleType.VERSION   # モジュールのバージョン
         
@@ -426,7 +433,7 @@ process{
         if (-not (Test-ModuleInstalled -ModuleName $ModuleName)) { # モジュールがインストールされていない場合
             # モジュールがインストールされていない場合は、インストールを促す
             [int]$Button = & $script:ShowPopup -Message (& $script:GetMessage "MODULE_INSTALL_PROMPT" $ModuleName) -Title "Module Check" -Buttons 4
-            switch($Button){
+            switch ($Button) {
                 6 { break } # OK(Continue)
                 7 { $script:CanExecuteProcess = $false; return }  # Cancel(End)
                 default { # 未知のボタン
@@ -437,12 +444,12 @@ process{
             }
         }
         
-        try{
+        try {
             # モジュールのインポート
             Import-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -ErrorAction Stop
             $msg = & $script:GetMessage "MODULE_IMPORT_SUCCESS" $ModuleName $ModuleVersion
             Write-CommonLog -Message $msg -LogPath $script:LogPath -Level 'INFO'
-        }catch{
+        } catch {
             # モジュールのインポートに失敗した場合は警告を表示し終了
             $msg = & $script:GetMessage "MODULE_IMPORT_ERROR" $ModuleName $ModuleVersion
             & $script:ShowPopup -Message ($msg + "`r`n`r`n" + $_.Exception.Message) -Title "Module Check" -Buttons 0x30 | Out-Null
@@ -451,27 +458,28 @@ process{
     }
 
     # リリースの実行
-    $RunPwsVerLength = ("Running PowerShell version: "+$PwsVerChk).Length   # PowerShellバージョンの長さを取得
+    $RunPwsVerLength = ("Running PowerShell version: " + $PwsVerChk).Length   # PowerShellバージョンの長さを取得
     $RunPwsVerLine = "+" * $RunPwsVerLength                                 # PowerShellバージョンの長さと同じ長さの+を作成
     Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                              # PowerShellバージョンの長さと同じ長さの+をログに出力
-    Write-CommonLog -Message ("HOST: "+$script:HostName) -LogPath $script:LogPath -Level 'INFO'                 # ホスト名をログに出力
-    Write-CommonLog -Message ("USER: "+$script:User) -LogPath $script:LogPath -Level 'INFO'                     # ユーザ名をログに出力
-    Write-CommonLog -Message ("Running PowerShell version: "+$PwsVerChk) -LogPath $script:LogPath -Level 'INFO' # PowerShellのバージョンをログに出力
+    Write-CommonLog -Message ("HOST: " + $script:HostName) -LogPath $script:LogPath -Level 'INFO'                 # ホスト名をログに出力
+    Write-CommonLog -Message ("USER: " + $script:User) -LogPath $script:LogPath -Level 'INFO'                     # ユーザ名をログに出力
+    Write-CommonLog -Message ("Running PowerShell version: " + $PwsVerChk) -LogPath $script:LogPath -Level 'INFO' # PowerShellのバージョンをログに出力
     Write-CommonLog -Message $RunPwsVerLine -LogPath $script:LogPath -Level 'INFO'                              # PowerShellバージョンの長さと同じ長さの+をログに出力
-    Write-CommonLog -Message ("Release start time: "+(Get-Date -Format "yyyy/MM/dd HH:mm:ss")) -LogPath $script:LogPath -Level 'INFO' # リリース開始時間をログに出力  
+    Write-CommonLog -Message ("Release start time: " + (Get-Date -Format "yyyy/MM/dd HH:mm:ss")) -LogPath $script:LogPath -Level 'INFO' # リリース開始時間をログに出力  
 
     # ここから時間計測
-    $TimeLap = Measure-Command{ # 開始時間を取得
+    $TimeLap = Measure-Command { # 開始時間を取得
 
     # リリース処理
     $AllTypeObj = $script:Yaml.RELEASE.Keys # リリースタイプの取得
-    foreach($ReleaseType in $AllTypeObj){ # 各リリースタイプごとに処理
+    foreach ($ReleaseType in $AllTypeObj) { # 各リリースタイプごとに処理
         # リリース処理を実行
         Copy-ItemCustom -ReleaseType $ReleaseType -Yaml $script:Yaml -LogPath $script:LogPath -SensitivePatterns $script:SensitivePatterns
-    }    } # ここまで時間計測
+    }
+    } # ここまで時間計測
 
 }
-end{
+end {
     # 実行フラグがfalseでも最終ログは安全に出力
     # ログファイルのパーミッション設定（現在のユーザーのみ読み取り可能）
     # 管理者権限がない場合はスキップ
