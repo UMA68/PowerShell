@@ -74,6 +74,12 @@ cd "C:\Users\...\必要なモジュールの導入\Script"
 ```powershell
 # カスタム設定ファイルを使用
 .\InstMain.ps1 -envFileName "Production.yaml"
+
+# コンソールに詳細ログを表示
+.\InstMain.ps1 -ShowInConsole
+
+# 両方のパラメータを指定
+.\InstMain.ps1 -envFileName "Production.yaml" -ShowInConsole
 ```
 
 #### パラメーター
@@ -81,6 +87,7 @@ cd "C:\Users\...\必要なモジュールの導入\Script"
 | パラメーター | 型 | デフォルト | 説明 |
 |-----------|----|---------|----|
 | `envFileName` | string | "Env.yaml" | 使用する設定ファイル名（YAMLフォルダー内） |
+| `ShowInConsole` | switch | $false | コンソールに詳細なログを表示（デバッグ時に便利） |
 
 ## 設定ファイル (Env.yaml)
 
@@ -487,6 +494,22 @@ MIT License
 
 ## バージョン履歴
 
+### v1.2.0 (2026-01-20)
+
+- `-ShowInConsole` スイッチパラメーターを追加
+- コンソールへの詳細ログ表示機能を実装
+- ScriptAnalyzerに完全対応（空のcatchブロック、スペース修正）
+- Check-EnvModule.ps1とCheck-YamlModule.ps1のバージョン更新（v1.1.0）
+- ヘルプドキュメントの包括的な更新
+
+### v1.1.0 (2025-12-11)
+
+- begin-process-endパイプライン構造に変更
+- 二重起動チェックをbeginブロックで最優先実行
+- 制御フローフラグ（$script:CanExecuteProcess）を導入
+- エラー時・二重起動時の適切なハンドリングを実装
+- COMオブジェクトのリソース解放を強化
+
 ### v1.0.0 (2025-12-09)
 
 - 初版リリース
@@ -497,7 +520,9 @@ MIT License
 - 二重起動防止機能
 - ユーザースコープでのインストール対応
 - 包括的なエラーハンドリング
+- ユーザースコープでのインストール対応
+- 包括的なエラーハンドリング
 
 ---
 
-**最終更新:** 2025年12月9日
+**最終更新:** 2026年1月20日
