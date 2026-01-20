@@ -47,14 +47,18 @@
 .NOTES
     FileName:      StringDecryption.ps1
     Author:        UMA68
-    Version:       1.2.0
-    LastModified:  2025-12-11
+    Version:       1.2.1
+    LastModified:  2026-01-20
     Prerequisites: - PowerShell 5.1以上
                    - 鍵ファイル（Encryption.key）がCommonフォルダーに存在すること
                    - InputGUI.ps1 が同じScriptフォルダーに存在すること
                    - NoDoubleActivation.ps1 がCommonフォルダーに存在すること
     
     変更履歴:
+    v1.2.1 (2026-01-20)
+        - ScriptAnalyzer対応（空catchのエラーログ追加、ヘルプコメント整備）
+        - COMオブジェクト解放失敗時のエラーハンドリングを強化
+
     v1.2.0 (2025-12-11)
         - クリーンアップ処理を関数化（Invoke-Cleanup）
         - 二重起動チェックを最優先で実行（早期判定）
