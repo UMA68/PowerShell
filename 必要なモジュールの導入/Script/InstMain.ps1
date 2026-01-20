@@ -146,7 +146,7 @@ param (
     [string]$envFileName = "Env.yaml" # オプションなしの場合は「Env.yaml」を使用する
 )
 
-begin{
+begin {
     # ====================================
     # 制御フローフラグの初期化
     # ====================================
@@ -183,10 +183,10 @@ begin{
         try {
             $obj = New-Object -ComObject WScript.Shell
             $scriptName = $_.InvocationInfo.MyCommand.Name
-            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
         }
@@ -208,9 +208,9 @@ begin{
     # ログファイルの初期化
     # ====================================
     # ログディレクトリとログファイルパスの作成
-    $Log = Join-Path -Path $LogDir -ChildPath ($HostName+"_"+(Get-Date -Format "yyyyMMdd-HHmmss")+".log")
+    $Log = Join-Path -Path $LogDir -ChildPath ($HostName + "_" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
     # ログディレクトリがなければ作成
-    if(-not (Test-Path -Path $LogDir)){ # ログディレクトリがなければ作成
+    if (-not (Test-Path -Path $LogDir)) { # ログディレクトリがなければ作成
         New-Item -Path $LogDir -ItemType Directory | Out-Null
     }
     
@@ -228,17 +228,17 @@ begin{
         try {
             $obj = New-Object -ComObject WScript.Shell
             $scriptName = $_.InvocationInfo.MyCommand.Name
-            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+            $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
         }
     }
 
 }
-Process{
+Process {
     if (-not $script:CanExecuteProcess) { # エラーまたは二重起動の場合はスキップ
         return  # begin ブロックでエラーが発生した場合はスキップ
     }
@@ -254,17 +254,17 @@ Process{
     # 設定ファイルの読み込み
     # ====================================
     # YAMLファイルからモジュール情報を読み込み
-    try{
+    try {
         $yaml = Get-Content $envPath -Delimiter "`0" -ErrorAction Stop | ConvertFrom-Yaml -Ordered
-    }catch{
+    } catch {
         $script:CanExecuteProcess = $false
         $obj = $null
         try {
             $obj = New-Object -ComObject WScript.Shell
-            $obj.Popup($envFileName+"の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+            $obj.Popup($envFileName + "の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
         }
@@ -277,16 +277,16 @@ Process{
     # 実行中のPowerShellバージョンとYAMLで指定されたバージョンを比較
     $pwsVerChk = ($PSVersionTable.PSVersion).ToString()
     $obj = $null
-    if($pwsVerChk -ne $yaml.PowerShell.Version){ # バージョン不一致の場合
+    if ($pwsVerChk -ne $yaml.PowerShell.Version) { # バージョン不一致の場合
         # yaml記述のバージョンと違ったら警告表示
         try {
             $obj = New-Object -ComObject WScript.Shell
-            [int]$retButton = $obj.Popup("実行中のPowerShellは "+$pwsVerChk+" です。`r`nPowerShell "+$yaml.PowerShell.Version+" を前提にインストールを行います。続行しますか？",0,"警告",4)   # はい=6 いいえ=7
-            switch($retButton){
+            [int]$retButton = $obj.Popup("実行中のPowerShellは " + $pwsVerChk + " です。`r`nPowerShell " + $yaml.PowerShell.Version + " を前提にインストールを行います。続行しますか？", 0, "警告", 4)   # はい=6 いいえ=7
+            switch ($retButton) {
                 6 { break } # はい
                 7 { # いいえ
                     if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                        try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                         $obj = $null
                     }
                     $script:CanExecuteProcess = $false
@@ -295,7 +295,7 @@ Process{
             }
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
-                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
         }
@@ -305,13 +305,13 @@ Process{
     # ログ記録の開始
     # ====================================
     # 実行環境情報をログファイルに記録
-    Write-CommonLog -Message ("HOST: "+$HostName) -LogPath $Log -Level 'INFO'   # ホスト名
-    Write-CommonLog -Message ("USER: "+$userName) -LogPath $Log -Level 'INFO'   # ユーザ名
+    Write-CommonLog -Message ("HOST: " + $HostName) -LogPath $Log -Level 'INFO'   # ホスト名
+    Write-CommonLog -Message ("USER: " + $userName) -LogPath $Log -Level 'INFO'   # ユーザ名
 
-    Write-CommonLog -Message ("Running PowerShell Version: "+$pwsVerChk) -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("Running PowerShell Version: " + $pwsVerChk) -LogPath $Log -Level 'INFO'
     Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
     Write-CommonLog -Message ($yaml.Project) -LogPath $Log -Level 'INFO'
-    Write-CommonLog -Message ("Version: "+$yaml.Version) -LogPath $Log -Level 'INFO'
+    Write-CommonLog -Message ("Version: " + $yaml.Version) -LogPath $Log -Level 'INFO'
     Write-CommonLog -Message "============================" -LogPath $Log -Level 'INFO'
 
     Write-CommonLog -Message ("[[[START]]]") -LogPath $Log -Level 'INFO'
@@ -320,14 +320,14 @@ Process{
     # モジュールのインストール処理
     # ====================================
     # YAMLファイルで定義された全モジュールを順次チェック・インストール
-    foreach($module in $yaml.Module.Keys){  # 各モジュールを処理
+    foreach ($module in $yaml.Module.Keys) { # 各モジュールを処理
         Test-EnvModule -ModuleName $yaml.Module.$module.Name -ModuleVersion $yaml.Module.$module.Version  # モジュールのインストール
     }
 
     Write-CommonLog -Message ("[[[END]]]") -LogPath $Log -Level 'INFO'
     Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO'
 }
-end{
+end {
     if (-not $script:CanExecuteProcess) {
         # エラーまたは二重起動の場合は何もせず終了
         return
@@ -343,7 +343,7 @@ end{
         $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
     } finally {
         if ($null -ne $obj) { # COMオブジェクトが存在する場合
-            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
             $obj = $null
         }
     }
