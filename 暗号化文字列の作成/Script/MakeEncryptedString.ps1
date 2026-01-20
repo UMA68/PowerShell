@@ -1,14 +1,75 @@
-# ================================
-# 鍵ファイルEncryption.keyを使って
-# 暗号化した文字列を生成する
-# ================================
-# 使い方
-# ----------------
-# 1. 鍵ファイル「Encryption.key」を「Common」フォルダに置く
-# 2. 「鍵ファイル作成.ps1 - ショートカット」をダブルクリックする
-# 3. 暗号化する文字列を入力する
-# 4. 出力するファイルファイル名を入力する
-# ----------------
+<#
+.SYNOPSIS
+    鍵ファイルを使用して文字列を暗号化し、ファイルへ出力します。
+
+.DESCRIPTION
+    指定された鍵ファイル（既定: Encryption.key）を使用して、入力された文字列を
+    ConvertFrom-SecureString で暗号化し、ターミナル表示とファイル出力を行います。
+    
+    主な機能：
+    - 鍵ファイルを使用した安全な暗号化処理
+    - 入力文字列とファイル名のバリデーション
+    - 二重起動防止機構
+    - 処理後の変数クリーンアップ
+    
+    出力ファイルは本スクリプトの1階層上に、指定したファイル名で保存します。
+
+.PARAMETER keyFileName
+    使用する鍵ファイル名（Common フォルダー配下）。デフォルトは Encryption.key。
+
+.INPUTS
+    None
+    パイプライン入力は受け付けません。
+
+.OUTPUTS
+    暗号化文字列（標準出力および指定ファイル）
+
+.EXAMPLE
+    .\MakeEncryptedString.ps1
+    
+    既定の鍵ファイル（Encryption.key）で暗号化し、指定したファイル名で保存します。
+    1. 鍵ファイルを読み込みます
+    2. 暗号化する文字列の入力を求められます
+    3. 入力文字列を SecureString に変換し暗号化します
+    4. 暗号化文字列をターミナルに表示します
+    5. 出力ファイル名の入力を求められます
+    6. 指定ファイル名でスクリプト親ディレクトリに保存します
+    7. 変数をクリーンアップします
+
+.EXAMPLE
+    .\MakeEncryptedString.ps1 -keyFileName "MyKey.bin"
+    
+    カスタム鍵ファイル（MyKey.bin）を用いて暗号化します。
+
+.NOTES
+    FileName:     MakeEncryptedString.ps1
+    Author:       UMA68
+    Version:      1.0.0
+    LastModified: 2026-01-20
+    Prerequisites:
+      - PowerShell 5.1 以上
+      - Common\<鍵ファイル> が存在すること
+      - Common\NoDoubleActivation.ps1 が存在すること
+    
+    セキュリティに関する注意:
+    - 入力文字列は SecureString として処理されます
+    - 処理後、変数は Remove-Variable で削除されます
+    - 鍵ファイルは厳重に管理してください
+    - 暗号化文字列はターミナルに表示されるため、作業時は周囲に注意してください
+    
+    使い方:
+    1. 鍵ファイル「Encryption.key」を「Common」フォルダに置く
+    2. 「暗号化文字列の作成.ps1 - ショートカット」をダブルクリックする
+    3. 暗号化する文字列を入力する
+    4. 出力するファイル名を入力する
+    5. ファイルはスクリプトの1階層上のディレクトリに保存されます
+
+.LINK
+    関連スクリプト: 鍵ファイル作成.ps1（鍵ファイル作成）
+    関連スクリプト: StringDecryption.ps1（復号）
+    関連スクリプト: NoDoubleActivation.ps1（二重起動防止）
+#>
+
 param (
     [string]$keyFileName = "Encryption.key" # オプションなしの場合は「Encryption.key」を使用する
 )
