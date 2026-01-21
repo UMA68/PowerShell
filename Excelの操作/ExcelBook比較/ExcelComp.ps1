@@ -35,14 +35,14 @@ try {
     $data1 = Import-Excel -Path $excelFileA -WorksheetName "before"
     $data2 = Import-Excel -Path $excelFileB -WorksheetName "after"
 
-# $data1と$data2の内容を比較する
-$diff = Compare-Object -ReferenceObject $data1 -DifferenceObject $data2 -Property 'CD', 'KEY', 'Chr1', 'Chr2', 'Chr3', 'Num1', 'Num2', 'Num3'
+    # $data1と$data2の内容を比較する
+    $diff = Compare-Object -ReferenceObject $data1 -DifferenceObject $data2 -Property 'CD', 'KEY', 'Chr1', 'Chr2', 'Chr3', 'Num1', 'Num2', 'Num3'
 
-# 差分のあった行のみ表示する
-$diff | Where-Object { $_.SideIndicator -eq '=>' } | Format-Table
+    # 差分のあった行のみ表示する
+    $diff | Where-Object { $_.SideIndicator -eq '=>' } | Format-Table
 
-# 差分のあった箇所を表示する(typeB.xlsx)
-$compdata = $diff | Where-Object { $_.SideIndicator -eq '=>' } 
+    # 差分のあった箇所を表示する(typeB.xlsx)
+    $compdata = $diff | Where-Object { $_.SideIndicator -eq '=>' } 
 
     # Excelファイルの存在チェック
     if (Test-Path $outputFile) {
@@ -73,16 +73,16 @@ $compdata = $diff | Where-Object { $_.SideIndicator -eq '=>' }
         # Excelファイルを開く
         $workbook = $excel.Workbooks.Open($excelFileB)
 
-# シートを選択
-$sheet = $workbook.Worksheets.Item("after")
-$usedrange = $sheet.UsedRange   # 使用範囲を取得
+        # シートを選択
+        $sheet = $workbook.Worksheets.Item("after")
+        $usedrange = $sheet.UsedRange   # 使用範囲を取得
 
-# オートフィルタが設定されていたら解除
-if ($sheet.AutoFilterMode -eq $true) {
-    $usedrange.UsedRange.AutoFilter()  
-}
-# オートフィルターを設定
-$usedrange.rows("1").AutoFilter() | Out-Null
+        # オートフィルタが設定されていたら解除
+        if ($sheet.AutoFilterMode -eq $true) {
+            $usedrange.UsedRange.AutoFilter()  
+        }
+        # オートフィルターを設定
+        $usedrange.rows("1").AutoFilter() | Out-Null
 
         # フィルター対象に色をつける
         $Count = $compdata.Count
