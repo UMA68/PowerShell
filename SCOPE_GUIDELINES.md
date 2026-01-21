@@ -231,6 +231,19 @@ $script:Yaml = Get-Content ...
 9. **必要なモジュールの導入/**
    - `InstMain.ps1` ✓
 
+10. **dotNetSdkUninstallToolの入手/**
+    - `DotNetUninstallTool.ps1` ✓
+
+11. **暗号化鍵の作成/**
+    - `MakeEncrypted.ps1` ✓
+
+12. **暗号化文字列の作成/**
+    - `MakeEncryptedString.ps1` ✓
+
+13. **暗号化文字列の復元/**
+    - `StringDecryption.ps1` ✓
+    - `InputGUI.ps1` ✓
+
 ## 補足ガイド
 
 ### `$global:` の取り扱い
@@ -355,6 +368,11 @@ Invoke-ScriptAnalyzer -Path . -Recurse
 - 例外で初期化が部分的に失敗したまま続行（整合性欠如）。
 
 ## バージョン履歴
+
+- **v1.3.0** (2026-01-21): 対象スクリプト一覧の更新
+  - dotNetSdkUninstallToolの入手スクリプトを追加
+  - 暗号化関連スクリプト（鍵の作成、文字列の作成、文字列の復元）を追加
+  - プロジェクトの実装状況を反映
 
 - **v1.2.0** (2026-01-13): 補足ガイド追加
   - `$global:`の取り扱い、`$module:`、並列/非同期と`$using:`、ドットソース注意点を追加
