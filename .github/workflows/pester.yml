@@ -19,6 +19,11 @@ on:
       - '.github/workflows/pester.yml'
   workflow_dispatch:
 
+# 無駄な同時実行を止めて分課金を抑制
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Pester ユニットテスト

@@ -18,6 +18,11 @@ on:
       - 'PSScriptAnalyzerSettings.psd1'
       - '.github/workflows/psscriptanalyzer.yml'
 
+# 無駄な同時実行を止めて分課金を抑制
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: PSScriptAnalyzer コード品質チェック
