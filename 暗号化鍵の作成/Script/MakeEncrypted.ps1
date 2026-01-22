@@ -117,11 +117,11 @@ begin {
     # パス初期化・共通スクリプト読込
     # ====================================
     # スクリプトのディレクトリ取得
-    $script:ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $script:UpperDir = Split-Path -Parent $script:ScriptDir
-    $script:PowerShellDir = Split-Path -Parent $script:UpperDir
-    $script:comPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"
-    $script:noDoubleActivationPath = Join-Path -Path $script:comPath -ChildPath "NoDoubleActivation.ps1"
+    $script:ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path         # スクリプトのあるディレクトリ
+    $script:UpperDir = Split-Path -Parent $script:ScriptDir                     # 一つ上のディレクトリ
+    $script:PowerShellDir = Split-Path -Parent $script:UpperDir                 # PowerShell ディレクトリ
+    $script:comPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common" # 共通スクリプト格納フォルダのパス
+    $script:noDoubleActivationPath = Join-Path -Path $script:comPath -ChildPath "NoDoubleActivation.ps1"    # NoDoubleActivation.ps1 のパス
 
     # COMオブジェクトを作成（再利用）
     $script:obj = $null
