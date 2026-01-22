@@ -180,8 +180,8 @@
 #>
 param(
     [Parameter(Mandatory = $false)]
-    [ValidateNotNullOrEmpty()]
-    [string]$VaultPath = "$HOME\GitHub\obsidian",   # Obsidian Vaultのパス
+    [ValidateNotNullOrEmpty()]                      # Vaultのパスが空でないことを検証
+    [string]$VaultPath = "$HOME\GitHub\obsidian",   # Obsidian Vaultのパス指定
     [Parameter(Mandatory = $false)]
     [ValidateRange(0.1, [double]::MaxValue)]        # 1トークンあたりの文字数
     [double]$CharsPerToken = 2.5,                   # 日本語の場合は約2-3文字/トークン
@@ -189,14 +189,14 @@ param(
     [ValidateRange(0.0001, [double]::MaxValue)]
     [double]$CostPerMillionTokens = 2.50,   # GPT-4o入力価格(100万トークンあたり）（2024年時点）
     [Parameter(Mandatory = $false)]
-    [ValidateRange(1, 1000)]
+    [ValidateRange(1, 1000)]                # 最大表示する大容量ファイル数の範囲
     [int]$ShowTopFiles = 10,                # 最大表示する大容量ファイル数
     [Parameter(Mandatory = $false)]
     [switch]$ShowModelComparison = $false,  # 複数モデル比較表示フラグ
     [Parameter(Mandatory = $false)]
     [string]$ExportToFile = "",     # 結果をエクスポートするファイル名（CSVまたはJSON）
     [Parameter(Mandatory = $false)]
-    [ValidateRange(0, 10)]
+    [ValidateRange(0, 10)]          # 出力トークン数の入力トークン数に対する比率の範囲
     [double]$OutputTokenRatio = 0,  # 出力トークン数の入力トークン数に対する比率
     [Parameter(Mandatory = $false)]
     [string[]]$ExcludeFolders = @(".obsidian", ".git", ".trash"),   # 除外フォルダ
@@ -234,12 +234,12 @@ begin {
     }
     
     # 統計情報の初期化
-    $script:totalSize = 0
-    $script:fileCount = 0
-    $script:fileSizes = @()
+    $script:totalSize = 0   # 合計ファイルサイズ（バイト）
+    $script:fileCount = 0   # 合計ファイル数
+    $script:fileSizes = @() # 各ファイルのサイズ情報オブジェクト配列
     $script:dirStats = @{}  # ディレクトリ別統計
-    $script:errorCount = 0
-    $script:skippedFolders = @()
+    $script:errorCount = 0  # 処理エラー数
+    $script:skippedFolders = @() # 除外フォルダ記録
     
     # 除外フォルダのパターン作成
     if ($ExcludeFolders.Count -gt 0) { # 除外フォルダが指定されている場合
@@ -315,8 +315,8 @@ process {
                 # 進捗表示
                 $processedCount++
                 if ($ShowProgress -and ($processedCount % 100 -eq 0)) { # 100ファイルごとに表示
-                    $percent = [math]::Floor(($processedCount / [double]$script:fileCount) * 100)                           # パーセント計算
-                    Write-Information "Processed: $processedCount / $script:fileCount files ($percent%)..."  # 進捗表示
+                    $percent = [math]::Floor(($processedCount / [double]$script:fileCount) * 100)           # パーセント計算
+                    Write-Information "Processed: $processedCount / $script:fileCount files ($percent%)..." # 進捗表示
                 }
                 
             } catch {
