@@ -118,13 +118,13 @@
 function Test-EnvModule {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [string]$ModuleName,
+        [ValidateNotNullOrEmpty()]          # モジュール名の必須チェック
+        [string]$ModuleName,                # 確認またはインストールするモジュール名
         
         [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [ValidatePattern('^\d+\.\d+\.\d+$')]
-        [string]$ModuleVersion
+        [ValidateNotNullOrEmpty()]              # モジュールバージョンの必須チェック
+        [ValidatePattern('^\d+\.\d+\.\d+$')]    # バージョン形式のパターンチェック (例: 1.2.3)
+        [string]$ModuleVersion                  # 確認またはインストールするモジュールバージョン
     )
 
     # ====================================
