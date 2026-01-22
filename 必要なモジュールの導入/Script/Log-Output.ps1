@@ -95,9 +95,9 @@ function Write-LogOutput {
     # ================================================
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Message,
+        [string]$Message,               # 出力メッセージ
         [Parameter(Mandatory = $true)]
-        [string]$LogPath
+        [string]$LogPath                # ログファイルのパス
     )
 
     Write-Output $Message | Tee-Object -FilePath $LogPath -Append | Out-Default
