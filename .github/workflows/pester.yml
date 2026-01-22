@@ -31,6 +31,9 @@ jobs:
     - name: リポジトリをチェックアウト
       uses: actions/checkout@v4
       
+    - name: PowerShell 7.x をセットアップ
+      uses: microsoft/setup-ps@v2
+      
     - name: PowerShell バージョンを確認
       shell: pwsh
       run: |
