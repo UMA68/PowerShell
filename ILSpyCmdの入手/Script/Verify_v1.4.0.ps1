@@ -73,6 +73,7 @@
 #>
 
 param(
+    # 検証対象スクリプトのパス
     [string]$ScriptPath = (Join-Path -Path $HOME -ChildPath "GitHub\PowerShell\ILSpyCmdの入手\Script\getILSpyCmd.ps1")
 )
 
@@ -378,11 +379,11 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "スクリプト統計情報" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-$lines = $scriptContent -split "`n"
-$functionCount = ([regex]::Matches($scriptContent, 'function\s+\w+\s*\{', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-$tryCatchCount = ([regex]::Matches($scriptContent, 'try\s*\{', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
-$commentLines = ($lines | Where-Object { $_ -match '^\s*#' }).Count
-$paramCount = ([regex]::Matches($scriptContent, '\[.*?\]\s*\$\w+', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
+$lines = $scriptContent -split "`n" # 行単位に分割
+$functionCount = ([regex]::Matches($scriptContent, 'function\s+\w+\s*\{', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count # 関数定義数
+$tryCatchCount = ([regex]::Matches($scriptContent, 'try\s*\{', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count            # Try-Catch ブロック数
+$commentLines = ($lines | Where-Object { $_ -match '^\s*#' }).Count                                                                         # コメント行数
+$paramCount = ([regex]::Matches($scriptContent, '\[.*?\]\s*\$\w+', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count        # パラメータ数
 
 Write-Host "総行数: $($lines.Count) 行" -ForegroundColor Cyan
 Write-Host "関数定義数: $functionCount 個" -ForegroundColor Cyan
@@ -447,9 +448,9 @@ if ($passCount -eq $totalCount) {
     Write-Host "❌ 検証に失敗した項目があります" -ForegroundColor Red
     Write-Host ""
     
-    $failed = $results | Where-Object { $_.Result -eq $false }
+    $failed = $results | Where-Object { $_.Result -eq $false }  # 失敗または警告項目を抽出
     Write-Host "【失敗・警告項目】" -ForegroundColor Red
-    $failed | ForEach-Object {
+    $failed | ForEach-Object {  # 失敗・警告項目の表示
         $status = if ($_.Result) { "⚠️" } else { "❌" }
         Write-Host "  $status $($_.Name)" -ForegroundColor Red
     }
