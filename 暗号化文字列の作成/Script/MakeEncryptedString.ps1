@@ -103,11 +103,11 @@ if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) {
 # 暗号化の際に使用する鍵ファイルを読み込む
 # Encryption.keyの存在確認
 try {
-    if (Test-Path -Path $keyPath) {
+    if (Test-Path -Path $keyPath) { # 鍵ファイルが存在する場合
         # 鍵ファイルを読み込む
         [byte[]]$EncryptedKey =[System.IO.File]::ReadAllBytes($keyPath)
         Write-Host "鍵ファイル「Encryption.key」を読み込みました。"
-    } else {
+    } else { # 鍵ファイルが存在しない場合
         throw "鍵ファイル「Encryption.key」が見つかりません。"  # 例外を発生させる
     }
 } catch {
