@@ -110,11 +110,11 @@ $script:EXIT_FIREWALL_ERROR = 4
 function Write-Log {
     param(
         [string]$Message,
-        [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]
-        [string]$Level = "INFO"
+        [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]    # ログレベル
+        [string]$Level = "INFO" # デフォルトはINFO
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "[$timestamp] [$Level] $Message"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss" # タイムスタンプ生成
+    $logMessage = "[$timestamp] [$Level] $Message"      # ログメッセージ構築
 
     # ログディレクトリが無い場合は作成
     $logDir = Split-Path -Path $LogPath -Parent
@@ -124,7 +124,7 @@ function Write-Log {
 
     Add-Content -Path $LogPath -Value $logMessage -Encoding UTF8 -ErrorAction SilentlyContinue
     
-    switch ($Level) {
+    switch ($Level) { # コンソール出力
         "SUCCESS" { Write-Information $Message -InformationAction Continue ; Write-Host $Message -ForegroundColor Green }
         "WARNING" { Write-Warning $Message }
         "ERROR" { Write-Information $Message -InformationAction Continue ; Write-Host $Message -ForegroundColor Red }
@@ -215,20 +215,20 @@ try {
     }
     
     # 管理者権限チェック
-    if (-not $DryRun -and -not $SkipAdminCheck -and -not (Test-AdminPrivilege)) {
+    if (-not $DryRun -and -not $SkipAdminCheck -and -not (Test-AdminPrivilege)) { # 管理者権限が必要
         Write-Log "エラー: 管理者権限が必要です。PowerShellを管理者として実行してください。" "ERROR"
         exit $script:EXIT_NO_ADMIN
     }
-    if ($DryRun) {
+    if ($DryRun) { # DryRunモードでは権限チェックをスキップ
         Write-Log "[DryRun] 管理者権限チェックをスキップ" "INFO"
-    } elseif ($SkipAdminCheck) {
+    } elseif ($SkipAdminCheck) { # SkipAdminCheck指定時
         Write-Log "[警告] SkipAdminCheckにより管理者権限チェックをスキップします。権限不足で処理が失敗する可能性があります。" "WARNING"
-    } else {
+    } else { # 正常に管理者権限あり
         Write-Log "✓ 管理者権限を確認しました" "SUCCESS"
     }
     
     # ファイアウォールルール存在チェック
-    if (-not $DryRun -and -not (Test-FirewallRule -DisplayName $RuleName)) {
+    if (-not $DryRun -and -not (Test-FirewallRule -DisplayName $RuleName)) { # ルールが存在しない場合
         Write-Log "エラー: ファイアウォールルール '$RuleName' が見つかりません。" "ERROR"
         Write-Log "以下のコマンドでルールを作成してください:" "ERROR"
         Write-Log 'New-NetFirewallRule -DisplayName "Block Node.js Outbound" -Direction Outbound -Program "C:\Program Files\nodejs\node.exe" -Action Block -Enabled True' "ERROR"
@@ -237,46 +237,46 @@ try {
     if (-not $DryRun) { Write-Log "✓ ファイアウォールルールを確認しました" "SUCCESS" } else { Write-Log "[DryRun] ファイアウォールルール存在チェックをスキップ" "INFO" }
     
     # 初期状態を記録
-    if (-not $DryRun) {
+    if (-not $DryRun) { # 初期状態を取得
         $initialRuleState = Get-FirewallRuleState -DisplayName $RuleName
         Write-Log "ファイアウォール初期状態: $(if ($initialRuleState -eq 'True') { 'ブロック有効' } else { '許可' })" "INFO"
-    } else {
+    } else { # DryRunモードでは取得しない
         Write-Log "[DryRun] ファイアウォール初期状態の取得をスキップ" "INFO"
     }
     
     # npmコマンド構築
-    $flags = @()
-    $packageList = if ($Packages) { $Packages -join " " } else { "" }
-    $extra = if ($ExtraArgs -and $ExtraArgs.Count -gt 0) { " " + ($ExtraArgs -join " ") } else { "" }
-    switch ($Command) {
-        "install" {
-            if ($Global) { $flags += "-g" }
-            if ($SaveDev) { $flags += "--save-dev" }
-            $flagString = if ($flags.Count -gt 0) { " " + ($flags -join " ") } else { "" }
-            if (-not $Packages -or $Packages.Count -eq 0) {
+    $flags = @()    # フラグ配列初期化
+    $packageList = if ($Packages) { $Packages -join " " } else { "" }   # パッケージリスト文字列化
+    $extra = if ($ExtraArgs -and $ExtraArgs.Count -gt 0) { " " + ($ExtraArgs -join " ") } else { "" }   # 追加引数文字列化
+    switch ($Command) { # npmコマンドごとの処理
+        "install" { # install処理
+            if ($Global) { $flags += "-g" } # グローバルフラグ
+            if ($SaveDev) { $flags += "--save-dev" } # 開発依存フラグ
+            $flagString = if ($flags.Count -gt 0) { " " + ($flags -join " ") } else { "" } # フラグ文字列化
+            if (-not $Packages -or $Packages.Count -eq 0) { # パッケージ未指定時
                 if ($Global -or $SaveDev) { Write-Log "[注意] パッケージ未指定のため -g/--save-dev は無視されます" "WARNING" }
                 $npmCommand = "npm install$extra"  # package.jsonの依存関係をインストール
-            } else {
+            } else { # パッケージ指定時
                 $npmCommand = "npm install$flagString $packageList$extra"
             }
         }
-        "update" {
-            if ($Global) { $flags += "-g" }
-            if ($SaveDev) { Write-Log "[注意] updateでは --save-dev は無視されます" "WARNING" }
-            $flagString = if ($flags.Count -gt 0) { " " + ($flags -join " ") } else { "" }
-            $npmCommand = "npm update$flagString $packageList$extra"
+        "update" { # update処理
+            if ($Global) { $flags += "-g" } # グローバルフラグ
+            if ($SaveDev) { Write-Log "[注意] updateでは --save-dev は無視されます" "WARNING" } # SaveDev無視
+            $flagString = if ($flags.Count -gt 0) { " " + ($flags -join " ") } else { "" }  # フラグ文字列化
+            $npmCommand = "npm update$flagString $packageList$extra"    # updateコマンド構築
         }
-        "ci" {
-            if ($Global -or $SaveDev) { Write-Log "[注意] ciでは -g/--save-dev は無視されます" "WARNING" }
-            if ($Packages -and $Packages.Count -gt 0) { Write-Log "[注意] ciはパッケージ指定を無視します（package-lockに従います）" "WARNING" }
-            if ($ExtraArgs -and $ExtraArgs.Count -gt 0) { Write-Log "[注意] ciでは ExtraArgs は無視されるかエラーになる可能性があります" "WARNING" }
-            $npmCommand = "npm ci"
+        "ci" { # ci処理
+            if ($Global -or $SaveDev) { Write-Log "[注意] ciでは -g/--save-dev は無視されます" "WARNING" }  # 無視
+            if ($Packages -and $Packages.Count -gt 0) { Write-Log "[注意] ciはパッケージ指定を無視します（package-lockに従います）" "WARNING" } # 無視
+            if ($ExtraArgs -and $ExtraArgs.Count -gt 0) { Write-Log "[注意] ciでは ExtraArgs は無視されるかエラーになる可能性があります" "WARNING" }    # 注意  
+            $npmCommand = "npm ci"   # ciコマンド構築
         }
     }
     Write-Log "実行コマンド: $npmCommand" "INFO"
     
     # ドライランモード: 実際の変更は行わず、予定操作を表示
-    if ($DryRun) {
+    if ($DryRun) { # DryRunモード
         Write-Log "[DryRun] 次の操作をシミュレートします:" "INFO"
         Write-Log "[DryRun] ファイアウォール一時解除: Set-NetFirewallRule -DisplayName '$RuleName' -Enabled False" "INFO"
         Write-Log "[DryRun] 実行予定コマンド: $npmCommand" "INFO"
@@ -302,15 +302,15 @@ try {
         # npm 実行
         Write-Log "npm $Command を実行中..." "INFO"
         try {
-            $output = Invoke-Expression $npmCommand 2>&1
-            $exitCode = $LASTEXITCODE
+            $output = Invoke-Expression $npmCommand 2>&1    # npmコマンド実行、出力キャプチャ
+            $exitCode = $LASTEXITCODE                       # npmの終了コード取得
             
             # 出力をログに記録
             $output | ForEach-Object { Write-Log $_.ToString() "INFO" }
             
-            if ($exitCode -eq 0) {
+            if ($exitCode -eq 0) { # 正常終了
                 Write-Log "✓ npm $Command が正常に完了しました" "SUCCESS"
-            } else {
+            } else { # 異常終了
                 Write-Log "警告: npm $Command が終了コード $exitCode で終了しました" "WARNING"
             }
         } catch {
@@ -335,9 +335,9 @@ try {
     }
     
     # DryRun/WhatIf時は再ブロックをスキップ
-    if ($isDryRun) {
+    if ($isDryRun) { # DryRunモード
         Write-Log "[DryRun] ファイアウォール再ブロックをスキップしました" "INFO"
-    } elseif (-not $WhatIfPreference) {
+    } elseif (-not $WhatIfPreference) { # 通常モード
         Write-Log "Node.js の送信通信を再度ブロックします..." "INFO"
         try {
             Set-NetFirewallRule -DisplayName $RuleName -Enabled True -ErrorAction Stop
@@ -345,16 +345,16 @@ try {
             
             # 最終状態を確認
             $finalRuleState = Get-FirewallRuleState -DisplayName $RuleName
-            if ($finalRuleState -eq 'True') {
+            if ($finalRuleState -eq 'True') { # 再ブロック成功
                 Write-Log "✓ ファイアウォール状態確認: ブロック有効" "SUCCESS"
-            } else {
+            } else { # 再ブロック失敗
                 Write-Log "警告: ファイアウォールが有効化されていない可能性があります" "WARNING"
             }
         } catch {
             Write-Log "エラー: ファイアウォールの再ブロックに失敗しました: $($_.Exception.Message)" "ERROR"
             Write-Log "手動で再ブロックしてください: Set-NetFirewallRule -DisplayName '$RuleName' -Enabled True" "ERROR"
         }
-    } else {
+    } else { # WhatIfモード
         Write-Log "WhatIfモードのためファイアウォール再ブロックをスキップしました" "INFO"
     }
     
