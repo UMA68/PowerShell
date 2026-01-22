@@ -31,10 +31,11 @@ jobs:
     - name: リポジトリをチェックアウト
       uses: actions/checkout@v4
       
-    - name: PowerShell ${{ matrix.powershell-version }} をセットアップ
-      uses: actions/setup-powershell@v4
-      with:
-        powershell-version: ${{ matrix.powershell-version }}
+    - name: PowerShell バージョンを確認
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell バージョン: $($PSVersionTable.PSVersion)" -ForegroundColor Cyan
+        Write-Host "要求バージョン: ${{ matrix.powershell-version }}" -ForegroundColor Cyan
         
     - name: 必要なモジュールをインストール
       shell: pwsh
