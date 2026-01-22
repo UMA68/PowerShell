@@ -284,6 +284,7 @@ Process {
             $obj.Popup($envFileName + "の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                # COMオブジェクトの解放
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
@@ -306,6 +307,7 @@ Process {
                 6 { break } # はい
                 7 { # いいえ
                     if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                        # COMオブジェクトの解放
                         try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                         $obj = $null
                     }
@@ -315,6 +317,7 @@ Process {
             }
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                # COMオブジェクトの解放
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
@@ -348,8 +351,8 @@ Process {
     Write-CommonLog -Message "-----------------------------" -LogPath $Log -Level 'INFO' -Quiet:(-not $ShowInConsole)
 }
 end {
+    # エラーまたは二重起動の場合は何もせず終了 
     if (-not $script:CanExecuteProcess) {
-        # エラーまたは二重起動の場合は何もせず終了
         return
     }
     
@@ -363,6 +366,7 @@ end {
         $obj.popup("処理を終了しました。ログを表示します", 0, "完了", 0x40)   # 0x40:情報
     } finally {
         if ($null -ne $obj) { # COMオブジェクトが存在する場合
+            # COMオブジェクトの解放
             try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
             $obj = $null
         }
