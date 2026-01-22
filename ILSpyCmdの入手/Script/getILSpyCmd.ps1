@@ -171,16 +171,16 @@ begin {
         param([Exception]$Exception)
         $exceptionType = $Exception.GetType().FullName
         switch -regex ($exceptionType) { # 正規表現マッチング
-            'FileNotFoundException' { return 'ERROR' }
-            'DirectoryNotFoundException' { return 'ERROR' }
-            'UnauthorizedAccessException' { return 'ERROR' }
-            'ParsingException' { return 'ERROR' }
-            'InvalidOperationException' { return 'ERROR' }
-            'TimeoutException' { return 'WARN' }
-            'WebException' { return 'ERROR' }
-            'IOException' { return 'ERROR' }
-            'ArgumentException' { return 'ERROR' }
-            default { return 'ERROR' }
+            'FileNotFoundException' { return 'ERROR' }          # ファイル未検出
+            'DirectoryNotFoundException' { return 'ERROR' }     # ディレクトリ未検出
+            'UnauthorizedAccessException' { return 'ERROR' }    # 権限不足
+            'ParsingException' { return 'ERROR' }               # 解析エラー
+            'InvalidOperationException' { return 'ERROR' }      # 無効な操作
+            'TimeoutException' { return 'WARN' }                # タイムアウト
+            'WebException' { return 'ERROR' }                   # Web例外
+            'IOException' { return 'ERROR' }                    # 入出力例外
+            'ArgumentException' { return 'ERROR' }              # 引数例外
+            default { return 'ERROR' }                          # その他
         }
     }
     
@@ -787,10 +787,10 @@ end {
     }
     
     # 終了コードに基づいてクリーンアップメッセージを出力（可読性向上）
-    if ($script:Log -and (Test-Path $script:Log)) {
-        if ($script:ExitCode -eq 0) {
+    if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
+        if ($script:ExitCode -eq 0) {   # 正常終了の場合
             Add-Content -Path $script:Log -Value "`n=== Script completed successfully (Exit Code: 0) ==="
-        } else {
+        } else {                        # エラー終了の場合
             Add-Content -Path $script:Log -Value "`n=== Script ended with error (Exit Code: $script:ExitCode) ==="
         }
     }
@@ -798,13 +798,13 @@ end {
     # COMオブジェクトの解放
     if ($script:comObject) { # COMオブジェクトが存在する場合
         try {
-            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null
-            [System.GC]::Collect()
-            [System.GC]::WaitForPendingFinalizers()
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($script:comObject) | Out-Null    # COMオブジェクトの解放
+            [System.GC]::Collect()                  # ガベージコレクションを強制実行
+            [System.GC]::WaitForPendingFinalizers() # ガベージコレクションを強制実行
         } catch {
-            if ($script:Log -and (Test-Path $script:Log)) {
+            if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
                 Write-CommonLog -Message "COMオブジェクト解放に失敗: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
-            } else {
+            } else {                                        # ログファイルが存在しない場合
                 Write-Warning "COMオブジェクト解放に失敗: $($_.Exception.Message)"
             }
         }
@@ -815,7 +815,7 @@ end {
         try {
             Invoke-Item -Path $script:Log
         } catch {
-            if ($script:Log -and (Test-Path $script:Log)) {
+            if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在するが開けない場合
                 Write-CommonLog -Message "ログファイルを開けませんでした: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
             } else {
                 Write-Warning "ログファイルを開けませんでした: $($_.Exception.Message)"
