@@ -933,6 +933,7 @@ process {
                 $etaDisplay = "完了予定(ETA): 計算中..."
             }
             
+            # 進捗バー更新
             Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL `
                 -Status "$baseName ($currentCount/$totalCount) - $etaDisplay" `
                 -PercentComplete $progress `

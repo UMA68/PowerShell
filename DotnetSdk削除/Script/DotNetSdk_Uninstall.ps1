@@ -637,12 +637,12 @@ process {
         Write-CommonLog -Message "Creating backup before uninstallation..." -LogPath $script
         try {
             $backupData = @{
-                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                HostName = $script:HostName
-                UserName = $script:User
-                InstalledSDKs = $installedSdks
-                GlobalTools = $globalTools
-                TargetVersions = $validVersions
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"  # バックアップ作成日時
+                HostName = $script:HostName     # ホスト名
+                UserName = $script:User         # ユーザー名
+                InstalledSDKs = $installedSdks  # インストールされているSDK一覧
+                GlobalTools = $globalTools      # インストールされているグローバルツール一覧
+                TargetVersions = $validVersions # 削除対象バージョン一覧
             }
             
             $backupFileName = "Backup_" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".json"

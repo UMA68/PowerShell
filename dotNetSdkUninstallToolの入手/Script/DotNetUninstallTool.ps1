@@ -460,6 +460,7 @@ process {
         Write-Information ""
     }
 
+    # インストール関数
     function Install-UninstallTool {
         <#
         .SYNOPSIS
