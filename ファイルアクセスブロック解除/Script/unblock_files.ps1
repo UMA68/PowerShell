@@ -199,6 +199,7 @@ begin {
         } finally {
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
                 try { 
+                    # COMオブジェクトの解放
                     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null 
                 } catch {
                     # COMオブジェクト解放時のエラーは無視（リソース解放のベストエフォート）
@@ -210,11 +211,11 @@ begin {
     }
     
     # スクリプトの実行環境を取得
-    $script:scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $script:UpperPath = Split-Path -Parent $script:scriptPath
-    $script:PowerShellDir = Split-Path -Parent $script:UpperPath
-    $script:folderPath = Join-Path -Path $script:UpperPath -ChildPath $TargetFolder
-    $script:comPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"
+    $script:scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path            # このスクリプトのパス
+    $script:UpperPath = Split-Path -Parent $script:scriptPath                       # 上位ディレクトリのパス    
+    $script:PowerShellDir = Split-Path -Parent $script:UpperPath                    # PowerShellディレクトリのパス
+    $script:folderPath = Join-Path -Path $script:UpperPath -ChildPath $TargetFolder # 処理対象フォルダのフルパス
+    $script:comPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"     # 共通スクリプト格納フォルダのパス
 
     # 共通スクリプトのインポート
     try {
@@ -242,13 +243,13 @@ begin {
     }
     
     # 処理結果カウンタの初期化
-    $script:totalFiles = 0
-    $script:unblockedFiles = 0
-    $script:failedFiles = 0
-    $script:alreadyUnblockedFiles = 0
-    $script:accessErrorFiles = 0  # アクセスエラーでストリームを確認できなかったファイル
-    $script:startTime = Get-Date
-    $script:CanExecuteProcess = $true  # 処理実行フラグ（relMain.ps1パターン）
+    $script:totalFiles = 0              # 処理対象ファイル総数
+    $script:unblockedFiles = 0          # ブロック解除に成功したファイル
+    $script:failedFiles = 0             # ブロック解除に失敗したファイル
+    $script:alreadyUnblockedFiles = 0   # 既にブロック解除されていたファイル
+    $script:accessErrorFiles = 0        # アクセスエラーでストリームを確認できなかったファイル
+    $script:startTime = Get-Date        # 処理開始時刻
+    $script:CanExecuteProcess = $true   # 処理実行フラグ（relMain.ps1パターン）
 }
 process {
     # ログ記録開始
