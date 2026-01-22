@@ -104,8 +104,8 @@
 function Test-YamlModule {
     Param(
         [Parameter(Mandatory = $false)]
-        [ValidatePattern('^\d+\.\d+\.\d+$')]
-        [string]$Ver = '0.4.7'
+        [ValidatePattern('^\d+\.\d+\.\d+$')]    # バージョン形式の検証
+        [string]$Ver = '0.4.7'                  # デフォルトバージョン設定
     )
     
     # ====================================
@@ -146,6 +146,7 @@ function Test-YamlModule {
         } finally {
             # COM オブジェクトのクリーンアップ
             if ($null -ne $obj) { # COMオブジェクトが存在する場合
+                # COMオブジェクトの解放
                 try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch { Write-Error $_.Exception.Message }
                 $obj = $null
             }
