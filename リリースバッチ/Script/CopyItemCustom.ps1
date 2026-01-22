@@ -180,7 +180,7 @@ function Copy-ItemCustom {
         Write-CommonLog -Message $StartMessageLine -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
 
         # リリース先フォルダの存在確認（なければ作成を試みる）
-        if (-not (Test-Path -Path $ReleaseDestination)) {
+        if (-not (Test-Path -Path $ReleaseDestination)) { # リリース先フォルダが存在しない場合
             try {
                 New-Item -ItemType Directory -Path $ReleaseDestination -ErrorAction Stop | Out-Null
                 Write-CommonLog -Message "[INFO] DESTINATION FOLDER CREATED: '$ReleaseDestination'." -LogPath $LogPath -Level 'INFO' -SensitivePatterns $SensitivePatterns
