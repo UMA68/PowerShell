@@ -94,7 +94,7 @@ $script:form.CancelButton = $cancelButton
 # ====================================
 # OKボタンがクリックされたときのイベントハンドラー
 $script:button.Add_Click({ # 復号実行処理
-    if (-not [string]::IsNullOrWhiteSpace($script:textBox.Text)) {
+    if (-not [string]::IsNullOrWhiteSpace($script:textBox.Text)) { # 入力が空でない場合
         Write-Host "復号する文字列を受け取りました（長さ: $($script:textBox.Text.Length) 文字）" -ForegroundColor Cyan
         $script:form.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $script:form.Close()
