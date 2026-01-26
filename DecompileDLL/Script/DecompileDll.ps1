@@ -17,7 +17,7 @@
     - 詳細なエラーレポートとスキップ理由の記録
     - OS自動判定によるWinMergeパス解決
     - YAML設定による柔軟な設定管理
-    - カスタムログ出力
+    - 共通ログ機能による堅牢なログ管理（Write-CommonLog使用）
     - 完全な非対話実行対応（-NoKeyWaitオプション）
 
 .PARAMETER EnvYaml
@@ -158,7 +158,7 @@
 
 .NOTES
     File Name      : DecompileDll.ps1
-    Version        : 2.0.0
+    Version        : 2.1.0
     Author         : UMA
     Prerequisite   : PowerShell 7.x, ILSpyCmd, WinMerge/VS Code, powershell-yaml module
     
@@ -177,12 +177,23 @@
     - タイムアウト制御: 大容量DLLにも対応（デフォルト300秒）
     - ETA表示: 予想完了時刻をリアルタイム表示
     - 詳細レポート: エラーとスキップの詳細情報を記録
+    - 共通ログ機能: Write-CommonLogを使用し、ファイルロック時のリトライ機能とスレッドセーフなログ出力を実現
     - 完全な非対話実行対応: -NoKeyWaitオプションでスケジューラー・CI/CD統合が可能
     
     パフォーマンス目安:
     - 順次処理: 1個あたり約10秒
     - 並列処理（4スレッド）: 4個を約12秒で処理
     - 並列処理（8スレッド）: 8個を約15秒で処理
+    
+    変更履歴:
+    v2.1.0 (2026-01-26)
+        - Write-CommonLogへの移行完了
+        - ローカルのWrite-Log関数を削除
+        - 並列処理でのログ出力をWrite-CommonLogに統一
+        - ファイルロック時のリトライ機能を活用
+    
+    v2.0.0
+        - 初版リリース
 
 .LINK
     https://github.com/UMA68/PowerShell
