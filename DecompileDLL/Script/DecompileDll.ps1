@@ -649,12 +649,30 @@ process {
             $retryDelaySeconds = $using:script:retryDelaySeconds        # リトライ間隔（秒）
             $retryTimeoutSeconds = $using:script:retryTimeoutSeconds    # タイムアウト（秒）
             
-            # ログヘルパー関数（Write-CommonLogを使用し、スレッドセーフ性を確保）
+            # ログヘルパー関数（スレッドセーフなログ出力）
             function Write-ThreadSafeLog {
                 param([string]$Message, [string]$Level = "INFO")
                 $logPath = $syncHash.LogPath
-                # Write-CommonLogはファイルロック時のリトライ機能を持つため、スレッドセーフ
-                Write-CommonLog -Message $Message -LogPath $logPath -Level $Level -Quiet
+                # Write-CommonLogのロジックをこのスコープ内で直接実装
+                # ファイルロック時のリトライはWrite-CommonLogと同じ手法で実装
+                $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                $logMessage = "$timeStamp [$Level] - $Message"
+                $retryCount = 0
+                $maxRetry = 3
+                while ($retryCount -lt $maxRetry) {
+                    try {
+                        Add-Content -Path $logPath -Value $logMessage -Encoding UTF8 -ErrorAction Stop
+                        break
+                    } catch {
+                        $retryCount++
+                        if ($retryCount -lt $maxRetry) {
+                            Start-Sleep -Milliseconds 100
+                        } else {
+                            # リトライ失敗時は無視（並列処理のため過度なエラー処理は避ける）
+                            break
+                        }
+                    }
+                }
             }
             
             # リトライ付き逆コンパイル関数（並列処理用）
@@ -777,7 +795,8 @@ process {
                 }
             
                 # 進捗更新
-                $currentCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.CurrentCount)  # 現在の処理数をインクリメント
+                $syncHash.CurrentCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.CurrentCount)  # 現在の処理数をインクリメント
+                $currentCount = $syncHash.CurrentCount
                 $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)                       # 進捗率計算
                 Write-Progress -Activity $using:script:PROGRESS_ACTIVITY_PARALLEL -Status "$baseName ($currentCount/$totalCount)" -PercentComplete $progress -Id $oldDll.GetHashCode()  # 進捗バー更新
 
@@ -794,7 +813,7 @@ process {
                             -TimeoutSeconds $retryTimeoutSeconds
                     
                         if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
-                            [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount)
+                            $syncHash.FailCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount)
                             Write-ThreadSafeLog "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))" "ERROR"
                             $syncHash.ErrorList.Add([PSCustomObject]@{ # エラー詳細を追加
                                     DllName = $oldDll.Name                  # DLL名
@@ -813,7 +832,7 @@ process {
                             -TimeoutSeconds $retryTimeoutSeconds
                     
                         if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
-                            [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount) # 失敗カウント増加
+                            $syncHash.FailCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.FailCount) # 失敗カウント増加
                             Write-ThreadSafeLog "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))" "ERROR" # エラーログ出力
                             $syncHash.ErrorList.Add([PSCustomObject]@{ # エラー詳細を追加
                                     DllName = $newDll.Name                # DLL名
@@ -824,12 +843,12 @@ process {
                     
                         # 両方成功した場合のみ成功カウント
                         if ($oldResult.Success -and $newResult.Success) { # 両方成功
-                            [System.Threading.Interlocked]::Increment([ref]$syncHash.SuccessCount)  # 成功カウント増加
+                            $syncHash.SuccessCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.SuccessCount)  # 成功カウント増加
                             Write-ThreadSafeLog "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" "SUCCESS"   # 成功ログ出力
                         }
                     }
                 } else { # 新しいDLLが見つからない場合
-                    [System.Threading.Interlocked]::Increment([ref]$syncHash.SkipCount)  # スキップカウント増加
+                    $syncHash.SkipCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.SkipCount)  # スキップカウント増加
                     $skipReason = if (-not $newDll) { "対応する新しいDLLが見つかりません" } else { "WhatIfモードのためスキップ" }   # スキップ理由設定
                     Write-ThreadSafeLog "[$($oldDll.Name)] スキップ: $skipReason" "WARNING" # スキップログ出力
                     $syncHash.SkipReasons.Add([PSCustomObject]@{ # スキップ理由リストに追加
@@ -846,114 +865,114 @@ process {
             $script:errorList = $syncHash.ErrorList     # エラー詳細リスト
             $script:skipReasons = $syncHash.SkipReasons # スキップ理由リスト
         
-        } else { # 順次処理
-            # 順次処理（既存のコード）
-            $currentCount = 0
-            foreach ($oldDll in $oldDlls) { # 古い各DLLファイルを処理
-                $baseName = $oldDll.BaseName                            # DLLのベース名取得 (拡張子なし)
-                $newDll = Get-ChildItem $newDllFolder -Filter "$baseName.dll" -ErrorAction SilentlyContinue  # 新しいDLLを完全一致で検索
-            
-                if (-not $newDll) { # 完全一致が見つからない場合
-                    # 部分一致で最新のDLLを取得
-                    $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" -ErrorAction SilentlyContinue | 
-                        Select-Object -Last 1
-                if ($newDll) { # 部分一致が見つかった場合
-                    Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
-                }
-            }
-
-            $currentCount++
-            $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)   # 進捗率計算
-            
-            # 完了予定時刻（ETA）の計算
-            $elapsed = (Get-Date) - $processStartTime   # 経過時間計算
-            if ($currentCount -gt 1) { # 2つ以上処理済みの場合に完了予定(ETA)計算
-                $avgTimePerItem = $elapsed.TotalSeconds / ($currentCount - 1)   # 平均処理時間計算
-                $remainingItems = $totalCount - $currentCount                   # 残りアイテム数計算  
-                $etaSeconds = [Math]::Round($avgTimePerItem * $remainingItems)  # 完了予定(ETA)秒数計算
-                $etaTimeSpan = [TimeSpan]::FromSeconds($etaSeconds)             # TimeSpanオブジェクト作成
-                $etaDisplay = "完了予定(ETA): {0:hh\:mm\:ss}" -f $etaTimeSpan   # 完了予定(ETA)表示文字列作成
-            } else { # 1つ目のアイテム処理中は計算不可
-                $etaDisplay = "完了予定(ETA): 計算中..."
-            }
-            
-            # 進捗バー更新
-            Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL `
-                -Status "$baseName ($currentCount/$totalCount) - $etaDisplay" `
-                -PercentComplete $progress `
-                -SecondsRemaining $(if ($currentCount -gt 1) { $etaSeconds } else { -1 })
-            
-            Write-Verbose "処理中: $baseName"                 # 処理中DLL表示   
-
-            if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) { # 新しいDLLが見つかり、WhatIfモードでない場合
-                # 古いDLLの逆コンパイル（リトライあり）
-                $oldOutput = Join-Path $outputFolder "$script:folderOld\$baseName"      # 古いDLLの出力パス
-                
-                $oldResult = Invoke-DecompileWithRetry -DllPath $oldDll.FullName `
-                    -OutputPath $oldOutput `
-                    -DllType "Old" `
-                    -MaxAttempts $script:retryMaxAttempts `
-                    -DelaySeconds $script:retryDelaySeconds `
-                    -TimeoutSeconds $script:retryTimeoutSeconds  
-                
-                if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
-                    $failCount++
-                    Write-Warning "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))"
-                    Write-CommonLog -Message "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行: $($oldResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
-                    $script:errorList += [PSCustomObject]@{ # エラーリストに追加
-                        DllName = $oldDll.Name  # DLL名
-                        Type = "Old"            # エラータイプ
-                        Error = "$($oldResult.Error) (試行: $($oldResult.Attempts)回)"  # エラーメッセージ  
-                    }
-                } else { # 古いDLLの逆コンパイル成功
-                    Write-Verbose "✓ $($oldDll.Name) (Old) 逆コンパイル成功 (試行: $($oldResult.Attempts)回)"
-                }
-                
-                # 新しいDLLの逆コンパイル（リトライあり）
-                $newOutput = Join-Path $outputFolder "$script:folderNew\$baseName"    # 新しいDLLの出力パス
-                
-                $newResult = Invoke-DecompileWithRetry -DllPath $newDll.FullName `
-                    -OutputPath $newOutput `
-                    -DllType "New" `
-                    -MaxAttempts $script:retryMaxAttempts `
-                    -DelaySeconds $script:retryDelaySeconds `
-                    -TimeoutSeconds $script:retryTimeoutSeconds  
-                
-                if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
-                    $failCount++
-                    Write-Warning "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))"
-                    Write-CommonLog -Message "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
-                    $script:errorList += [PSCustomObject]@{ # エラーリストに追加
-                        DllName = $newDll.Name  # DLL名
-                        Type = "New"            # エラータイプ
-                        Error = "$($newResult.Error) (試行: $($newResult.Attempts)回)"  # エラーメッセージ
-                    }
-                } else { # 新しいDLLの逆コンパイル成功
-                    Write-Verbose "✓ $($newDll.Name) (New) 逆コンパイル成功 (試行: $($newResult.Attempts)回)"
-                }
-                
-                # 両方成功した場合のみ成功カウント
-                if ($oldResult.Success -and $newResult.Success) { # 両方の逆コンパイル成功
-                    $successCount++
-                    Write-CommonLog -Message "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "INFO"
-                }
-            } else { # 新しいDLLが見つからない、またはWhatIfモードの場合
-                # スキップ理由を記録
-                $skipReason = if (-not $newDll) { # 新しいDLLが見つからない場合
-                    "対応する新しいDLLが見つかりません"
-                } else { # WhatIfモードの場合
-                    "WhatIfモードのためスキップ"
-                }
-                Write-Warning "'$($oldDll.Name)' をスキップ: $skipReason"
-                Write-CommonLog -Message "[$($oldDll.Name)] スキップ: $skipReason" -LogPath $script:logPath -Level "WARN"
-                $script:skipReasons += [PSCustomObject]@{ # スキップ理由リストに追加
-                    DllName = $oldDll.Name  # DLL名
-                    Reason = $skipReason    # スキップ理由
-                }
-                $skipCount++
+    } else { # 順次処理
+        # 順次処理（既存のコード）
+        $currentCount = 0
+        foreach ($oldDll in $oldDlls) { # 古い各DLLファイルを処理
+            $baseName = $oldDll.BaseName                            # DLLのベース名取得 (拡張子なし)
+            $newDll = Get-ChildItem $newDllFolder -Filter "$baseName.dll" -ErrorAction SilentlyContinue  # 新しいDLLを完全一致で検索
+        
+            if (-not $newDll) { # 完全一致が見つからない場合
+                # 部分一致で最新のDLLを取得
+                $newDll = Get-ChildItem $newDllFolder -Filter "$baseName*.dll" -ErrorAction SilentlyContinue | 
+                    Select-Object -Last 1
+            if ($newDll) { # 部分一致が見つかった場合
+                Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
             }
         }
-        $script:errorList = $script:errorList   # エラー詳細リスト
+
+        $currentCount++
+        $progress = [Math]::Round(($currentCount / $totalCount) * 100, 2)   # 進捗率計算
+        
+        # 完了予定時刻（ETA）の計算
+        $elapsed = (Get-Date) - $processStartTime   # 経過時間計算
+        if ($currentCount -gt 1) { # 2つ以上処理済みの場合に完了予定(ETA)計算
+            $avgTimePerItem = $elapsed.TotalSeconds / ($currentCount - 1)   # 平均処理時間計算
+            $remainingItems = $totalCount - $currentCount                   # 残りアイテム数計算  
+            $etaSeconds = [Math]::Round($avgTimePerItem * $remainingItems)  # 完了予定(ETA)秒数計算
+            $etaTimeSpan = [TimeSpan]::FromSeconds($etaSeconds)             # TimeSpanオブジェクト作成
+            $etaDisplay = "完了予定(ETA): {0:hh\:mm\:ss}" -f $etaTimeSpan   # 完了予定(ETA)表示文字列作成
+        } else { # 1つ目のアイテム処理中は計算不可
+            $etaDisplay = "完了予定(ETA): 計算中..."
+        }
+        
+        # 進捗バー更新
+        Write-Progress -Activity $script:PROGRESS_ACTIVITY_SEQUENTIAL `
+            -Status "$baseName ($currentCount/$totalCount) - $etaDisplay" `
+            -PercentComplete $progress `
+            -SecondsRemaining $(if ($currentCount -gt 1) { $etaSeconds } else { -1 })
+        
+        Write-Verbose "処理中: $baseName"                 # 処理中DLL表示   
+
+        if ($newDll -and $PSCmdlet.ShouldProcess("$($oldDll.Name) と $($newDll.Name)", "逆コンパイル")) { # 新しいDLLが見つかり、WhatIfモードでない場合
+            # 古いDLLの逆コンパイル（リトライあり）
+            $oldOutput = Join-Path $outputFolder "$script:folderOld\$baseName"      # 古いDLLの出力パス
+            
+            $oldResult = Invoke-DecompileWithRetry -DllPath $oldDll.FullName `
+                -OutputPath $oldOutput `
+                -DllType "Old" `
+                -MaxAttempts $script:retryMaxAttempts `
+                -DelaySeconds $script:retryDelaySeconds `
+                -TimeoutSeconds $script:retryTimeoutSeconds  
+            
+            if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
+                $failCount++
+                Write-Warning "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))"
+                Write-CommonLog -Message "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行: $($oldResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
+                $script:errorList += [PSCustomObject]@{ # エラーリストに追加
+                    DllName = $oldDll.Name  # DLL名
+                    Type = "Old"            # エラータイプ
+                    Error = "$($oldResult.Error) (試行: $($oldResult.Attempts)回)"  # エラーメッセージ  
+                }
+            } else { # 古いDLLの逆コンパイル成功
+                Write-Verbose "✓ $($oldDll.Name) (Old) 逆コンパイル成功 (試行: $($oldResult.Attempts)回)"
+            }
+            
+            # 新しいDLLの逆コンパイル（リトライあり）
+            $newOutput = Join-Path $outputFolder "$script:folderNew\$baseName"    # 新しいDLLの出力パス
+            
+            $newResult = Invoke-DecompileWithRetry -DllPath $newDll.FullName `
+                -OutputPath $newOutput `
+                -DllType "New" `
+                -MaxAttempts $script:retryMaxAttempts `
+                -DelaySeconds $script:retryDelaySeconds `
+                -TimeoutSeconds $script:retryTimeoutSeconds  
+            
+            if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
+                $failCount++
+                Write-Warning "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))"
+                Write-CommonLog -Message "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
+                $script:errorList += [PSCustomObject]@{ # エラーリストに追加
+                    DllName = $newDll.Name  # DLL名
+                    Type = "New"            # エラータイプ
+                    Error = "$($newResult.Error) (試行: $($newResult.Attempts)回)"  # エラーメッセージ
+                }
+            } else { # 新しいDLLの逆コンパイル成功
+                Write-Verbose "✓ $($newDll.Name) (New) 逆コンパイル成功 (試行: $($newResult.Attempts)回)"
+            }
+            
+            # 両方成功した場合のみ成功カウント
+            if ($oldResult.Success -and $newResult.Success) { # 両方の逆コンパイル成功
+                $successCount++
+                Write-CommonLog -Message "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "INFO"
+            }
+        } else { # 新しいDLLが見つからない、またはWhatIfモードの場合
+            # スキップ理由を記録
+            $skipReason = if (-not $newDll) { # 新しいDLLが見つからない場合
+                "対応する新しいDLLが見つかりません"
+            } else { # WhatIfモードの場合
+                "WhatIfモードのためスキップ"
+            }
+            Write-Warning "'$($oldDll.Name)' をスキップ: $skipReason"
+            Write-CommonLog -Message "[$($oldDll.Name)] スキップ: $skipReason" -LogPath $script:logPath -Level "WARN"
+            $script:skipReasons += [PSCustomObject]@{ # スキップ理由リストに追加
+                DllName = $oldDll.Name  # DLL名
+                Reason = $skipReason    # スキップ理由
+            }
+            $skipCount++
+        }
+    }
+    $script:errorList = $script:errorList   # エラー詳細リスト
     }
 }
 end {
