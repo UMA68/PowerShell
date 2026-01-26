@@ -792,7 +792,7 @@ process {
                     if ($newDll) { # 部分一致が見つかった場合
                         Write-Warning "完全一致なし。'$($newDll.Name)'を使用します（最新）"
                     }
-                }
+            }
             
                 # 進捗更新
                 $syncHash.CurrentCount = [System.Threading.Interlocked]::Increment([ref]$syncHash.CurrentCount)  # 現在の処理数をインクリメント
