@@ -264,42 +264,18 @@ begin {
     $script:timestamp = Get-Date -Format "yyyyMMdd-HHmmss"                     # タイムスタンプ（グローバルで保持）
     $script:logPath = Join-Path $script:LogDir "DecompileDll_$script:timestamp.log"   # ログファイルパス
     
-    # ログヘルパー関数
-    function Write-Log {
-        <#
-    .SYNOPSIS
-    ${1:Short description}
-    
-    .DESCRIPTION
-    ${2:Long description}
-    
-    .PARAMETER Message
-    ${3:Parameter description}
-    
-    .PARAMETER Level
-    ${4:Parameter description}
-    
-    .EXAMPLE
-    ${5:An example}
-    
-    .NOTES
-    ${6:General notes}
-    #>
-
-        param(
-            [string]$Message,       # ログメッセージ
-            [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]    # ログレベル
-            [string]$Level = "INFO" # デフォルトはINFO
-        )
-        $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss" # タイムスタンプ
-        $logMessage = "[$timeStamp] [$Level] $Message"      # ログフォーマット
-        Add-Content -Path $script:logPath -Value $logMessage -Encoding UTF8 # ログファイルに追記
+    # Common フォルダから Write-CommonLog をインポート
+    $commonLogPath = Join-Path (Split-Path -Parent (Split-Path -Parent $script:ScriptPath)) "Common\Write-CommonLog.ps1"
+    if (-not (Test-Path $commonLogPath)) {
+        Show-ErrorPopup "Write-CommonLog.ps1が見つかりません。`r`n`r`n$commonLogPath`r`nを確認してください。"
+        exit 1
     }
+    . $commonLogPath
     
     # ログ開始
-    Write-Log "────────────────────────────────────────" "INFO"
-    Write-Log "DLL逆コンパイルスクリプトを開始" "INFO"
-    Write-Log "YAML設定ファイル: $EnvYaml" "INFO"
+    Write-CommonLog -Message "────────────────────────────────────────" -LogPath $script:logPath -Level "INFO"
+    Write-CommonLog -Message "DLL逆コンパイルスクリプトを開始" -LogPath $script:logPath -Level "INFO"
+    Write-CommonLog -Message "YAML設定ファイル: $EnvYaml" -LogPath $script:logPath -Level "INFO"
     Write-Host "ログファイル: $script:logPath" -ForegroundColor Cyan
     
     # ShowConfig パラメーターが指定された場合は設定を表示して終了
@@ -309,7 +285,7 @@ begin {
         Write-Host "========================================" -ForegroundColor Cyan
         $config | Format-Custom | Out-Host
         Write-Host "========================================`n" -ForegroundColor Cyan
-        Write-Log "ShowConfigオプションにより設定を表示して終了" "INFO"
+        Write-CommonLog -Message "ShowConfigオプションにより設定を表示して終了" -LogPath $script:logPath -Level "INFO"
         exit $script:exitSuccess
     }
     
@@ -375,17 +351,11 @@ begin {
     .PARAMETER TimeoutSeconds
     ${8:Parameter description}
     
-    .PARAMETER SyncHash
-    ${9:Parameter description}
-    
-    .PARAMETER LogFunction
-    ${10:Parameter description}
-    
     .EXAMPLE
-    ${11:An example}
+    ${9:An example}
     
     .NOTES
-    ${12:General notes}
+    ${10:General notes}
     #>
 
         param(
@@ -394,9 +364,7 @@ begin {
             [string]$DllType,                   # "Old" or "New"
             [int]$MaxAttempts,                  # 最大試行回数
             [int]$DelaySeconds,                 # リトライ間隔秒数
-            [int]$TimeoutSeconds,               # タイムアウト秒数
-            [hashtable]$SyncHash = $null,       # 並列処理用
-            [scriptblock]$LogFunction = $null   # ログ関数
+            [int]$TimeoutSeconds                # タイムアウト秒数
         )
         
         $attempt = 0        # 試行回数
@@ -431,15 +399,11 @@ begin {
                     
                     if ($exitCode -eq 0) { # 成功した場合
                         $success = $true
-                        if ($LogFunction) { # ログ関数が指定されている場合
-                            & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 逆コンパイル成功 (試行: $attempt/$MaxAttempts)" "SUCCESS"
-                        }
+                        Write-CommonLog -Message "[$(Split-Path -Leaf $DllPath)] $DllType 逆コンパイル成功 (試行: $attempt/$MaxAttempts)" -LogPath $script:logPath -Level "INFO"
                     } else { # 失敗した場合
                         $lastError = "ILSpyCmd終了コード: $exitCode"
                         if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
-                            if ($LogFunction) { # ログ関数が指定されている場合
-                                & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
-                            }
+                            Write-CommonLog -Message "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" -LogPath $script:logPath -Level "WARN"
                             Start-Sleep -Seconds $DelaySeconds
                         }
                     }
@@ -447,18 +411,14 @@ begin {
                     Remove-Job -Job $job -Force
                     $lastError = "タイムアウト (${TimeoutSeconds}秒)"
                     if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
-                        if ($LogFunction) { # ログ関数が指定されている場合
-                            & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
-                        }
+                        Write-CommonLog -Message "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" -LogPath $script:logPath -Level "WARN"
                         Start-Sleep -Seconds $DelaySeconds
                     }
                 }
             } catch {
                 $lastError = $_.Exception.Message
                 if ($attempt -lt $MaxAttempts) { # リトライ可能な場合
-                    if ($LogFunction) { # ログ関数が指定されている場合
-                        & $LogFunction "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARNING"
-                    }
+                    Write-CommonLog -Message "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" -LogPath $script:logPath -Level "WARN"
                     Start-Sleep -Seconds $DelaySeconds
                 }
             }
@@ -499,10 +459,10 @@ begin {
     try {
         $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
         Write-Verbose "YAML設定を読み込みました"
-        Write-Log "YAML設定を読み込みました: $YamlPath" "SUCCESS"
+        Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
     } catch {
         $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
-        Write-Log $errorMsg "ERROR"
+        Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
         Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
         exit 1
     }
@@ -641,9 +601,9 @@ process {
     Write-Host "逆コンパイル対象: $totalCount 個のDLLファイル" -ForegroundColor Cyan
     if ($Parallel) { # 並列処理モード
         Write-Host "並列処理モード: 最大 $ThrottleLimit スレッド" -ForegroundColor Cyan
-        Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (並列処理: $ThrottleLimit スレッド)" "INFO"
+        Write-CommonLog -Message "逆コンパイル開始: $totalCount 個のDLLファイル (並列処理: $ThrottleLimit スレッド)" -LogPath $script:logPath -Level "INFO"
     } else { # 順次処理モード
-        Write-Log "逆コンパイル開始: $totalCount 個のDLLファイル (順次処理)" "INFO"
+        Write-CommonLog -Message "逆コンパイル開始: $totalCount 個のDLLファイル (順次処理)" -LogPath $script:logPath -Level "INFO"
     }
     
     # 並列処理用の同期変数
@@ -678,39 +638,12 @@ process {
             $retryDelaySeconds = $using:script:retryDelaySeconds        # リトライ間隔（秒）
             $retryTimeoutSeconds = $using:script:retryTimeoutSeconds    # タイムアウト（秒）
             
-            # ログヘルパー関数（スレッドセーフ）
+            # ログヘルパー関数（Write-CommonLogを使用し、スレッドセーフ性を確保）
             function Write-ThreadSafeLog {
-                <#
-            .SYNOPSIS
-            ${1:Short description}
-            
-            .DESCRIPTION
-            ${2:Long description}
-            
-            .PARAMETER Message
-            ${3:Parameter description}
-            
-            .PARAMETER Level
-            ${4:Parameter description}
-            
-            .EXAMPLE
-            ${5:An example}
-            
-            .NOTES
-            ${6:General notes}
-            #>
-
-                param([string]$Message, [string]$Level = "INFO")    # ログレベル（デフォルト: INFO）
-                $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss" # タイムスタンプ取得
-                $logMessage = "[$timeStamp] [$Level] $Message"      # ログメッセージ作成
-                $logPath = $syncHash.LogPath                        # ログパス取得
-                $mutex = New-Object System.Threading.Mutex($false, "DecompileDllLogMutex")  # ミューテックス作成
-                try {
-                    $mutex.WaitOne() | Out-Null                                     # ミューテックス取得
-                    Add-Content -Path $logPath -Value $logMessage -Encoding UTF8    # ログ書き込み
-                } finally {
-                    $mutex.ReleaseMutex()                                           # ミューテックス解放
-                }
+                param([string]$Message, [string]$Level = "INFO")
+                $logPath = $syncHash.LogPath
+                # Write-CommonLogはファイルロック時のリトライ機能を持つため、スレッドセーフ
+                Write-CommonLog -Message $Message -LogPath $logPath -Level $Level -Quiet
             }
             
             # リトライ付き逆コンパイル関数（並列処理用）
@@ -791,7 +724,7 @@ process {
                             } else { # 失敗
                                 $lastError = "ILSpyCmd終了コード: $exitCode"
                                 if ($attempt -lt $MaxAttempts) { # リトライ可能
-                                    Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
+                                    Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 失敗 (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARN"
                                     Start-Sleep -Seconds $DelaySeconds
                                 }
                             }
@@ -800,14 +733,14 @@ process {
                             Remove-Job -Job $job -Force
                             $lastError = "タイムアウト (${TimeoutSeconds}秒)"
                             if ($attempt -lt $MaxAttempts) { # リトライ可能
-                                Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARNING"
+                                Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType タイムアウト (試行: $attempt/$MaxAttempts) - ${DelaySeconds}秒後にリトライ" "WARN"
                                 Start-Sleep -Seconds $DelaySeconds
                             }
                         }
                     } catch {
                         $lastError = $_.Exception.Message
                         if ($attempt -lt $MaxAttempts) { # リトライ可能
-                            Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARNING"
+                            Write-ThreadSafeLog "[$(Split-Path -Leaf $DllPath)] $DllType 例外 (試行: $attempt/$MaxAttempts): $lastError" "WARN"
                             Start-Sleep -Seconds $DelaySeconds
                         }
                     }
@@ -945,21 +878,17 @@ process {
                 # 古いDLLの逆コンパイル（リトライあり）
                 $oldOutput = Join-Path $outputFolder "$script:folderOld\$baseName"      # 古いDLLの出力パス
                 
-                # ログ関数のスクリプトブロック
-                $logFunc = { param($msg, $level) Write-Log $msg $level }                # ログ関数定義
-                
                 $oldResult = Invoke-DecompileWithRetry -DllPath $oldDll.FullName `
                     -OutputPath $oldOutput `
                     -DllType "Old" `
                     -MaxAttempts $script:retryMaxAttempts `
                     -DelaySeconds $script:retryDelaySeconds `
-                    -TimeoutSeconds $script:retryTimeoutSeconds `
-                    -LogFunction $logFunc  
+                    -TimeoutSeconds $script:retryTimeoutSeconds  
                 
                 if (-not $oldResult.Success) { # 古いDLLの逆コンパイル失敗
                     $failCount++
                     Write-Warning "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行回数: $($oldResult.Attempts))"
-                    Write-Log "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行: $($oldResult.Attempts)回)" "ERROR"
+                    Write-CommonLog -Message "[$($oldDll.Name)] Old逆コンパイル最終失敗: $($oldResult.Error) (試行: $($oldResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
                     $script:errorList += [PSCustomObject]@{ # エラーリストに追加
                         DllName = $oldDll.Name  # DLL名
                         Type = "Old"            # エラータイプ
@@ -977,13 +906,12 @@ process {
                     -DllType "New" `
                     -MaxAttempts $script:retryMaxAttempts `
                     -DelaySeconds $script:retryDelaySeconds `
-                    -TimeoutSeconds $script:retryTimeoutSeconds `
-                    -LogFunction $logFunc  
+                    -TimeoutSeconds $script:retryTimeoutSeconds  
                 
                 if (-not $newResult.Success) { # 新しいDLLの逆コンパイル失敗
                     $failCount++
                     Write-Warning "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行回数: $($newResult.Attempts))"
-                    Write-Log "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行: $($newResult.Attempts)回)" "ERROR"
+                    Write-CommonLog -Message "[$($newDll.Name)] New逆コンパイル最終失敗: $($newResult.Error) (試行: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "ERROR"
                     $script:errorList += [PSCustomObject]@{ # エラーリストに追加
                         DllName = $newDll.Name  # DLL名
                         Type = "New"            # エラータイプ
@@ -996,7 +924,7 @@ process {
                 # 両方成功した場合のみ成功カウント
                 if ($oldResult.Success -and $newResult.Success) { # 両方の逆コンパイル成功
                     $successCount++
-                    Write-Log "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" "SUCCESS"
+                    Write-CommonLog -Message "[$($oldDll.Name)] 逆コンパイル成功 (Old: $($oldResult.Attempts)回, New: $($newResult.Attempts)回)" -LogPath $script:logPath -Level "INFO"
                 }
             } else { # 新しいDLLが見つからない、またはWhatIfモードの場合
                 # スキップ理由を記録
@@ -1006,7 +934,7 @@ process {
                     "WhatIfモードのためスキップ"
                 }
                 Write-Warning "'$($oldDll.Name)' をスキップ: $skipReason"
-                Write-Log "[$($oldDll.Name)] スキップ: $skipReason" "WARNING"
+                Write-CommonLog -Message "[$($oldDll.Name)] スキップ: $skipReason" -LogPath $script:logPath -Level "WARN"
                 $script:skipReasons += [PSCustomObject]@{ # スキップ理由リストに追加
                     DllName = $oldDll.Name  # DLL名
                     Reason = $skipReason    # スキップ理由
@@ -1031,18 +959,18 @@ end {
     Write-Host "========================================`n" -ForegroundColor Cyan
     
     # 処理統計をログに記録
-    Write-Log "──────── 処理結果 ────────" "INFO"
-    Write-Log "処理DLL数: $totalCount" "INFO"
-    Write-Log "成功: $successCount" "SUCCESS"
+    Write-CommonLog -Message "──────── 処理結果 ────────" -LogPath $script:logPath -Level "INFO"
+    Write-CommonLog -Message "処理DLL数: $totalCount" -LogPath $script:logPath -Level "INFO"
+    Write-CommonLog -Message "成功: $successCount" -LogPath $script:logPath -Level "INFO"
     if ($failCount -gt 0) { # 失敗がある場合
-        Write-Log "失敗: $failCount" "ERROR"
+        Write-CommonLog -Message "失敗: $failCount" -LogPath $script:logPath -Level "ERROR"
     } else { # 失敗がない場合
-        Write-Log "失敗: $failCount" "INFO"
+        Write-CommonLog -Message "失敗: $failCount" -LogPath $script:logPath -Level "INFO"
     }
     if ($skipCount -gt 0) { # スキップがある場合
-        Write-Log "スキップ: $skipCount" "WARNING"
+        Write-CommonLog -Message "スキップ: $skipCount" -LogPath $script:logPath -Level "WARN"
     } else { # スキップがない場合
-        Write-Log "スキップ: $skipCount" "INFO"
+        Write-CommonLog -Message "スキップ: $skipCount" -LogPath $script:logPath -Level "INFO"
     }
     
     # エラーレポートの表示(エラーがある場合)
@@ -1080,7 +1008,7 @@ end {
     $elapsedTime = $endTime - $script:startTime # 経過時間計算
     Write-Host "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))" -ForegroundColor Cyan
     Write-Host ""
-    Write-Log "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))" "INFO"
+    Write-CommonLog -Message "処理時間: $($elapsedTime.ToString('hh\:mm\:ss'))" -LogPath $script:logPath -Level "INFO"
     
     # WinMergeの実行準備
     $oldFile = Join-Path $outputFolder $script:folderOld
@@ -1095,28 +1023,28 @@ end {
         Write-Host "手動で以下のパスを比較してください:" -ForegroundColor Yellow
         Write-Host "Old: $oldFile" -ForegroundColor Cyan
         Write-Host "New: $newFile" -ForegroundColor Cyan
-        Write-Log "並列処理完了 - 差分ツール手動起動が必要" "INFO"
+        Write-CommonLog -Message "並列処理完了 - 差分ツール手動起動が必要" -LogPath $script:logPath -Level "INFO"
         exit $script:exitSuccess
     }
     
     # 差分ツールの選択と起動（順次処理のみ）
     if ($DiffTool -eq "VSCode") { # VSCodeモードの場合
         Write-Host "`nVSCodeを起動しています..." -ForegroundColor Cyan
-        Write-Log "VSCodeで差分比較を起動" "INFO"
+        Write-CommonLog -Message "VSCodeで差分比較を起動" -LogPath $script:logPath -Level "INFO"
         if ($PSCmdlet.ShouldProcess("VSCode", "差分比較起動")) { # VSCode起動
             try {
                 Start-Process -FilePath "code" -ArgumentList "--diff", "`"$oldFile`"", "`"$newFile`"" -ErrorAction Stop
                 Write-Host "VSCodeを起動しました。" -ForegroundColor Green
-                Write-Log "VSCode起動成功" "SUCCESS"
+                Write-CommonLog -Message "VSCode起動成功" -LogPath $script:logPath -Level "INFO"
             } catch {
                 Write-Warning "VSCodeの起動に失敗しました: $($_.Exception.Message)"
-                Write-Log "VSCode起動失敗: $($_.Exception.Message)" "ERROR"
+                Write-CommonLog -Message "VSCode起動失敗: $($_.Exception.Message)" -LogPath $script:logPath -Level "ERROR"
                 Write-Warning "VSCodeがインストールされているか、PATHに追加されているか確認してください。"
             }
         }
     } elseif ($DiffTool -eq "Custom") { # カスタム差分ツールモードの場合
         Write-Host "`nカスタム差分ツールモード: 手動で以下のパスを比較してください" -ForegroundColor Yellow
-        Write-Log "カスタム差分ツールモード" "INFO"
+        Write-CommonLog -Message "カスタム差分ツールモード" -LogPath $script:logPath -Level "INFO"
         Write-Host "Old: $oldFile" -ForegroundColor Cyan
         Write-Host "New: $newFile" -ForegroundColor Cyan
     } else { # WinMergeモード（デフォルト）
@@ -1132,7 +1060,7 @@ end {
     
         # WinMergeの実行
         Write-Host "`nWinMergeを起動しています..." -ForegroundColor Cyan
-        Write-Log "WinMergeで差分比較を起動" "INFO"
+        Write-CommonLog -Message "WinMergeで差分比較を起動" -LogPath $script:logPath -Level "INFO"
         if ($PSCmdlet.ShouldProcess($ExecWinMerge, "WinMerge起動")) { # WinMerge起動
             try {
                 $winMergeArgs = @( # WinMerge引数リスト
@@ -1146,9 +1074,9 @@ end {
                 
                 Start-Process -FilePath $ExecWinMerge -ArgumentList $winMergeArgs -ErrorAction Stop
                 Write-Host "WinMergeを起動しました。" -ForegroundColor Green
-                Write-Log "WinMerge起動成功" "SUCCESS"
+                Write-CommonLog -Message "WinMerge起動成功" -LogPath $script:logPath -Level "INFO"
             } catch {
-                Write-Log "WinMerge起動失敗: $($_.Exception.Message)" "ERROR"
+                Write-CommonLog -Message "WinMerge起動失敗: $($_.Exception.Message)" -LogPath $script:logPath -Level "ERROR"
                 Show-ErrorPopup "WinMergeの実行に失敗しました。`r`n`r`n$($_.Exception.Message)"
                 exit $script:exitGeneralError
             }
@@ -1165,11 +1093,11 @@ end {
     
     # ログ完了
     if ($failCount -gt 0) { # 失敗があった場合
-        Write-Log "DLL逆コンパイルスクリプトを終了（一部失敗）" "WARNING"
+        Write-CommonLog -Message "DLL逆コンパイルスクリプトを終了（一部失敗）" -LogPath $script:logPath -Level "WARN"
     } else { # 失敗がなかった場合
-        Write-Log "DLL逆コンパイルスクリプトを正常終了" "SUCCESS"
+        Write-CommonLog -Message "DLL逆コンパイルスクリプトを正常終了" -LogPath $script:logPath -Level "INFO"
     }
-    Write-Log "────────────────────────────────────────" "INFO"
+    Write-CommonLog -Message "────────────────────────────────────────" -LogPath $script:logPath -Level "INFO"
     
     # 失敗があった場合は適切な終了コードを返す
     if ($failCount -gt 0) { # 失敗があった場合
