@@ -427,5 +427,8 @@ if ($null -ne $form) { # フォームが存在する場合
     $script:form = $form
 }
 
+# 何かキーを押したら終了します
+Write-Host "終了するには何かキーを押してください..."
+
 # クリーンアップ関数を呼び出し
 Invoke-Cleanup -FullCleanup $true
