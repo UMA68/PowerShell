@@ -73,7 +73,7 @@ jobs:
         Invoke-Pester -Configuration $config
         
     - name: テスト結果をアップロード（Unit）
-      if: always()
+      if: always() && hashFiles('test-results-unit.xml') != ''
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit-${{ matrix.powershell-version }}
@@ -81,7 +81,8 @@ jobs:
         retention-days: 30
         
     - name: Pester テストレポートを発行（Unit）
-      if: always()
+      if: always() && hashFiles('test-results-unit.xml') != ''
+      continue-on-error: true
       uses: EnricoMi/publish-unit-test-result-action/windows@v2
       with:
         files: test-results-unit.xml
@@ -111,7 +112,7 @@ jobs:
         }
         
     - name: テスト結果をアップロード（Integration）
-      if: always()
+      if: always() && hashFiles('test-results-integration.xml') != ''
       uses: actions/upload-artifact@v4
       with:
         name: test-results-integration-${{ matrix.powershell-version }}
