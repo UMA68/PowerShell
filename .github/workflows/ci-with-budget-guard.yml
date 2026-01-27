@@ -114,8 +114,8 @@ jobs:
           MAX_MIN="${MAX_ACTIONS_MINUTES}"
           MAX_STO="${MAX_STORAGE_GB}"
           WARN_PCT=$(python - <<'PY'
-            import os
-            print(int(float(os.environ['WARN_RATIO']) * 100))
+          import os
+          print(int(float(os.environ['WARN_RATIO']) * 100))
           PY
           )
 
