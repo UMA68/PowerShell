@@ -8,7 +8,6 @@
     
     主な機能：
     - 鍵ファイルを使用した安全な暗号化処理
-    - 入力文字列とファイル名のバリデーション
     - 二重起動防止機構
     - 処理後の変数クリーンアップ
     
@@ -47,8 +46,8 @@
 .NOTES
     FileName:     MakeEncryptedString.ps1
     Author:       UMA68
-    Version:      1.0.0
-    LastModified: 2026-01-20
+    Version:      1.0.1
+    LastModified: 2026-01-27
     Prerequisites:
       - PowerShell 5.1 以上
       - Common\<鍵ファイル> が存在すること
@@ -66,9 +65,12 @@
     3. 暗号化する文字列を入力する
     4. 出力するファイル名を入力する
     5. ファイルはスクリプトの1階層上のディレクトリに保存されます
+        補足:
+        - 既定の鍵名は「Encryption.key」ですが、`-keyFileName` パラメータで変更可能です。
+            例: .\MakeEncryptedString.ps1 -keyFileName "MyKey.bin"
 
 .LINK
-    関連スクリプト: 鍵ファイル作成.ps1（鍵ファイル作成）
+    関連スクリプト: MakeEncrypted.ps1（鍵ファイル作成）
     関連スクリプト: StringDecryption.ps1（復号）
     関連スクリプト: NoDoubleActivation.ps1（二重起動防止）
 #>
@@ -108,14 +110,14 @@ try {
     if (Test-Path -Path $keyPath) { # 鍵ファイルが存在する場合
         # 鍵ファイルを読み込む
         [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($keyPath)
-        Write-Host "鍵ファイル「Encryption.key」を読み込みました。"
+        Write-Host "鍵ファイル「$keyFileName」を読み込みました。"
     } else { # 鍵ファイルが存在しない場合
-        throw "鍵ファイル「Encryption.key」が見つかりません。"  # 例外を発生させる
+        throw "鍵ファイル「$keyFileName」が見つかりません。"  # 例外を発生させる
     }
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     $obj = New-Object -ComObject WScript.Shell
-    $obj.popup($_.Exception.Message + "作成したEncryption.keyを 「" + $comPath + "」 へ置いてください。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    $obj.popup($_.Exception.Message + "作成した" + $keyFileName + "を 「" + $comPath + "」 へ置いてください。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
     exit
 }
 

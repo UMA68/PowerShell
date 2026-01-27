@@ -3,10 +3,11 @@
     暗号化された文字列を復号して表示するスクリプト
 
 .DESCRIPTION
-    指定された鍵ファイル（Encryption.key）を使用して、暗号化された文字列を復号し、
+    指定された鍵ファイル（既定: Encryption.key）を使用して、暗号化された文字列を復号し、
     元の平文を表示します。GUIフォームから暗号文字列を入力する形式です。
     
     復号結果はポップアップダイアログで表示されます。
+    オプション指定（-ShowInConsole）により、コンソールにも表示可能です。
     
     主な機能：
     - 鍵ファイルを使用した安全な復号処理
@@ -55,10 +56,10 @@
 .NOTES
     FileName:      StringDecryption.ps1
     Author:        UMA68
-    Version:       1.2.2
-    LastModified:  2026-01-20
+    Version:       1.2.3
+    LastModified:  2026-01-27
     Prerequisites: - PowerShell 5.1以上
-                   - 鍵ファイル（Encryption.key）がCommonフォルダーに存在すること
+                   - 鍵ファイル（既定: Encryption.key）がCommonフォルダーに存在すること
                    - InputGUI.ps1 が同じScriptフォルダーに存在すること
                    - NoDoubleActivation.ps1 がCommonフォルダーに存在すること
     
