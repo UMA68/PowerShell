@@ -75,7 +75,7 @@ if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.
 - 生成手順: [暗号化鍵の作成/Readme.md](暗号化鍵の作成/Readme.md) を参照。概要は以下の通り。
 	- 実行: `./暗号化鍵の作成/Script/MakeEncrypted.ps1`（既存があれば上書き確認あり）
 	- キー長: 128/192/256ビットから指定（例: `./Script/MakeEncrypted.ps1 -KeySize 256`）。
-	- 出力: Common/Encryption.key に保存。**上書きすると既存データの復号は不可。実行前にバックアップ推奨。**
+	- 出力: Common/Encryption.keyに保存。**上書きすると既存データの復号は不可。実行前にバックアップ推奨。**
 
 ### .gitignore 例（鍵のコミット防止）
 
