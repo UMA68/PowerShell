@@ -50,7 +50,7 @@ jobs:
         if: env.ORG_NAME != ''
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.BILLING_TOKEN }}
+          github-token: ${{ secrets.BILLING_TOKEN || github.token }}
           script: |
             const org = process.env.ORG_NAME;
             const res = await github.request('GET /orgs/{org}/settings/billing/actions', { org });
@@ -63,7 +63,7 @@ jobs:
         if: env.USER_NAME != '' && env.USER_NAME != 'your-username' && env.ORG_NAME == ''
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.BILLING_TOKEN }}
+          github-token: ${{ secrets.BILLING_TOKEN || github.token }}
           script: |
             const username = process.env.USER_NAME;
             const res = await github.request('GET /users/{username}/settings/billing/actions', { username });
@@ -76,7 +76,7 @@ jobs:
         if: env.ORG_NAME != ''
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.BILLING_TOKEN }}
+          github-token: ${{ secrets.BILLING_TOKEN || github.token }}
           script: |
             const org = process.env.ORG_NAME;
             const res = await github.request('GET /orgs/{org}/settings/billing/shared-storage', { org });
@@ -88,7 +88,7 @@ jobs:
         if: env.USER_NAME != '' && env.USER_NAME != 'your-username' && env.ORG_NAME == ''
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.BILLING_TOKEN }}
+          github-token: ${{ secrets.BILLING_TOKEN || github.token }}
           script: |
             const username = process.env.USER_NAME;
             const res = await github.request('GET /users/{username}/settings/billing/shared-storage', { username });
