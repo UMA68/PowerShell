@@ -72,9 +72,9 @@
     関連スクリプト: StringDecryption.ps1（復号）
     関連スクリプト: NoDoubleActivation.ps1（二重起動防止）
 #>
-
-# このスクリプトは暗号化文字列作成ツールであり、ConvertTo-SecureString -AsPlainTextの使用は正当
-[System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification='暗号化文字列作成ツールの正当な用途')]
+# PSScriptAnalyzerの警告を抑制（このスクリプトの正当な用途による）
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = '暗号化文字列作成ツールの正当な用途')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'ユーザーへの対話的なフィードバックに必要')]
 param (
     [string]$keyFileName = "Encryption.key" # オプションなしの場合は「Encryption.key」を使用する
 )
@@ -83,16 +83,16 @@ param (
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path    # スクリプトのディレクトリ
 $UpperDir = $ScriptDir | Split-Path -Parent                     # スクリプトの親ディレクトリ
 $PowerShellDir = $UpperDir | Split-Path -Parent                 # PowerShellディレクトリ
-$comPath = $PowerShellDir+"\Common"                             # 共通スクリプト格納ディレクトリ
+$comPath = $PowerShellDir + "\Common"                           # 共通スクリプト格納ディレクトリ
 $keyPath = "$comPath\$keyFileName"                              # 鍵ファイルのパス
 
 # .ps1ファイル読み込み
     try {
-        . $comPath"\NoDoubleActivation.ps1" -ErrorAction Stop
+        . ("$comPath\NoDoubleActivation.ps1") -ErrorAction Stop
     } catch {
         $obj = New-Object -ComObject WScript.Shell
         $scriptName = $_.InvocationInfo.MyCommand.Name
-        $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n"+$_.Exception.Message,0,"エラー",0x30)
+        $obj.Popup("$scriptName の読み込みに失敗しました。処理を終了します。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x30)
         Exit    # おわり
     }
 
@@ -107,7 +107,7 @@ if (-not (Test-NoDoubleActivation -Thread "MakeEncryptedString" -ShowDialog)) {
 try {
     if (Test-Path -Path $keyPath) { # 鍵ファイルが存在する場合
         # 鍵ファイルを読み込む
-        [byte[]]$EncryptedKey =[System.IO.File]::ReadAllBytes($keyPath)
+        [byte[]]$EncryptedKey = [System.IO.File]::ReadAllBytes($keyPath)
         Write-Host "鍵ファイル「Encryption.key」を読み込みました。"
     } else { # 鍵ファイルが存在しない場合
         throw "鍵ファイル「Encryption.key」が見つかりません。"  # 例外を発生させる
@@ -115,7 +115,7 @@ try {
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     $obj = New-Object -ComObject WScript.Shell
-    $obj.popup($_.Exception.Message + "作成したEncryption.keyを 「"+$comPath+"」 へ置いてください。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
+    $obj.popup($_.Exception.Message + "作成したEncryption.keyを 「" + $comPath + "」 へ置いてください。", 0, "エラー", 0x10)  # 0x10:エラーアイコン
     exit
 }
 
@@ -143,7 +143,7 @@ $EncryptedString | Out-File -FilePath "$UpperDir\$FileName" -Encoding utf8
 
 # 暗号化した文字列をファイルに出力した旨を表示
 $obj = New-Object -ComObject WScript.Shell
-$obj.popup("暗号化した文字列をファイル「"+$FileName+"」に出力しました。", 0, "文字列暗号化", 0x40)  # 0x40:情報アイコン
+$obj.popup("暗号化した文字列をファイル「" + $FileName + "」に出力しました。", 0, "文字列暗号化", 0x40)  # 0x40:情報アイコン
 
 # 変数の削除
 Remove-Variable -Name EncryptedKey, InputString, SecureString, EncryptedString, FileName, obj
