@@ -45,7 +45,7 @@ Install-Module -Name SqlServer -MinimumVersion 22.1.1 -Scope CurrentUser
 ```Shell
 PowerShell/
 ├── Common/
-│   ├── Encryption.Key              # 暗号化鍵（将来使用予定）
+│   ├── Encryption.key              # 暗号化鍵（将来使用予定）
 │   ├── FindModule.ps1              # モジュール検索関数
 │   ├── NoDoubleActivation.ps1      # 二重起動防止機能
 │   └── Write-CommonLog.ps1         # ログ出力関数
@@ -98,7 +98,7 @@ PowerShell/
 
 #### `-DecryptionKey`
 
-暗号化鍵ファイル名を指定します（デフォルト: `Encryption.Key`）
+暗号化鍵ファイル名を指定します（デフォルト: `Encryption.key`）
 
 **注意:** 現在このパラメーターは未使用です。将来的にリリース設定に機密情報（パスワード、APIキーなど）を含める場合の暗号化・復号化機能用に予約されています。
 

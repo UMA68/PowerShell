@@ -70,9 +70,9 @@
             例: .\MakeEncryptedString.ps1 -keyFileName "MyKey.bin"
 
 .LINK
-    関連スクリプト: MakeEncrypted.ps1（鍵ファイル作成）
-    関連スクリプト: StringDecryption.ps1（復号）
-    関連スクリプト: NoDoubleActivation.ps1（二重起動防止）
+    関連スクリプト: 暗号化鍵の作成/Script/MakeEncrypted.ps1（鍵ファイル作成）
+    関連スクリプト: 暗号化文字列の復元/Script/StringDecryption.ps1（復号）
+    関連スクリプト: Common/NoDoubleActivation.ps1（二重起動防止）
 #>
 # PSScriptAnalyzerの警告を抑制（このスクリプトの正当な用途による）
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = '暗号化文字列作成ツールの正当な用途')]

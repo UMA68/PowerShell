@@ -107,11 +107,12 @@
     - エラー時: エラーダイアログ表示 → 終了
 
 .LINK
-    関連スクリプト: MakeEncryptedString.ps1 (文字列の暗号化)
-    関連スクリプト: MakeEncrypted.ps1 (鍵ファイルの作成)
-    関連スクリプト: InputGUI.ps1 (GUI入力フォーム)
-    関連スクリプト: NoDoubleActivation.ps1 (二重起動防止)
+    関連スクリプト: 暗号化文字列の作成/Script/MakeEncryptedString.ps1 (文字列の暗号化)
+    関連スクリプト: 暗号化鍵の作成/Script/MakeEncrypted.ps1 (鍵ファイルの作成)
+    関連スクリプト: 暗号化文字列の復元/Script/InputGUI.ps1 (GUI入力フォーム)
+    関連スクリプト: Common/NoDoubleActivation.ps1 (二重起動防止)
 #>
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'ユーザー選択時のみの明示的表示のため（-ShowInConsole）')]
 
 param (
     [Parameter(Mandatory = $false)]

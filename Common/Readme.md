@@ -33,7 +33,7 @@ if (-not (Test-Command -ComName "nkf32")) { return }
 if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.4.7")) { return }
 $paths = Get-ScriptPaths -EnvFileName "Env.yaml"
 $config = Import-YamlConfig -YamlPath $paths.EnvFile
-$key    = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.Key"
+$key    = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.key"
 Write-CommonLog -Message "起動完了" -LogPath "$($paths.Log)/app.log" -Level INFO
 
 # Test-Command について
@@ -64,23 +64,23 @@ if (-not (Test-ModuleInstalled -ModuleName "PowerShell-Yaml" -MinimumVersion "0.
 
 詳細は各ファイルの `Get-Help` を参照してください。
 
-## Encryption.Key について
+## Encryption.key について
 
 - 用途: `Get-EncryptionKey` が読み込む対称鍵バイナリ。暗号化/復号の共通鍵として使用。
 - 形式: 生のバイト列で16 / 24 / 32バイトのみ有効（UTF-8テキスト不可）。
-- 配置例: Common/Encryption.Key（Git管理外で安全な場所に保管することを推奨）。
-- Git管理: `.gitignore` に `Common/Encryption.Key` を追加してコミット事故を防止。
-- 参照例: `$key = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.Key"`
+- 配置例: Common/Encryption.key（Git管理外で安全な場所に保管することを推奨）。
+- Git管理: `.gitignore` に `Common/Encryption.key` を追加してコミット事故を防止。
+- 参照例: `$key = Get-EncryptionKey -KeyPath "$($paths.Common)/Encryption.key"`
 - 取り扱い: 秘匿情報のためコミットしない。必要に応じて権限を絞った共有ストレージに置く。
 - 生成手順: [暗号化鍵の作成/Readme.md](暗号化鍵の作成/Readme.md) を参照。概要は以下の通り。
 	- 実行: `./暗号化鍵の作成/Script/MakeEncrypted.ps1`（既存があれば上書き確認あり）
 	- キー長: 128/192/256ビットから指定（例: `./Script/MakeEncrypted.ps1 -KeySize 256`）。
-	- 出力: Common/Encryption.Keyに保存。**上書きすると既存データの復号は不可。実行前にバックアップ推奨。**
+	- 出力: Common/Encryption.key に保存。**上書きすると既存データの復号は不可。実行前にバックアップ推奨。**
 
 ### .gitignore 例（鍵のコミット防止）
 
 ```Shell
-Common/Encryption.Key
+Common/Encryption.key
 ```
 
 ### 戻り値と例外の目安

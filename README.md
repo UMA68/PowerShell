@@ -95,7 +95,7 @@ Install-Module -Name ImportExcel -Scope CurrentUser
 AES暗号化に使用する共通鍵ファイルを生成します。
 
 - **機能**: 192/256/128ビットの暗号化鍵生成
-- **出力**: \`Common/Encryption.Key\`
+- **出力**: \`Common/Encryption.key\`
 - **用途**: パスワードや機密情報の安全な管理
 
 ```powershell

@@ -102,7 +102,7 @@
 # パラメーター定義
 # ====================================
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateSet(128, 192, 256)]
     [int]$KeySize = 192  # デフォルトは192bit
 )
@@ -140,7 +140,7 @@ begin {
         }
         . $script:noDoubleActivationPath -ErrorAction Stop
     } catch {
-        $script:obj.Popup("共通スクリプトの読み込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)
+        $script:obj.Popup("共通スクリプトの読み込みに失敗しました。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x10)
         $script:CanExecuteProcess = $false
         return
     }
@@ -161,7 +161,7 @@ begin {
     # ====================================
     # 出力先ディレクトリの存在確認
     if (-not (Test-Path -Path $script:comPath)) { # Commonフォルダーが存在しない場合
-        $script:obj.Popup("Common フォルダーが存在しません。`r`n`r`n"+$script:comPath, 0, "エラー", 0x10)
+        $script:obj.Popup("Common フォルダーが存在しません。`r`n`r`n" + $script:comPath, 0, "エラー", 0x10)
         $script:CanExecuteProcess = $false
         return
     }
@@ -169,7 +169,7 @@ begin {
     # 既存ファイルの確認
     $script:KeyFilePath = Join-Path -Path $script:comPath -ChildPath "Encryption.Key"
     if (Test-Path -Path $script:KeyFilePath) { # 既存ファイルがある場合
-        $result = $script:obj.Popup("既存の鍵ファイルが見つかりました。上書きしますか？`r`n`r`n"+$script:KeyFilePath, 0, "確認", 0x34)
+        $result = $script:obj.Popup("既存の鍵ファイルが見つかりました。上書きしますか？`r`n`r`n" + $script:KeyFilePath, 0, "確認", 0x34)
         if ($result -ne 6) { # 6 = はい
             Write-Warning "上書きがキャンセルされました"
             $script:CanExecuteProcess = $false
@@ -220,10 +220,10 @@ process {
             throw "ファイルの書き込みに失敗しました。ファイルが使用中の可能性があります。"
         }
 
-        $script:obj.popup("鍵生成完了（${KeySize}bit）`r`n`r`n"+$script:KeyFilePath, 0, "鍵生成", 0x40)
+        $script:obj.popup("鍵生成完了（${KeySize}bit）`r`n`r`n" + $script:KeyFilePath, 0, "鍵生成", 0x40)
     } catch {
         Write-Error $_.Exception.Message
-        $script:obj.popup("鍵生成またはファイル書き込みに失敗しました。`r`n`r`n"+$_.Exception.Message, 0, "エラー", 0x10)
+        $script:obj.popup("鍵生成またはファイル書き込みに失敗しました。`r`n`r`n" + $_.Exception.Message, 0, "エラー", 0x10)
         $script:CanExecuteProcess = $false
     } finally {
         # ====================================

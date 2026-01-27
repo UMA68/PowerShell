@@ -46,7 +46,7 @@
         'PSReservedCmdletChar',                    # 予約文字のチェック
         
         # 出力とメッセージ
-        'PSAvoidUsingWriteHost',                   # Write-Hostの代わりにWrite-Outputを使用
+        'PSAvoidUsingWriteHost',                   # Write-Hostの代わりにWrite-Outputを使用（インタラクティブ用途では除外設定で許容）
         
         # エイリアスとコマンド
         'PSAvoidUsingCmdletAliases',               # エイリアス使用の回避
@@ -120,7 +120,9 @@
     ExcludeRules = @(
         # ValidateScript内のインデント規則は動的コードブロック内の制限による
         # 機能上の問題がないため除外
-        'PSUseConsistentIndentation'
+        'PSUseConsistentIndentation',
+        # インタラクティブなコンソール表示を許容（-ShowInConsole 等の明示オプション時）
+        'PSAvoidUsingWriteHost'
     )
     
     # Severity の設定（オプション）
