@@ -63,7 +63,6 @@ jobs:
         Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\'
-        $config.Run.Tag = @('Unit')
         $config.Filter.Tag = @('Unit')
         $config.Output.Verbosity = 'Detailed'
         $config.TestResult.Enabled = $true
