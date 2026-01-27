@@ -162,13 +162,14 @@ jobs:
         
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\Common\'
+        $config.Run.PassThru = $true
         $config.CodeCoverage.Enabled = $true
         $config.CodeCoverage.Path = '.\Common\*.ps1'
         $config.CodeCoverage.OutputPath = 'coverage.xml'
         $config.CodeCoverage.OutputFormat = 'CoverageGutters'
         $config.Output.Verbosity = 'Minimal'
         
-        $results = Invoke-Pester -Configuration $config -PassThru
+        $results = Invoke-Pester -Configuration $config
         
         # カバレッジレポートを表示
         if ($results.CodeCoverage) {
