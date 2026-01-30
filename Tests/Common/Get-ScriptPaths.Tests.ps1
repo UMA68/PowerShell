@@ -249,4 +249,167 @@ Describe 'Get-ScriptPaths' -Tag 'Unit', 'Common' {
             }
         }
     }
+    
+    Context 'ScriptPath 自動検出' {
+        It 'パラメータ未指定で例外が発生しない' -Tag 'Positive' {
+            # Act & Assert
+            { Get-ScriptPaths } | Should -Not -Throw
+        }
+        
+        It 'パラメータ未指定時の戻り値キー構成が正しい' -Tag 'Positive' {
+            # Act
+            $result = Get-ScriptPaths
+            
+            # Assert
+            $result.ContainsKey('Script') | Should -BeTrue
+            $result.ContainsKey('Upper') | Should -BeTrue
+            $result.ContainsKey('PowerShell') | Should -BeTrue
+            $result.ContainsKey('Yaml') | Should -BeTrue
+            $result.ContainsKey('Log') | Should -BeTrue
+            $result.ContainsKey('Common') | Should -BeTrue
+        }
+    }
+    
+    Context 'パス構造の具体値' {
+        It 'Common パスが PowerShell 直下の Common ディレクトリである' -Tag 'Positive' {
+            # Arrange
+            $testScriptPath = Join-Path $script:TestScriptDir 'test.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath
+            
+            # Assert
+            $expectedCommon = Join-Path $result.PowerShell 'Common'
+            $result.Common | Should -Be $expectedCommon
+        }
+        
+        It 'EnvFile が Yaml 直下のファイルパスである' -Tag 'Positive' {
+            # Arrange
+            $testScriptPath = Join-Path $script:TestScriptDir 'test.ps1'
+            $envFileName = 'config.yaml'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath -EnvFileName $envFileName
+            
+            # Assert
+            $expectedEnvFile = Join-Path $result.Yaml $envFileName
+            $result.EnvFile | Should -Be $expectedEnvFile
+        }
+    }
+    
+    Context 'ScriptPath エッジケース' {
+        It 'UNC パス（\\server\share\Script\test.ps1）で例外が発生しない' -Tag 'Positive' {
+            # Arrange
+            $uncPath = '\\server\share\Script\test.ps1'
+            
+            # Act & Assert
+            { Get-ScriptPaths -ScriptPath $uncPath } | Should -Not -Throw
+        }
+        
+        It 'UNC パスの戻り値がすべて絶対パスである' -Tag 'Positive' {
+            # Arrange
+            $uncPath = '\\server\share\Script\test.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $uncPath
+            
+            # Assert
+            foreach ($key in $result.Keys) {
+                [System.IO.Path]::IsPathRooted($result[$key]) | Should -BeTrue
+            }
+        }
+        
+        It 'スペースを含むパスで例外が発生しない' -Tag 'Positive' {
+            # Arrange
+            $pathWithSpaces = Join-Path $script:TestRoot 'My Script\Script\test.ps1'
+            
+            # Act & Assert
+            { Get-ScriptPaths -ScriptPath $pathWithSpaces } | Should -Not -Throw
+        }
+        
+        It 'スペース含むパスの戻り値がすべて絶対パスである' -Tag 'Positive' {
+            # Arrange
+            $pathWithSpaces = Join-Path $script:TestRoot 'My Script\Script\test.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $pathWithSpaces
+            
+            # Assert
+            foreach ($key in $result.Keys) {
+                [System.IO.Path]::IsPathRooted($result[$key]) | Should -BeTrue
+            }
+        }
+        
+        It '日本語を含むパスで例外が発生しない' -Tag 'Positive' {
+            # Arrange
+            $pathWithJapanese = Join-Path $script:TestRoot 'スクリプト\Script\test.ps1'
+            
+            # Act & Assert
+            { Get-ScriptPaths -ScriptPath $pathWithJapanese } | Should -Not -Throw
+        }
+        
+        It '日本語含むパスの戻り値がすべて絶対パスである' -Tag 'Positive' {
+            # Arrange
+            $pathWithJapanese = Join-Path $script:TestRoot 'スクリプト\Script\test.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $pathWithJapanese
+            
+            # Assert
+            foreach ($key in $result.Keys) {
+                [System.IO.Path]::IsPathRooted($result[$key]) | Should -BeTrue
+            }
+        }
+    }
+    
+    Context '戻り値キー数の検証' {
+        It 'EnvFileName 未指定時はキー数が 6 で EnvFile キーが無い' -Tag 'Positive' {
+            # Arrange
+            $testScriptPath = Join-Path $script:TestScriptDir 'test.ps1'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath
+            
+            # Assert
+            $result.Keys.Count | Should -Be 6
+            $result.ContainsKey('EnvFile') | Should -BeFalse
+        }
+        
+        It 'EnvFileName 指定時はキー数が 7 で EnvFile キーがある' -Tag 'Positive' {
+            # Arrange
+            $testScriptPath = Join-Path $script:TestScriptDir 'test.ps1'
+            $envFileName = 'settings.yaml'
+            
+            # Act
+            $result = Get-ScriptPaths -ScriptPath $testScriptPath -EnvFileName $envFileName
+            
+            # Assert
+            $result.Keys.Count | Should -Be 7
+            $result.ContainsKey('EnvFile') | Should -BeTrue
+        }
+    }
+    
+    Context 'Windows 大小文字混在パス' {
+        It 'Windows で大小文字を変えた ScriptPath で結果が等価である' -Tag 'Positive', 'Windows' -Skip:($PSVersionTable.Platform -ne 'Win32NT' -and $null -ne $PSVersionTable.Platform) {
+            # Arrange
+            $testScriptPath = Join-Path $script:TestScriptDir 'test.ps1'
+            $testScriptPathUpper = $testScriptPath.ToUpper()
+            $testScriptPathMixed = [string]::Concat(
+                $testScriptPath.Substring(0, 1).ToUpper(),
+                $testScriptPath.Substring(1).ToLower()
+            )
+            
+            # Act
+            $result1 = Get-ScriptPaths -ScriptPath $testScriptPath
+            $result2 = Get-ScriptPaths -ScriptPath $testScriptPathUpper
+            $result3 = Get-ScriptPaths -ScriptPath $testScriptPathMixed
+            
+            # Assert
+            # キー/値が等価（大小文字を無視）
+            foreach ($key in $result1.Keys) {
+                $result1[$key] | Should -Be $result2[$key]
+                $result1[$key] | Should -Be $result3[$key]
+            }
+        }
+    }
 }
