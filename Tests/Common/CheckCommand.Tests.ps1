@@ -201,4 +201,162 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
             $result | Should -BeTrue
         }
     }
+    
+    Context 'モジュール修飾コマンド名' {
+        It 'モジュール修飾された既存コマンドが存在することを検出' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'Microsoft.PowerShell.Management\Get-ChildItem'
+            
+            # Act
+            $result = Test-Command -ComName $commandName
+            
+            # Assert
+            $result | Should -BeTrue
+        }
+        
+        It 'モジュール修飾された存在しないコマンドが見つからないことを検出' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'NonExistentModule\NonExistentCommand'
+            
+            # Act
+            $result = Test-Command -ComName $commandName
+            
+            # Assert
+            $result | Should -BeFalse
+        }
+    }
+    
+    Context 'ワイルドカード指定時の警告' {
+        It 'ワイルドカードを含むコマンド名で警告が発生' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'Get-*'
+            
+            # Act
+            $result = Test-Command -ComName $commandName -WarningVariable warnings -WarningAction SilentlyContinue
+            
+            # Assert
+            $warnings | Should -Not -BeNullOrEmpty
+            $warnings[0] | Should -Match 'ワイルドカード'
+        }
+        
+        It 'ワイルドカードなしのコマンド名で警告が発生しない' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'Get-ChildItem'
+            
+            # Act
+            $result = Test-Command -ComName $commandName -WarningVariable warnings -WarningAction SilentlyContinue
+            
+            # Assert
+            $warnings | Should -BeNullOrEmpty
+        }
+    }
+    
+    Context 'Verbose 出力' {
+        It 'Verbose モードで詳細情報が出力される' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'Get-ChildItem'
+            
+            # Act
+            $verboseOutput = (Test-Command -ComName $commandName -Verbose 4>&1) | Out-String
+            
+            # Assert
+            # Verbose 出力に型情報やパス情報などが含まれる
+            $verboseOutput | Should -Not -BeNullOrEmpty
+            $verboseOutput | Should -Match '(型|Type|パス|Path|検出|Cmdlet)'
+        }
+        
+        It 'Verbose モードで存在しないコマンドの詳細が出力される' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'NonExistentCommand98765'
+            
+            # Act
+            $verboseOutput = (Test-Command -ComName $commandName -Verbose 4>&1) | Out-String
+            
+            # Assert
+            # Verbose 出力にコマンドが見つからない旨が含まれる
+            $verboseOutput | Should -Not -BeNullOrEmpty
+            $verboseOutput | Should -Match '(見つかりませんでした|見つからない|Not found|存在しない)'
+        }
+    }
+    
+    Context '外部実行可能ファイル検出' {
+        It 'PATH 上の notepad.exe が検出される（存在する場合）' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'notepad'
+            $externalCommand = Get-Command $commandName -ErrorAction SilentlyContinue
+            
+            # Act & Assert
+            if ($null -ne $externalCommand) {
+                $result = Test-Command -ComName $commandName
+                $result | Should -BeTrue
+            } else {
+                Set-ItResult -Skipped -Because "notepad が環境に存在しません"
+            }
+        }
+        
+        It 'PATH 上の cmd.exe が検出される（存在する場合）' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'cmd'
+            $externalCommand = Get-Command $commandName -ErrorAction SilentlyContinue
+            
+            # Act & Assert
+            if ($null -ne $externalCommand) {
+                $result = Test-Command -ComName $commandName
+                $result | Should -BeTrue
+            } else {
+                Set-ItResult -Skipped -Because "cmd が環境に存在しません"
+            }
+        }
+        
+        It 'PATH 上に存在しない外部コマンドが検出されない' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'NonExistentExternalCommand54321.exe'
+            
+            # Act
+            $result = Test-Command -ComName $commandName
+            
+            # Assert
+            $result | Should -BeFalse
+        }
+    }
+    
+    Context 'エッジケース: コマンド名' {
+        It '非常に長いコマンド名でもエラーが発生しない' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'Get-' + ('A' * 1000)
+            
+            # Act & Assert
+            { Test-Command -ComName $commandName } | Should -Not -Throw
+        }
+        
+        It '非常に長いコマンド名は存在しないと判定される' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'Get-' + ('A' * 1000)
+            
+            # Act
+            $result = Test-Command -ComName $commandName
+            
+            # Assert
+            $result | Should -BeFalse
+        }
+        
+        It 'Unicode を含むコマンド名が存在しないことを検出' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'テスト-コマンド'
+            
+            # Act
+            $result = Test-Command -ComName $commandName
+            
+            # Assert
+            $result | Should -BeFalse
+        }
+        
+        It 'Unicode を含むコマンド名でもエラーが発生しない' -Tag 'Positive' {
+            # Arrange
+            $commandName = 'テスト-コマンド'
+            
+            # Act & Assert
+            { Test-Command -ComName $commandName } | Should -Not -Throw
+        }
+    }
 }
