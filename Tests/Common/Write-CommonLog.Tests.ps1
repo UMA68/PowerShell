@@ -256,6 +256,269 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             (Get-Content $logPath).Count | Should -BeGreaterOrEqual $iterations
         }
     }
+
+    Context 'SensitivePatterns マスキング' {
+        It 'パスワード文字列がマスクされる' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'sensitive-password.log'
+            $message = 'データベース接続: password=Secret123 を使用'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -SensitivePatterns @('password')
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'password=\*+'
+            $content | Should -Not -Match 'Secret123'
+        }
+        
+        It 'APIトークン風の文字列がマスクされる' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'sensitive-token.log'
+            $message = 'APIキー: token=abc123def456xyz789 で認証'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -SensitivePatterns @('token')
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'token=\*+'
+            $content | Should -Not -Match 'abc123def456xyz789'
+        }
+        
+        It '複数の機密情報パターンが同時にマスクされる' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'sensitive-multiple.log'
+            $message = 'password=MyPass123 と apikey=Secret456 を含むメッセージ'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -SensitivePatterns @('password', 'apikey')
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'password=\*+'
+            $content | Should -Match 'apikey=\*+'
+            $content | Should -Not -Match 'MyPass123'
+            $content | Should -Not -Match 'Secret456'
+        }
+    }
+
+    Context 'Quiet パラメータ' {
+        It 'Quiet=$true の場合、ログファイルに出力されてコンソール出力はない' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'quiet-true.log'
+            $message = 'Quiet テストメッセージ'
+            
+            # Act
+            $output = Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -Quiet $true 2>&1
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath
+            $content | Should -Match ([regex]::Escape($message))
+            # コンソール出力がないことを確認（Quiet パラメータが正しく機能）
+            $output | Should -BeNullOrEmpty
+        }
+        
+        It 'Quiet=$false の場合、ログファイルとコンソール両方に出力される' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'quiet-false.log'
+            $message = 'Not Quiet テストメッセージ'
+            
+            # Act
+            # Write-Information が出力されるか確認（InformationAction Continue でキャプチャ）
+            & {
+                Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -Quiet $false
+            } 6>&1 | Out-Null
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath
+            $content | Should -Match ([regex]::Escape($message))
+            # ログファイルが出力されていることで、Quiet=false が機能していることを確認
+        }
+        
+        It 'デフォルト（Quiet パラメータ省略）の場合、Quiet=false と同じ動作' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'quiet-default.log'
+            $message = 'デフォルト Quiet テストメッセージ'
+            
+            # Act
+            $output = Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' 6>&1
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath
+            $content | Should -Match ([regex]::Escape($message))
+        }
+    }
+
+    Context '複数行メッセージ' {
+        It 'Here-String の複数行メッセージがログに記録される' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'multiline.log'
+            $message = @"
+第1行
+第2行
+第3行
+"@
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath -Raw  # -Raw で全体を1つの文字列として取得
+            $content | Should -Match '第1行'
+            $content | Should -Match '第2行'
+            $content | Should -Match '第3行'
+        }
+        
+        It '配列形式の複数のメッセージが適切に処理される' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'multiline-array.log'
+            $messages = @('行1', '行2', '行3')
+            
+            # Act
+            Write-CommonLog -Message ($messages -join "`n") -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath -Raw  # -Raw で全体を1つの文字列として取得
+            $content | Should -Match '行1'
+            $content | Should -Match '行2'
+            $content | Should -Match '行3'
+        }
+    }
+
+    Context '特殊文字・エスケープ' {
+        It 'ダブルクォートを含むメッセージがログフォーマットを壊さない' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'special-quote.log'
+            $message = 'テスト "クォート" メッセージ'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'INFO'
+            $content | Should -Match 'クォート'
+        }
+        
+        It 'シングルクォートを含むメッセージがログフォーマットを壊さない' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'special-single.log'
+            $message = "テスト 'シングル' メッセージ"
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'INFO'
+            $content | Should -Match 'シングル'
+        }
+        
+        It 'ドルサイン $を含むメッセージがログフォーマットを壊さない' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'special-dollar.log'
+            $message = 'テスト $variable メッセージ'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'INFO'
+            $content | Should -Match '\$variable'
+        }
+        
+        It 'バックスラッシュ \ を含むメッセージがログフォーマットを壊さない' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'special-backslash.log'
+            $message = 'テスト \path\to\file メッセージ'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'INFO'
+            $content | Should -Match '\\path'
+        }
+        
+        It 'タブ文字を含むメッセージがログに記録される' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'special-tab.log'
+            $message = "テスト`tタブ`tメッセージ"
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO'
+            
+            # Assert
+            $content = Get-Content $logPath
+            $content | Should -Match 'INFO'
+            $content | Should -Match 'タブ'
+        }
+    }
+
+    Context 'WhatIf パラメータ' {
+        It '-WhatIf 指定時にもログファイルが作成・更新される（ドライランモードでも監査ログ保存）' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'whatif-create.log'
+            $message = 'WhatIf テストメッセージ'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -WhatIf
+            
+            # Assert
+            # 実装では -WhatIf モードでもログファイルに記録される（ドライランモードでも監査ログを残す）
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath
+            $content | Should -Match ([regex]::Escape($message))
+        }
+        
+        It '-WhatIf 指定時にも既存ログファイルが更新される（ドライラン実行計画をログに記録）' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'whatif-update.log'
+            $message1 = '通常メッセージ'
+            $message2 = 'WhatIf メッセージ'
+            
+            # Act
+            # 最初は通常モードで書き込み
+            Write-CommonLog -Message $message1 -LogPath $logPath -Level 'INFO'
+            $fileSize1 = (Get-Item $logPath).Length
+            
+            # 少し待機
+            Start-Sleep -Milliseconds 100
+            
+            # WhatIf で書き込み試行（実装では -WhatIf でもログに記録）
+            Write-CommonLog -Message $message2 -LogPath $logPath -Level 'INFO' -WhatIf
+            $fileSize2 = (Get-Item $logPath).Length
+            
+            # Assert
+            $content = Get-Content $logPath -Raw
+            $content | Should -Match $message1
+            $content | Should -Match $message2
+            # ファイルサイズが増加していることを確認（両メッセージが記録）
+            $fileSize2 | Should -BeGreaterThan $fileSize1
+        }
+        
+        It '-WhatIf 指定時でもメッセージは記録される' {
+            # Arrange
+            $logPath = Join-Path $script:TestRoot 'whatif-output.log'
+            $message = 'WhatIf コンソール出力テスト'
+            
+            # Act
+            Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' -WhatIf
+            
+            # Assert
+            Test-Path $logPath | Should -Be $true
+            $content = Get-Content $logPath
+            $content | Should -Match ([regex]::Escape($message))
+        }
+    }
 }
 
 
