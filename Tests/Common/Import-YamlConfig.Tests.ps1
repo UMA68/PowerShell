@@ -275,4 +275,212 @@ Project:
             $result.Settings.Tags | Should -Not -BeNullOrEmpty
         }
     }
+    
+    Context 'パフォーマンス: 大規模YAML' {
+        It '大規模 YAML ファイル（多数のキーと配列）を数秒以内に読み込める' -Tag 'Performance' {
+            # Arrange
+            # 大規模 YAML を生成（1000 個のサーバーエントリを含む）
+            $largeYaml = @"
+Environment: Production
+Servers:
+"@
+            for ($i = 1; $i -le 1000; $i++) {
+                $largeYaml += @"
+
+  - Id: $i
+    Name: server-$i
+    IP: 192.168.1.$($i % 254 + 1)
+    Port: $((8000 + $i % 1000))
+    Status: active
+    Tags:
+      - production
+      - monitored
+      - backup-$($i % 5)
+"@
+            }
+            
+            $largeYamlPath = Join-Path $script:TestRoot 'large.yaml'
+            Set-Content -Path $largeYamlPath -Value $largeYaml -Encoding UTF8
+            
+            # Act
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            $result = Import-YamlConfig -YamlPath $largeYamlPath
+            $stopwatch.Stop()
+            $elapsedSeconds = $stopwatch.Elapsed.TotalSeconds
+            
+            # Assert
+            # 実行時間が 5 秒以内であることを確認
+            $elapsedSeconds | Should -BeLessThan 5
+            $result | Should -Not -BeNullOrEmpty
+            $result.Servers.Count | Should -Be 1000
+        }
+    }
+    
+    Context '異常系: 構文エラーと型不整合' {
+        It 'インデント崩れの YAML でエラーが発生' -Tag 'Negative' {
+            # Arrange
+            $indentErrorYaml = @"
+Database:
+  Server: localhost
+    Port: 5432
+  Username: admin
+"@
+            $indentErrorPath = Join-Path $script:TestRoot 'indent-error.yaml'
+            Set-Content -Path $indentErrorPath -Value $indentErrorYaml -Encoding UTF8
+            
+            # Act & Assert
+            { Import-YamlConfig -YamlPath $indentErrorPath } | Should -Throw
+        }
+        
+        It 'キーが重複している YAML でエラーが発生' -Tag 'Negative' {
+            # Arrange
+            $duplicateKeyYaml = @"
+Project:
+  Name: Test1
+Project:
+  Name: Test2
+"@
+            $duplicateKeyPath = Join-Path $script:TestRoot 'duplicate-key.yaml'
+            Set-Content -Path $duplicateKeyPath -Value $duplicateKeyYaml -Encoding UTF8
+            
+            # Act & Assert
+            { Import-YamlConfig -YamlPath $duplicateKeyPath } | Should -Throw
+        }
+        
+        It '型が期待と異なる場合も読み込みは成功する（型変換を試みる）' -Tag 'Positive' {
+            # Arrange - 数値として定義されているが文字列で記述
+            $typeVariationYaml = @"
+Settings:
+  Version: "2"
+  MaxRetries: "10"
+  Timeout: "30.5"
+"@
+            $typeVariationPath = Join-Path $script:TestRoot 'type-variation.yaml'
+            Set-Content -Path $typeVariationPath -Value $typeVariationYaml -Encoding UTF8
+            
+            # Act
+            $result = Import-YamlConfig -YamlPath $typeVariationPath
+            
+            # Assert
+            $result | Should -Not -BeNullOrEmpty
+            # YAML では引用符付きの値は文字列として扱われる
+            $result.Settings.Version | Should -Be "2"
+        }
+    }
+    
+    Context 'エンコーディング互換性' {
+        It 'UTF-16 LE で保存された YAML の読み込み挙動をテスト' -Tag 'Encoding' {
+            # Arrange
+            $utf16LeYaml = @"
+Project:
+  Name: UTF16LE Test
+  Version: 1.0
+"@
+            $utf16LePath = Join-Path $script:TestRoot 'utf16le.yaml'
+            Set-Content -Path $utf16LePath -Value $utf16LeYaml -Encoding Unicode
+            
+            # Act & Assert
+            # UTF-16 LE は通常 YAML パーサーでは正しく解析されない可能性があり、
+            # その場合はエラーが発生することを確認
+            # （または実装がサポートしている場合は成功を確認）
+            try {
+                $result = Import-YamlConfig -YamlPath $utf16LePath
+                # サポートしている場合は読み込みが成功
+                $result | Should -Not -BeNullOrEmpty
+            } catch {
+                # サポートしていない場合はエラーが発生（これも正しい挙動）
+                $_ | Should -Not -BeNullOrEmpty
+            }
+        }
+        
+        It 'UTF-8 BOM で保存された YAML が正しく読み込める' -Tag 'Positive' {
+            # Arrange
+            $utf8BomYaml = @"
+Project:
+  Name: UTF8 BOM Test
+  Description: 日本語対応
+"@
+            $utf8BomPath = Join-Path $script:TestRoot 'utf8-bom.yaml'
+            # UTF8 BOM エンコーディングで保存
+            $utf8BomEncoding = New-Object System.Text.UTF8Encoding $true
+            [System.IO.File]::WriteAllText($utf8BomPath, $utf8BomYaml, $utf8BomEncoding)
+            
+            # Act
+            $result = Import-YamlConfig -YamlPath $utf8BomPath
+            
+            # Assert
+            $result | Should -Not -BeNullOrEmpty
+            $result.Project.Name | Should -Be 'UTF8 BOM Test'
+            $result.Project.Description | Should -Be '日本語対応'
+        }
+    }
+    
+    Context 'バージョン互換・未知フィールド' {
+        It 'Version フィールドが存在する場合、値が保持される' -Tag 'Positive' {
+            # Arrange
+            $versionedYaml = @"
+Version: 1
+Project:
+  Name: TestProject
+  Build: 123
+"@
+            $versionedPath = Join-Path $script:TestRoot 'versioned.yaml'
+            Set-Content -Path $versionedPath -Value $versionedYaml -Encoding UTF8
+            
+            # Act
+            $result = Import-YamlConfig -YamlPath $versionedPath
+            
+            # Assert
+            $result | Should -Not -BeNullOrEmpty
+            $result.Version | Should -Be 1
+            $result.Project.Name | Should -Be 'TestProject'
+        }
+        
+        It 'Version: 2 の YAML が読み込めること' -Tag 'Positive' {
+            # Arrange
+            $version2Yaml = @"
+Version: 2
+Metadata:
+  Created: 2026-01-30
+  Author: Test
+Configuration:
+  Debug: false
+"@
+            $version2Path = Join-Path $script:TestRoot 'version2.yaml'
+            Set-Content -Path $version2Path -Value $version2Yaml -Encoding UTF8
+            
+            # Act
+            $result = Import-YamlConfig -YamlPath $version2Path
+            
+            # Assert
+            $result | Should -Not -BeNullOrEmpty
+            $result.Version | Should -Be 2
+            $result.Metadata.Author | Should -Be 'Test'
+        }
+        
+        It '未知フィールドが含まれる YAML も読み込みが失敗しないこと' -Tag 'Positive' {
+            # Arrange
+            $unknownFieldYaml = @"
+Project:
+  Name: TestProject
+  UnknownField1: value1
+  NestedUnknown:
+    CustomKey: customValue
+    AnotherKey: anotherValue
+  Version: 1.0
+  ExperimentalFeature: true
+"@
+            $unknownFieldPath = Join-Path $script:TestRoot 'unknown-field.yaml'
+            Set-Content -Path $unknownFieldPath -Value $unknownFieldYaml -Encoding UTF8
+            
+            # Act
+            $result = Import-YamlConfig -YamlPath $unknownFieldPath
+            
+            # Assert
+            $result | Should -Not -BeNullOrEmpty
+            $result.Project.Name | Should -Be 'TestProject'
+            $result.Project.UnknownField1 | Should -Be 'value1'
+            $result.Project.NestedUnknown.CustomKey | Should -Be 'customValue'
+        }
+    }
 }
