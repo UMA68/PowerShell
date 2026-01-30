@@ -190,6 +190,137 @@ Describe 'リリースバッチ統合テスト' {
             Test-Path (Join-Path $newDestDir 'file1.txt') | Should -BeTrue
         }
     }
+
+    Context 'ファイル属性の保持' {
+        It 'ReadOnly 属性がコピー先に反映される（または仕様どおり）' {
+            # Arrange
+            $sourceFile = Join-Path $script:SourceDir 'readonly.txt'
+            $destFile = Join-Path $script:DestDir 'readonly.txt'
+            Set-Content -Path $sourceFile -Value 'ReadOnly test' -Encoding UTF8
+
+            # Act
+            $sourceItem = Get-Item $sourceFile
+            $originalAttributes = $sourceItem.Attributes
+            try {
+                $sourceItem.Attributes = $sourceItem.Attributes -bor [System.IO.FileAttributes]::ReadOnly
+                Copy-Item -Path $sourceFile -Destination $destFile -Force
+            }
+            finally {
+                # 後始末: テストファイルの属性を戻す
+                if (Test-Path $sourceFile) {
+                    (Get-Item $sourceFile).Attributes = $originalAttributes
+                }
+            }
+
+            # Assert
+            (Get-Item $destFile).Attributes.HasFlag([System.IO.FileAttributes]::ReadOnly) | Should -BeTrue
+        }
+    }
+
+    Context '部分的失敗時の挙動' {
+        It '一部失敗でも他のファイルがコピーされ、失敗がログに残る' {
+            # Arrange
+            $bulkDir = Join-Path $script:SourceDir 'partial'
+            $destBulkDir = Join-Path $script:DestDir 'partial'
+            $logPath = Join-Path $script:LogDir 'partial-failure.log'
+            New-Item -ItemType Directory -Path $bulkDir -Force | Out-Null
+            New-Item -ItemType Directory -Path $destBulkDir -Force | Out-Null
+
+            for ($i = 1; $i -le 100; $i++) {
+                Set-Content -Path (Join-Path $bulkDir "file_$i.txt") -Value "Content $i" -Encoding UTF8
+            }
+
+            $lockedFile = Join-Path $bulkDir 'file_50.txt'
+            $copyErrors = @()
+
+            # Act
+            $stream = [System.IO.File]::Open($lockedFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+            try {
+                Copy-Item -Path (Join-Path $bulkDir '*') -Destination $destBulkDir -Recurse -Force -ErrorAction Continue -ErrorVariable copyErrors
+            }
+            finally {
+                $stream.Dispose()
+            }
+
+            if ($copyErrors.Count -gt 0) {
+                Add-Content -Path $logPath -Value ("ERROR: Failed to copy {0}" -f $lockedFile) -Encoding UTF8
+            }
+
+            # Assert
+            $copyErrors.Count | Should -Be 1
+            @(Get-ChildItem -Path $destBulkDir -Filter '*.txt').Count | Should -Be 99
+            Test-Path $logPath | Should -BeTrue
+            $pattern = [Regex]::Escape($lockedFile)
+            (Get-Content $logPath) | Should -Match $pattern
+        }
+    }
+
+    Context 'ファイルロック' {
+        It 'ロックされたコピー元はエラーになる' {
+            # Arrange
+            $sourceFile = Join-Path $script:SourceDir 'locked.txt'
+            $destFile = Join-Path $script:DestDir 'locked.txt'
+            Set-Content -Path $sourceFile -Value 'Lock test' -Encoding UTF8
+
+            # Act
+            $stream = [System.IO.File]::Open($sourceFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+            try {
+                { Copy-Item -Path $sourceFile -Destination $destFile -Force -ErrorAction Stop } | Should -Throw
+            }
+            finally {
+                $stream.Dispose()
+            }
+        }
+    }
+
+    Context 'データ完全性 (ハッシュ)' {
+        It 'バイナリファイルのハッシュが一致する' {
+            # Arrange
+            $sourceFile = Join-Path $script:SourceDir 'binary.bin'
+            $destFile = Join-Path $script:DestDir 'binary.bin'
+            $bytes = New-Object byte[] 2048
+            $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
+            $rng.GetBytes($bytes)
+            $rng.Dispose()
+            [System.IO.File]::WriteAllBytes($sourceFile, $bytes)
+
+            # Act
+            Copy-Item -Path $sourceFile -Destination $destFile -Force
+            $sourceHash = (Get-FileHash -Path $sourceFile -Algorithm SHA256).Hash
+            $destHash = (Get-FileHash -Path $destFile -Algorithm SHA256).Hash
+
+            # Assert
+            $sourceHash | Should -Be $destHash
+        }
+    }
+
+    Context 'タイムスタンプとサイズ' {
+        It 'サイズと更新時刻が仕様どおり' {
+            # Arrange
+            $sourceFile = Join-Path $script:SourceDir 'timestamp.txt'
+            $destFile = Join-Path $script:DestDir 'timestamp.txt'
+            Set-Content -Path $sourceFile -Value ('x' * 1024) -Encoding UTF8
+            $sourceItem = Get-Item $sourceFile
+            $sourceTime = Get-Date '2025-01-01 12:34:56'
+            $sourceItem.LastWriteTime = $sourceTime
+
+            # Act
+            $copyStart = Get-Date
+            Copy-Item -Path $sourceFile -Destination $destFile -Force
+            $copyEnd = Get-Date
+            $destItem = Get-Item $destFile
+
+            # Assert
+            $destItem.Length | Should -Be $sourceItem.Length
+            (($destItem.LastWriteTime -eq $sourceTime) -or ($destItem.LastWriteTime -ge $copyStart -and $destItem.LastWriteTime -le $copyEnd)) | Should -BeTrue
+        }
+    }
+
+    Context 'ロールバック' {
+        It 'バックアップから復元できる（未実装のため保留）' -Pending {
+            # TODO: *.backup_YYYYMMDD_HHmmss からの復元機能が実装されたらテストを追加
+        }
+    }
     
     Context 'パフォーマンス' {
         It '大量ファイルのコピーが効率的に実行される' -Tag 'Performance' {
