@@ -8,12 +8,12 @@ Accepted
 事故・誤操作・集中力低下が起きやすい。
 
 ## Decision
-OS の役割を以下に固定する。
+OSの役割を以下に固定する。
 
-- **Windows**：PowerShell 実行・検証・管理者操作
+- **Windows**：PowerShell実行・検証・管理者操作
 - **Mac**：整理・設計・レビュー・文書整形
 
-実行物は Mac に置かない。
+実行物はMacに置かない。
 
 ## Consequences
 ### 👍
