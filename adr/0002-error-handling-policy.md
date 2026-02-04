@@ -60,7 +60,7 @@ Test-Commandの挙動は、CheckCommand.Tests.ps1によって
 ### 👎 悪い点・割り切り
 - テストコードが読めないと仕様が分からない
 - テストの書き方が雑だと、仕様も曖昧になる
-- exploratoryな試作には少し重い
+- exploratory（探査的）な試作には少し重い
 
 ---
 
