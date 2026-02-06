@@ -3,8 +3,6 @@
 ## Status
 Accepted
 
----
-
 ## Context
 
 Test-Commandの挙動は、CheckCommand.Tests.ps1によって
@@ -27,8 +25,6 @@ Test-Commandの挙動は、CheckCommand.Tests.ps1によって
 
 が発生する可能性が高い。
 
----
-
 ## Decision
 
 本リポジトリでは、以下の設計方針を採用する。
@@ -47,8 +43,6 @@ Test-Commandの挙動は、CheckCommand.Tests.ps1によって
 
 という順序を明確にする。
 
----
-
 ## Consequences
 
 ### 👍 良い点
@@ -61,8 +55,6 @@ Test-Commandの挙動は、CheckCommand.Tests.ps1によって
 - テストコードが読めないと仕様が分からない
 - テストの書き方が雑だと、仕様も曖昧になる
 - exploratory（探査的）な試作には少し重い
-
----
 
 ## Notes（個人用・将来削除可）
 
