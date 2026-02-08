@@ -48,3 +48,7 @@ adr/
 src/                  # PowerShell スクリプト
 tests/                # Pester テスト
 ```
+
+## Review Tools
+
+- Red Team Prompt Pack: ../prompts/red-team.md
