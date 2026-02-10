@@ -117,7 +117,7 @@ jobs:
 
     - name: テスト概要を表示
       if: always()
-      shell: powershell
+      shell: pwsh
       run: |
         Write-Host "`n" + "="*70 -ForegroundColor Cyan
         Write-Host "テスト実行概要" -ForegroundColor Cyan
