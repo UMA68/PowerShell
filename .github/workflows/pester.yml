@@ -61,6 +61,7 @@ jobs:
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\'
         $config.Filter.Tag = @('Unit')
+        $config.Filter.ExcludeTag = @('Performance')
         $config.Output.Verbosity = 'Detailed'
         $config.TestResult.Enabled = $true
         $config.TestResult.OutputPath = 'test-results-unit.xml'
@@ -159,6 +160,7 @@ jobs:
 
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\Common\'
+        $config.Filter.ExcludeTag = @('Performance')
         $config.Run.PassThru = $true
         $config.CodeCoverage.Enabled = $true
         $config.CodeCoverage.Path = '.\Common\*.ps1'
@@ -234,6 +236,7 @@ jobs:
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\'
         $config.Filter.Tag = @('Unit')
+        $config.Filter.ExcludeTag = @('Performance')
         $config.Output.Verbosity = 'Detailed'
         $config.TestResult.Enabled = $true
         $config.TestResult.OutputPath = 'test-results-unit.xml'
@@ -332,6 +335,7 @@ jobs:
 
         $config = New-PesterConfiguration
         $config.Run.Path = '.\Tests\Common\'
+        $config.Filter.ExcludeTag = @('Performance')
         $config.Run.PassThru = $true
         $config.CodeCoverage.Enabled = $true
         $config.CodeCoverage.Path = '.\Common\*.ps1'

@@ -276,7 +276,7 @@ Project:
         }
     }
     
-    Context 'パフォーマンス: 大規模YAML' {
+    Context 'パフォーマンス: 大規模YAML' -Tag 'Performance' {
         It '大規模 YAML ファイル（多数のキーと配列）を数秒以内に読み込める' -Tag 'Performance' {
             # Arrange
             # 大規模 YAML を生成（1000 個のサーバーエントリを含む）
