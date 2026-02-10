@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Write-CommonLog 関数のユニットテスト
 

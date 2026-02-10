@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     powershell-yaml モジュールの存在確認とインストールを行う関数
 

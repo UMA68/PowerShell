@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Obsidian Vault内のMarkdownファイルから、ChatGPT API使用時のコストを見積もります。
 

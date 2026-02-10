@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Get-ScriptPaths 関数のユニットテスト
 
