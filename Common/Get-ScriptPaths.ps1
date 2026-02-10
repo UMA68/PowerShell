@@ -194,6 +194,19 @@ function Get-ScriptPaths {
     
     process {
         try {
+            # 存在するパスのみ Resolve-Path を使用（存在しないUNCでの例外回避）
+            if (Test-Path -Path $ScriptPath) {
+                $ScriptPath = (Resolve-Path -Path $ScriptPath).Path
+            }
+
+            # UNC パス判定と share root 抽出（\server\share）
+            $isUncPath = $false
+            $uncShareRoot = $null
+            if ($ScriptPath -match '^\\\\[^\\]+\\[^\\]+') {
+                $isUncPath = $true
+                $uncShareRoot = $Matches[0]
+            }
+
             # 各パスを計算（ローカル変数を使用）
             $scriptDir = Split-Path -Path $ScriptPath -Parent
             if ([string]::IsNullOrEmpty($scriptDir)) {
@@ -202,6 +215,16 @@ function Get-ScriptPaths {
             
             $upperDir = Split-Path -Path $scriptDir -Parent
             $powerShellDir = Split-Path -Path $upperDir -Parent
+
+            # UNC の場合は share root より上に遡らない
+            if ($isUncPath -and $uncShareRoot) {
+                if ($upperDir -notlike "$uncShareRoot*") {
+                    $upperDir = $uncShareRoot
+                }
+                if ($powerShellDir -notlike "$uncShareRoot*") {
+                    $powerShellDir = $uncShareRoot
+                }
+            }
             $yamlDir = Join-Path -Path $upperDir -ChildPath "YAML"
             $logDir = Join-Path -Path $upperDir -ChildPath "LOG"
             $commonDir = Join-Path -Path $powerShellDir -ChildPath "Common"
