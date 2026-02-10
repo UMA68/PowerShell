@@ -79,7 +79,7 @@ jobs:
     - name: Pester テストレポートを発行（Unit）
       if: always() && hashFiles('test-results-unit.xml') != ''
       continue-on-error: true
-      uses: EnricoMi/publish-unit-test-result-action/windows@v2
+      uses: enricomi/publish-unit-test-result-action/windows@v2
       with:
         files: test-results-unit.xml
         check_name: Unit Test Results (5.1)
@@ -202,7 +202,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: PowerShell をセットアップ
-      uses: PowerShell/setup-powershell@v2
+      uses: powershell/setup-powershell@v2
       with:
         version: ${{ matrix.powershell-version }}
 
@@ -252,7 +252,7 @@ jobs:
     - name: Pester テストレポートを発行（Unit）
       if: always() && hashFiles('test-results-unit.xml') != ''
       continue-on-error: true
-      uses: EnricoMi/publish-unit-test-result-action/windows@v2
+      uses: enricomi/publish-unit-test-result-action/windows@v2
       with:
         files: test-results-unit.xml
         check_name: Unit Test Results (${{ matrix.powershell-version }})
