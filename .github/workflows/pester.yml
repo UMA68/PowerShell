@@ -204,11 +204,6 @@ jobs:
     - name: リポジトリをチェックアウト
       uses: actions/checkout@v4
 
-    - name: PowerShell をセットアップ
-      uses: powershell/setup-powershell@v2
-      with:
-        version: ${{ matrix.powershell-version }}
-
     - name: PowerShell バージョンを確認
       shell: pwsh
       run: |
@@ -292,6 +287,7 @@ jobs:
         path: test-results-integration.xml
         retention-days: 30
 
+    # See ADR-0003 (0003-pwsh-for-test-summary.md)
     - name: テスト概要を表示
       if: always()
       shell: pwsh
