@@ -17,8 +17,14 @@
 
 BeforeAll {
     # テスト対象の関数を読み込み
+    # See ADR-0004 (0004-exclude-performance-tests-from-ci.md)
     $commonPath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $commonPath 'Common\Import-YamlConfig.ps1')
+    $yamlScriptPath = Join-Path $commonPath 'Common\Import-YamlConfig.ps1'
+    $script:YamlScriptAvailable = $false
+    if (Test-Path $yamlScriptPath) {
+        . $yamlScriptPath
+        $script:YamlScriptAvailable = $true
+    }
     
     # PowerShell-Yaml がインストールされているか確認
     try {
@@ -27,6 +33,8 @@ BeforeAll {
     } catch {
         $script:YamlModuleAvailable = $false
     }
+
+    $script:YamlModuleAvailable = $script:YamlModuleAvailable -and $script:YamlScriptAvailable
     
     # テスト用の一時ディレクトリとサンプルYAMLファイルを作成
     $script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "PSYamlTest_$(New-Guid)"

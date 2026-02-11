@@ -116,9 +116,10 @@ jobs:
         path: test-results-integration.xml
         retention-days: 30
 
+    # See ADR-0003 (0003-pwsh-for-test-summary.md)
     - name: テスト概要を表示
       if: always()
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Write-Host "`n" + "="*70 -ForegroundColor Cyan
         Write-Host "テスト実行概要" -ForegroundColor Cyan
@@ -209,13 +210,13 @@ jobs:
         version: ${{ matrix.powershell-version }}
 
     - name: PowerShell バージョンを確認
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Write-Host "PowerShell バージョン: $($PSVersionTable.PSVersion)" -ForegroundColor Cyan
         Write-Host "要求バージョン: ${{ matrix.powershell-version }}" -ForegroundColor Cyan
 
     - name: 必要なモジュールをインストール
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Set-PSRepository PSGallery -InstallationPolicy Trusted
 
@@ -230,7 +231,7 @@ jobs:
         Get-Module -ListAvailable PowerShell-Yaml | Select-Object Name, Version
 
     - name: Pester テストを実行（Unit テスト）
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
         $config = New-PesterConfiguration
@@ -262,7 +263,7 @@ jobs:
         comment_mode: always
 
     - name: Pester テストを実行（Integration テスト）
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       continue-on-error: true
       run: |
         Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
@@ -293,7 +294,7 @@ jobs:
 
     - name: テスト概要を表示
       if: always()
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Write-Host "`n" + "="*70 -ForegroundColor Cyan
         Write-Host "テスト実行概要" -ForegroundColor Cyan
@@ -329,7 +330,7 @@ jobs:
         Write-Host "`n" + "="*70 -ForegroundColor Cyan
 
     - name: コードカバレッジを測定
-      shell: pwsh # See ADR-0003 (0003-pwsh-for-test-summary)
+      shell: pwsh
       run: |
         Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
 
