@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-02-12
+
+- Code quality improvements: Fixed PSScriptAnalyzer warnings across multiple files
+  - **DecompileDLL/Script/DecompileDll.ps1**: Added help comments for `Write-ThreadSafeLog` function
+  - **ILSpyCmdの入手/Script/Verify_v1.4.0.ps1**: Fixed automatic variable `$matches` conflict (renamed to `$regexMatches`), aligned comment formatting
+  - **ILSpyCmdの入手/Script/getILSpyCmd.ps1**: Fixed whitespace consistency in hashtable definitions and end block
+  - **Node.js通信ブロック対応/Script/npm_install_safe.ps1**: Moved comment-help blocks inside function definitions
+  - **Tests/Common/Write-CommonLog.Tests.ps1**: Removed unused variable assignments (changed to `$null =`)
+  - **Tests/Integration/ReleaseProcess.Tests.ps1**: Removed unused `$originalTime` variable
+  - **リリースバッチ/Script/CopyItemCustom.ps1**: Adjusted internal function help comment positioning
+  - Minor whitespace fix in PSScriptAnalyzerSettings.psd1
+- All Warning/Error level issues resolved; remaining Information-level suggestions (3 items in DotNetUninstallTool.ps1) are accepted as-is for maintainability
+
 ## 2026-01-27
 
 - Help updates for `暗号化文字列の作成/Script/MakeEncryptedString.ps1` and `暗号化文字列の復元/Script/StringDecryption.ps1`

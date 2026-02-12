@@ -192,9 +192,19 @@ $count = 0
 # リポジトリ全体をチェック
 Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 
+# Error/Warning レベルのみをチェック（推奨）
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+  Where-Object { $_.Severity -in 'Error', 'Warning' }
+
 # 特定のファイルをチェック
 Invoke-ScriptAnalyzer -Path .\Script\YourScript.ps1 -Settings .\PSScriptAnalyzerSettings.psd1
 ```
+
+**品質基準**:
+
+- **Error レベル**: 必ず修正（例外なし）
+- **Warning レベル**: 原則として修正（修正困難な場合は理由を記録）
+- **Information レベル**: 推奨だが必須ではない（詳細は [ADR-0006](adr/0006-psscriptanalyzer-information-level.md) を参照）
 
 **重要なルール**:
 
@@ -397,12 +407,19 @@ fix(scope): バグ修正の簡潔な説明
 # すべてのスクリプトをチェック
 Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 
+# Error/Warning レベルのみをチェック（推奨）
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+  Where-Object { $_.Severity -in 'Error', 'Warning' }
+
 # 特定のフォルダーをチェック
 Invoke-ScriptAnalyzer -Path .\Common\ -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 
 # エラーのみ表示
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 -Severity Error
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+  Where-Object { $_.Severity -eq 'Error' }
 ```
+
+> **Note**: Information レベルの警告は推奨ですが必須ではありません。詳細は [ADR-0006](adr/0006-psscriptanalyzer-information-level.md) を参照してください。
 
 ### ユニットテスト
 

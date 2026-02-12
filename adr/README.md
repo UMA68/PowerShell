@@ -49,6 +49,21 @@ src/                  # PowerShell スクリプト
 tests/                # Pester テスト
 ```
 
+---
+
+## 📋 機能・実装に関する ADR（000x シリーズ）
+
+技術的な設計判断や実装方針は、以下に記録されています：
+
+- [ADR-0001: Chat履歴はそのまま保存しない](0001-module-split.md)
+- [ADR-0002: Pester テストを仕様の一次情報源として扱う](0002-error-handling-policy.md)
+- [ADR-0003: テスト概要表示ステップで pwsh を使用する](0003-pwsh-for-test-summary.md)
+- [ADR-0004: パフォーマンステストを CI の Unit / Coverage から除外する](0004-exclude-performance-tests-from-ci.md)
+- [ADR-0005: Setup-PowerShell Action を廃止し、ランナー同梱版に統一する](0005-remove-setup-powershell-action.md)
+- [ADR-0006: PSScriptAnalyzer Information レベルの扱い](0006-psscriptanalyzer-information-level.md) 🆕
+
+---
+
 ## Review Tools
 
 - [Red Team Prompt Pack](../prompts/red-team.md)
