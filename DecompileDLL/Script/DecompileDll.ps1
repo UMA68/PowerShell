@@ -651,6 +651,16 @@ process {
             
             # ログヘルパー関数（スレッドセーフなログ出力）
             function Write-ThreadSafeLog {
+                <#
+                .SYNOPSIS
+                    スレッドセーフにログを出力します。
+
+                .PARAMETER Message
+                    出力するメッセージです。
+
+                .PARAMETER Level
+                    ログレベルです。
+                #>
                 param([string]$Message, [string]$Level = "INFO")
                 $logPath = $syncHash.LogPath
                 # Write-CommonLogのロジックをこのスコープ内で直接実装

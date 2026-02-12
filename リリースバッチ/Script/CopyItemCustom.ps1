@@ -93,15 +93,15 @@ function Copy-ItemCustom {
         if (-not $EnableLongPath) { $EnableLongPath = $false }
 
         # ロングパス変換ヘルパー
-        <#
-        .SYNOPSIS
-            ファイルパスをロングパス形式に変換します
-        .PARAMETER path
-            変換対象のファイルパス
-        .OUTPUTS
-            ロングパス形式に変換されたパス
-        #>
         function Convert-ToLongPath ([string]$path) {
+            <#
+            .SYNOPSIS
+                ファイルパスをロングパス形式に変換します
+            .PARAMETER path
+                変換対象のファイルパス
+            .OUTPUTS
+                ロングパス形式に変換されたパス
+            #>
             if (-not $EnableLongPath) { return $path }  # 無効時はそのまま返す
             if ($path -like "\\?\*") { return $path }   # 既にロングパス形式の場合はそのまま返す
             if ($path -match '^[A-Za-z]:\\') { return "\\?\$path" } # ドライブレター形式
@@ -109,15 +109,15 @@ function Copy-ItemCustom {
         }
 
         # リトライヘルパー
-        <#
-        .SYNOPSIS
-            スクリプトブロックを指定回数までリトライ実行します
-        .PARAMETER Action
-            実行するスクリプトブロック
-        .OUTPUTS
-            成功時は $true を返します
-        #>
         function Invoke-WithRetry ([scriptblock]$Action) {
+            <#
+            .SYNOPSIS
+                スクリプトブロックを指定回数までリトライ実行します
+            .PARAMETER Action
+                実行するスクリプトブロック
+            .OUTPUTS
+                成功時は $true を返します
+            #>
             $attempt = 0
             while ($true) { # 無限ループ（成功または例外で抜ける）
                 try { & $Action; return $true }
@@ -213,47 +213,43 @@ function Copy-ItemCustom {
     }
 }
 # リリースルールのスクリプト化
-<#
-.SYNOPSIS
-    リリースルールを適用してファイルをコピーします
-
-.DESCRIPTION
-    指定されたファイルに対してリリースルールを適用し、リリース先へコピーします。
-    既存ファイルが存在する場合はタイムスタンプ付きでリネーム・削除します。
-
-.PARAMETER ReleaseTypeName
-    リリースタイプ名（ログ出力用）
-
-.PARAMETER FileObject
-    コピー対象のファイルシステム情報オブジェクト
-
-.PARAMETER ReleaseDestination
-    リリース先フォルダパス
-
-.PARAMETER LogPath
-    ログファイルの完全パス
-
-.PARAMETER SensitivePatterns
-    ログに出力する際にマスキング対象とする機密情報キーワード配列
-
-.PARAMETER OverwritePolicy
-    既存ファイル処理ポリシー: RenameThenCopy, DeleteThenCopy, SkipIfExists
-
-.PARAMETER RetryCount
-    リトライ回数
-
-.PARAMETER RetryDelayMs
-    リトライ待機時間（ミリ秒）
-
-.PARAMETER EnableLongPath
-    ロングパス対応有効フラグ
-
-.NOTES
-    内部用関数 - Copy-ItemCustom から呼び出されます
-    File Name: relMain.ps1 の Copy-ItemCustom 内部関数
-    Version: 1.2.0
-#>
 function Invoke-ReleaseRule {
+    <#
+    .SYNOPSIS
+        リリースルールに基づいてファイルを処理します
+
+    .PARAMETER ReleaseTypeName
+        ログ用リリースタイプ名
+
+    .PARAMETER FileObject
+        コピー対象ファイルオブジェクト
+
+    .PARAMETER ReleaseDestination
+        リリース先フォルダパス
+
+    .PARAMETER LogPath
+        ログファイルの完全パス
+
+    .PARAMETER SensitivePatterns
+        ログに出力する際にマスキング対象とする機密情報キーワード配列
+
+    .PARAMETER OverwritePolicy
+        既存ファイル処理ポリシー: RenameThenCopy, DeleteThenCopy, SkipIfExists
+
+    .PARAMETER RetryCount
+        リトライ回数
+
+    .PARAMETER RetryDelayMs
+        リトライ待機時間（ミリ秒）
+
+    .PARAMETER EnableLongPath
+        ロングパス対応有効フラグ
+
+    .NOTES
+        内部用関数 - Copy-ItemCustom から呼び出されます
+        File Name: relMain.ps1 の Copy-ItemCustom 内部関数
+        Version: 1.2.0
+    #>
     param (
         [Parameter(Mandatory = $true)]
         [string]$ReleaseTypeName,               # ログ用リリースタイプ名

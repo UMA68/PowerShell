@@ -103,13 +103,13 @@ Write-Host ""
 # 検証項目
 $checks = @{
     "【v1.3.0】Exit 文が削除されている" = {
-        $matches = [regex]::Matches($scriptContent, '\bexit\s+\d+\b')
-        if ($matches.Count -eq 0) {
+        $regexMatches = [regex]::Matches($scriptContent, '\bexit\s+\d+\b')
+        if ($regexMatches.Count -eq 0) {
             Write-Host "✅ 合格: Exit 文が0個（完全に削除）" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "❌ 失敗: Exit 文が $($matches.Count) 個見つかった" -ForegroundColor Red
-            $matches | ForEach-Object { Write-Host "  → $_" }
+            Write-Host "❌ 失敗: Exit 文が $($regexMatches.Count) 個見つかった" -ForegroundColor Red
+            $regexMatches | ForEach-Object { Write-Host "  → $_" }
             return $false
         }
     }
@@ -186,12 +186,12 @@ $checks = @{
     }
     
     "【v1.3.0】Exception Type ログが追加されている" = {
-        $matches = [regex]::Matches($scriptContent, 'Exception Type:.*?GetType\(\)\.FullName')
-        if ($matches.Count -gt 2) {
-            Write-Host "✅ 合格: $($matches.Count) 個の例外タイプログが追加されている" -ForegroundColor Green
+        $regexMatches = [regex]::Matches($scriptContent, 'Exception Type:.*?GetType\(\)\.FullName')
+        if ($regexMatches.Count -gt 2) {
+            Write-Host "✅ 合格: $($regexMatches.Count) 個の例外タイプログが追加されている" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "⚠️ 警告: 例外タイプログが少ない（$($matches.Count) 個）" -ForegroundColor Yellow
+            Write-Host "⚠️ 警告: 例外タイプログが少ない（$($regexMatches.Count) 個）" -ForegroundColor Yellow
             return $false
         }
     }
@@ -450,7 +450,8 @@ if ($passCount -eq $totalCount) {
     
     $failed = $results | Where-Object { $_.Result -eq $false }  # 失敗または警告項目を抽出
     Write-Host "【失敗・警告項目】" -ForegroundColor Red
-    $failed | ForEach-Object {  # 失敗・警告項目の表示
+    $failed | ForEach-Object {
+        # 失敗・警告項目の表示
         $status = if ($_.Result) { "⚠️" } else { "❌" }
         Write-Host "  $status $($_.Name)" -ForegroundColor Red
     }

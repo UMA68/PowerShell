@@ -93,21 +93,21 @@ $script:EXIT_NPM_FAILED = 3
 $script:EXIT_FIREWALL_ERROR = 4
 
 # ログヘルパー関数
-<#
-.SYNOPSIS
-    ログメッセージをファイルとコンソールに出力します。
-
-.DESCRIPTION
-    指定されたログレベルに応じて、メッセージをログファイルに記録し、
-    コンソールに色付きで表示します。
-
-.PARAMETER Message
-    ログに記録するメッセージ
-
-.PARAMETER Level
-    ログレベル（INFO, SUCCESS, WARNING, ERROR）
-#>
 function Write-Log {
+    <#
+    .SYNOPSIS
+        ログメッセージをファイルとコンソールに出力します。
+
+    .DESCRIPTION
+        指定されたログレベルに応じて、メッセージをログファイルに記録し、
+        コンソールに色付きで表示します。
+
+    .PARAMETER Message
+        ログに記録するメッセージ
+
+    .PARAMETER Level
+        ログレベル（INFO, SUCCESS, WARNING, ERROR）
+    #>
     param(
         [string]$Message,
         [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]    # ログレベル
@@ -133,37 +133,37 @@ function Write-Log {
 }
 
 # 管理者権限チェック
-<#
-.SYNOPSIS
-    現在のプロセスが管理者権限で実行されているか確認します。
-
-.DESCRIPTION
-    現在のWindowsプリンシパルを取得し、管理者ロールに属しているかを判定します。
-
-.OUTPUTS
-    Boolean - 管理者権限がある場合True、ない場合False
-#>
 function Test-AdminPrivilege {
+    <#
+    .SYNOPSIS
+        現在のプロセスが管理者権限で実行されているか確認します。
+
+    .DESCRIPTION
+        現在のWindowsプリンシパルを取得し、管理者ロールに属しているかを判定します。
+
+    .OUTPUTS
+        Boolean - 管理者権限がある場合True、ない場合False
+    #>
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 # ファイアウォールルール存在チェック
-<#
-.SYNOPSIS
-    指定された表示名のファイアウォールルールが存在するか確認します。
-
-.DESCRIPTION
-    Get-NetFirewallRuleコマンドレットを使用して、指定された表示名の
-    ファイアウォールルールが存在するかを判定します。
-
-.PARAMETER DisplayName
-    確認するファイアウォールルールの表示名
-
-.OUTPUTS
-    Boolean - ルールが存在する場合True、存在しない場合False
-#>
 function Test-FirewallRule {
+    <#
+    .SYNOPSIS
+        指定された表示名のファイアウォールルールが存在するか確認します。
+
+    .DESCRIPTION
+        Get-NetFirewallRuleコマンドレットを使用して、指定された表示名の
+        ファイアウォールルールが存在するかを判定します。
+
+    .PARAMETER DisplayName
+        確認するファイアウォールルールの表示名
+
+    .OUTPUTS
+        Boolean - ルールが存在する場合True、存在しない場合False
+    #>
     param([string]$DisplayName)
     
     try {
@@ -175,21 +175,21 @@ function Test-FirewallRule {
 }
 
 # ファイアウォールルール状態取得
-<#
-.SYNOPSIS
-    指定されたファイアウォールルールの有効/無効状態を取得します。
-
-.DESCRIPTION
-    Get-NetFirewallRuleコマンドレットを使用して、指定された表示名の
-    ファイアウォールルールの有効状態（Enabled）を取得します。
-
-.PARAMETER DisplayName
-    状態を取得するファイアウォールルールの表示名
-
-.OUTPUTS
-    String - ルールの有効状態（'True'または'False'）、エラー時はnull
-#>
 function Get-FirewallRuleState {
+    <#
+    .SYNOPSIS
+        指定されたファイアウォールルールの有効/無効状態を取得します。
+
+    .DESCRIPTION
+        Get-NetFirewallRuleコマンドレットを使用して、指定された表示名の
+        ファイアウォールルールの有効状態（Enabled）を取得します。
+
+    .PARAMETER DisplayName
+        状態を取得するファイアウォールルールの表示名
+
+    .OUTPUTS
+        String - ルールの有効状態（'True'または'False'）、エラー時はnull
+    #>
     param([string]$DisplayName)
     
     try {

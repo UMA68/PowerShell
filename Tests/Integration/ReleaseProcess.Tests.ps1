@@ -97,8 +97,6 @@ Describe 'リリースバッチ統合テスト' {
             
             # 既存ファイルを作成
             Set-Content -Path $destFile -Value 'Old content' -Encoding UTF8
-            $originalTime = (Get-Item $destFile).CreationTime
-            
             # Act
             # 既存ファイルを別名で保存
             $backupName = "{0}.backup_{1:yyyyMMdd_HHmmss}" -f $destFile, (Get-Date)

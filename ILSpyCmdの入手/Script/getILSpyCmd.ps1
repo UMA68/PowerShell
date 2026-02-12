@@ -292,13 +292,13 @@ begin {
     
     # YAML必須フィールドの検証
     $requiredFields = @( # 必須フィールドリスト
-        @{Path = "LOG.FILENAME"; Name = "ログファイル名" },
-        @{Path = "LOG.EXTENSION"; Name = "ログ拡張子" },
-        @{Path = "Project"; Name = "プロジェクト名" },
-        @{Path = "Version"; Name = "バージョン" },
-        @{Path = "DotnetSdk.SdkFolder"; Name = "SDKフォルダ名" },
-        @{Path = "DotnetSdk.Installer"; Name = "SDKインストーラー名" },
-        @{Path = "DotnetSdk.Version"; Name = "SDKバージョン" }
+        @{ Path = "LOG.FILENAME"; Name = "ログファイル名" },
+        @{ Path = "LOG.EXTENSION"; Name = "ログ拡張子" },
+        @{ Path = "Project"; Name = "プロジェクト名" },
+        @{ Path = "Version"; Name = "バージョン" },
+        @{ Path = "DotnetSdk.SdkFolder"; Name = "SDKフォルダ名" },
+        @{ Path = "DotnetSdk.Installer"; Name = "SDKインストーラー名" },
+        @{ Path = "DotnetSdk.Version"; Name = "SDKバージョン" }
     )
     
     # Yamlファイルの必須フィールドチェック
@@ -788,9 +788,11 @@ end {
     
     # 終了コードに基づいてクリーンアップメッセージを出力（可読性向上）
     if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
-        if ($script:ExitCode -eq 0) {   # 正常終了の場合
+        if ($script:ExitCode -eq 0) {
+            # 正常終了の場合
             Add-Content -Path $script:Log -Value "`n=== Script completed successfully (Exit Code: 0) ==="
-        } else {                        # エラー終了の場合
+        } else {
+            # エラー終了の場合
             Add-Content -Path $script:Log -Value "`n=== Script ended with error (Exit Code: $script:ExitCode) ==="
         }
     }
@@ -804,7 +806,8 @@ end {
         } catch {
             if ($script:Log -and (Test-Path $script:Log)) { # ログファイルが存在する場合
                 Write-CommonLog -Message "COMオブジェクト解放に失敗: $($_.Exception.Message)" -LogPath $script:Log -Level "WARN"
-            } else {                                        # ログファイルが存在しない場合
+            } else {
+                # ログファイルが存在しない場合
                 Write-Warning "COMオブジェクト解放に失敗: $($_.Exception.Message)"
             }
         }

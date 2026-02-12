@@ -344,7 +344,7 @@ Describe 'Write-CommonLog' -Tag 'Unit', 'Common' {
             $message = 'デフォルト Quiet テストメッセージ'
             
             # Act
-            $output = Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' 6>&1
+            $null = Write-CommonLog -Message $message -LogPath $logPath -Level 'INFO' 6>&1
             
             # Assert
             Test-Path $logPath | Should -Be $true
