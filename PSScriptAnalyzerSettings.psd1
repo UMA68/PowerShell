@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     PSScriptAnalyzer の設定ファイル
 
