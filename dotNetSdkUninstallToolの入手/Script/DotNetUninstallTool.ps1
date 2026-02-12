@@ -437,6 +437,7 @@ process {
     "" | Out-File -FilePath $script:Log -Append -WhatIf:$false
 
     # メニュー表示関数
+    # ADR-0006: PSScriptAnalyzer Information レベルの扱い
     function Show-Menu {
         <#
         .SYNOPSIS
@@ -461,6 +462,7 @@ process {
     }
 
     # インストール関数
+    # ADR-0006: PSScriptAnalyzer Information レベルの扱い
     function Install-UninstallTool {
         <#
         .SYNOPSIS
@@ -595,6 +597,7 @@ process {
     }
 
     # アンインストール関数
+    # ADR-0006: PSScriptAnalyzer Information レベルの扱い
     function Uninstall-UninstallTool {
         <#
         .SYNOPSIS
