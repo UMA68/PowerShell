@@ -77,6 +77,7 @@ GitHub Copilotより
 ## 概要
 
 このリポジトリは、日常的な開発・運用業務を効率化するためのPowerShellスクリプト集です。各ツールは独立して動作し、YAML設定ファイルによる柔軟なカスタマイズ、詳細なログ出力、エラーハンドリングなど、プロダクション環境でも使用できる品質を目指しています。
+本リポジトリの正式サポートはPowerShell 7.xのみです。
 
 ## 前提条件
 
@@ -84,6 +85,8 @@ GitHub Copilotより
 
 - **Windows 10/11**（一部ツールはWindows専用）
 - **PowerShell 7.3.9 以上**（推奨）
+- **Windows PowerShell 5.1 は非対応**（動作保証しない）
+  - 詳細は [ADR-0007](adr/0007-drop-windows-powershell-5.1.md) を参照
 
   ```powershell
   winget install Microsoft.PowerShell
@@ -605,7 +608,7 @@ Install-Module -Name Pester -MinimumVersion 5.0 -Scope CurrentUser
 
 ### 6. テストの実行
 
-リポジトリの品質を保つため、変更前後にテストを実行してください：
+リポジトリの品質を保つため、変更前後にテストを実行してください（`pwsh` で実行）：
 
 ```powershell
 # すべてのテストを実行

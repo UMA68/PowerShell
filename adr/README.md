@@ -61,6 +61,7 @@ tests/                # Pester テスト
 - [ADR-0004: パフォーマンステストを CI の Unit / Coverage から除外する](0004-exclude-performance-tests-from-ci.md)
 - [ADR-0005: Setup-PowerShell Action を廃止し、ランナー同梱版に統一する](0005-remove-setup-powershell-action.md)
 - [ADR-0006: PSScriptAnalyzer Information レベルの扱い](0006-psscriptanalyzer-information-level.md) 🆕
+- [ADR-0007: Windows PowerShell 5.1 のサポート終了と PowerShell Core (7.x) への統一](0007-drop-windows-powershell-5.1.md)
 
 ---
 
