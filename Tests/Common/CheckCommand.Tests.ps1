@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     CheckCommand 関数のユニットテスト
 

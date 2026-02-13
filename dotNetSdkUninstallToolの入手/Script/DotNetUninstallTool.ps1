@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         .NET Uninstall Tool のインストール/アンインストールを安全に管理します（v1.2.0）。
 

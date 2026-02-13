@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     getILSpyCmd.ps1 v1.3.0+ 検証スクリプト - 包括的な機能検証

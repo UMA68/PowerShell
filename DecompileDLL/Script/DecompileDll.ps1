@@ -1,4 +1,4 @@
-﻿[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'UI出力として色付きメッセージが必要')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'UI出力として色付きメッセージが必要')]
 <#
 .SYNOPSIS
     新旧DLLファイルを逆コンパイルし、差分を比較します。

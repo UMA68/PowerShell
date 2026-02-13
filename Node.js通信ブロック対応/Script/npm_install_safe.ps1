@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     ファイアウォールを一時解除してnpm install/update/ciを安全に実行します。
 
