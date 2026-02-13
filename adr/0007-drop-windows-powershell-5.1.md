@@ -25,10 +25,14 @@ Windows PowerShell 5.1との両対応は以下の課題を生んでいる：
 1. 本リポジトリの正式サポートはPowerShell Core (7.x) のみに統一する
 2. Windows PowerShell 5.1の動作保証は行わない
 3. READMEに記載する動作要件（PowerShell 7.xのみサポート、5.1非対応）と矛盾しないよう、文書と運用を統一する
-4. GitHub Actionsはwindows-latest同梱のpwshで実行し、PowerShell 7.1と最新バージョンのみをテスト対象とする
+4. READMEの「前提条件」・「基本要件」セクションと整合させる
+5. GitHub Actionsはwindows-latest同梱のpwshで実行し、PowerShell 7.1と最新バージョンのみをテスト対象とする
    - `powershell/setup-powershell` は使用しない
-5. ローカルではPowerShell 7.xの複数バージョンでマトリックステストを実施する
-6. 必要に応じて、将来PowerShell 5.1専用リポジトリを新設する
+6. ローカルではPowerShell 7.xの複数バージョンでマトリックステストを実施する
+7. 必要に応じて、将来PowerShell 5.1専用リポジトリを新設する
+8. PowerShellの新バージョンが出た場合は手動で更新する
+9. 7.xの新バージョンが出た場合、手動でCIマトリックスを更新する
+10. 5.1は技術負債を隔離するため、将来必要になったときに専用リポジトリで対応する
 
 ## Rationale
 
@@ -61,6 +65,7 @@ Windows PowerShell 5.1との両対応は以下の課題を生んでいる：
 - GitHub ActionsのPesterワークフローを7.1と最新バージョンのみに整理する
 - ローカル検証用に7.xの複数バージョンを用意し、マトリックステスト手順を明文化する
 - READMEと必要なドキュメントに「7.xのみサポート」「5.1非対応」を明示する
+- 5.1は技術負債を本流から分離するため、必要時に専用リポジトリで対応する
 
 ## Related Documents
 
