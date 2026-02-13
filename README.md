@@ -1,6 +1,6 @@
 # PowerShell ユーティリティ集
 
-![PowerShell](https://img.shields.io/badge/PowerShell-7.3+-blue.svg)
+![PowerShell](https://img.shields.io/badge/PowerShell-7.x-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 ![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)
@@ -58,6 +58,8 @@ GitHub Copilotより
       - [推奨方法：ショートカットを使用](#推奨方法ショートカットを使用)
       - [手動インストール（オプション）](#手動インストールオプション)
     - [6. テストの実行](#6-テストの実行)
+      - [ローカルテスト（pwsh）](#ローカルテストpwsh)
+    - [CI（GitHub Actions）](#cigithub-actions)
     - [7. コード品質チェック](#7-コード品質チェック)
     - [8. 暗号化鍵の作成（オプション）](#8-暗号化鍵の作成オプション)
     - [9. デバッグ設定（開発時）](#9-デバッグ設定開発時)
@@ -77,14 +79,16 @@ GitHub Copilotより
 ## 概要
 
 このリポジトリは、日常的な開発・運用業務を効率化するためのPowerShellスクリプト集です。各ツールは独立して動作し、YAML設定ファイルによる柔軟なカスタマイズ、詳細なログ出力、エラーハンドリングなど、プロダクション環境でも使用できる品質を目指しています。
-本リポジトリの正式サポートはPowerShell 7.xのみです。
+本リポジトリの正式サポートはPowerShell 7.xのみです（原則として最新）。
 
 ## 前提条件
 
 ### 基本要件
 
-- **Windows 10/11**（一部ツールはWindows専用）
-- **PowerShell 7.3.9 以上**（推奨）
+**PowerShell 7.x のみサポートし、Windows PowerShell 5.1 は動作保証しません。**
+
+- **対応 OS: Windows 10/11**（一部ツールはWindows専用）
+- **PowerShell 7.x（原則として最新）**
 - **Windows PowerShell 5.1 は非対応**（動作保証しない）
   - 詳細は [ADR-0007](adr/0007-drop-windows-powershell-5.1.md) を参照
 
@@ -608,14 +612,34 @@ Install-Module -Name Pester -MinimumVersion 5.0 -Scope CurrentUser
 
 ### 6. テストの実行
 
-リポジトリの品質を保つため、変更前後にテストを実行してください（`pwsh` で実行）：
+リポジトリの品質を保つため、変更前後にテストを実行してください（PowerShell 7.x / `pwsh` 前提）：
+
+#### ローカルテスト（pwsh）
+
+<!-- updated -->
+
+```powershell
+# PowerShell 7.x（pwsh）でローカルの Unit テストを実行する例
+pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\ -Tag 'Unit'"
+
+# Integration テストがある場合
+pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\"
+```
+
+```powershell
+# PowerShell 7.x を起動
+pwsh
+
+# Unit テストのみ実行
+Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+```
 
 ```powershell
 # すべてのテストを実行
 Invoke-Pester -Path .\Tests\ -Verbose
 
-# Unit テストのみ実行
-Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+# Integration テストのみ実行
+Invoke-Pester -Path .\Tests\ -Tag 'Integration' -Verbose
 
 # 特定のテストファイルを実行
 Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
@@ -632,6 +656,10 @@ Invoke-Pester -Configuration $config
 ```
 
 **詳細**: [Tests/README.md](Tests/README.md) をご覧ください。
+
+### CI（GitHub Actions）
+
+CI でもローカルでも、PowerShell 7.x（原則として最新）を前提にしています。GitHub Actions では [pester.yml](.github/workflows/pester.yml) が `windows-latest` 同梱の `pwsh` を使用して PowerShell 7.x 向けテストを実行します。詳細は [pester.yml](.github/workflows/pester.yml) と [ADR-0007](adr/0007-drop-windows-powershell-5.1.md) を参照してください。
 
 ### 7. コード品質チェック
 
