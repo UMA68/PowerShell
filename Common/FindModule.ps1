@@ -202,7 +202,7 @@ function Test-ModuleInstalled {
                 }
                 finally {
                     # COM オブジェクトを確実に解放
-                    if ($null -ne $obj) {
+                    if ($null -ne $obj -and $obj -is [System.__ComObject]) {
                         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null
                         [System.GC]::Collect()
                         [System.GC]::WaitForPendingFinalizers()
