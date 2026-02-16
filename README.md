@@ -659,7 +659,7 @@ Invoke-Pester -Configuration $config
 
 ### CI（GitHub Actions）
 
-CI でもローカルでも、PowerShell 7.x（原則として最新）を前提にしています。GitHub Actions では [pester.yml](.github/workflows/pester.yml) が `windows-latest` 同梱の `pwsh` を使用して PowerShell 7.x 向けテストを実行します。詳細は [pester.yml](.github/workflows/pester.yml) と [ADR-0007](adr/0007-drop-windows-powershell-5.1.md) を参照してください。
+CIでもローカルでも、PowerShell 7.x（原則として最新）を前提にしています。GitHub Actionsでは [pester.yml](.github/workflows/pester.yml) が `windows-latest` 同梱の `pwsh` を使用してPowerShell 7.x向けテストを実行します。詳細は [pester.yml](.github/workflows/pester.yml) と [ADR-0007](adr/0007-drop-windows-powershell-5.1.md) を参照してください。
 
 ### 7. コード品質チェック
 
