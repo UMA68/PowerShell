@@ -70,6 +70,9 @@ Invoke-Pester -Path .\Tests\ -OutputFormat NUnitXml -OutputFile test-results.xml
 # Common モジュールのテストのみ
 Invoke-Pester -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
 
+# FindModule のテストのみ
+Invoke-Pester -Path .\Tests\Common\FindModule.Tests.ps1 -Verbose
+
 # 統合テストのみ
 Invoke-Pester -Path .\Tests\Integration\ -Verbose
 ```
