@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="28" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-02-20" time="13:12:34">
+  <environment machine-name="FMV_LOOX" clr-version="9.0.10" nunit-version="2.5.8.0" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk0\Partition3" cwd="C:\Users\徳永光浩\GitHub\PowerShell" user="徳永光浩" user-domain="AzureAD" os-version="10.0.26200" />
+  <culture-info current-culture="ja-JP" current-uiculture="ja-JP" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="7.0574" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="C:\Users\徳永光浩\GitHub\PowerShell\Tests\Common\CheckCommand.Tests.ps1" executed="True" result="Success" success="True" time="7.0574" asserts="0" description="C:\Users\徳永光浩\GitHub\PowerShell\Tests\Common\CheckCommand.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Test-Command" executed="True" result="Success" success="True" time="4.5656" asserts="0" description="Test-Command">
+            <results>
+              <test-suite type="TestFixture" name="Test-Command.正常系: コマンド存在確認" executed="True" result="Success" success="True" time="1.5624" asserts="0" description="Test-Command.正常系: コマンド存在確認">
+                <results>
+                  <test-case description="PowerShell の組み込みコマンドが存在することを検出" name="Test-Command.正常系: コマンド存在確認.PowerShell の組み込みコマンドが存在することを検出" time="0.8244" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="Cmdlet が存在することを検出" name="Test-Command.正常系: コマンド存在確認.Cmdlet が存在することを検出" time="0.031" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="エイリアスが存在することを検出" name="Test-Command.正常系: コマンド存在確認.エイリアスが存在することを検出" time="0.0407" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="インストールされたモジュールのコマンドが存在することを検出" name="Test-Command.正常系: コマンド存在確認.インストールされたモジュールのコマンドが存在することを検出" time="0.3255" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.異常系: コマンド不在確認" executed="True" result="Success" success="True" time="2.0536" asserts="0" description="Test-Command.異常系: コマンド不在確認">
+                <results>
+                  <test-case description="存在しないコマンドが見つからないことを検出" name="Test-Command.異常系: コマンド不在確認.存在しないコマンドが見つからないことを検出" time="0.2751" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="タイポされたコマンド名が見つからないことを検出" name="Test-Command.異常系: コマンド不在確認.タイポされたコマンド名が見つからないことを検出" time="0.1088" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="存在しないモジュールのコマンドが見つからないことを検出" name="Test-Command.異常系: コマンド不在確認.存在しないモジュールのコマンドが見つからないことを検出" time="0.1019" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.パラメータの検証" executed="True" result="Success" success="True" time="2.2518" asserts="0" description="Test-Command.パラメータの検証">
+                <results>
+                  <test-case description="ComName パラメータが指定されない場合、デフォルト値が使用される" name="Test-Command.パラメータの検証.ComName パラメータが指定されない場合、デフォルト値が使用される" time="0.1156" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="コマンド名が大文字小文字を区別しない" name="Test-Command.パラメータの検証.コマンド名が大文字小文字を区別しない" time="0.0363" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="コマンド名の前後の空白が削除される" name="Test-Command.パラメータの検証.コマンド名の前後の空白が削除される" time="0.0375" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.エラーハンドリング" executed="True" result="Success" success="True" time="2.5345" asserts="0" description="Test-Command.エラーハンドリング">
+                <results>
+                  <test-case description="コマンド名が null の場合、エラーが発生" name="Test-Command.エラーハンドリング.コマンド名が null の場合、エラーが発生" time="0.1101" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="コマンド名が空文字列の場合、エラーが発生" name="Test-Command.エラーハンドリング.コマンド名が空文字列の場合、エラーが発生" time="0.0828" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="コマンド名が空白のみの場合、エラーが発生" name="Test-Command.エラーハンドリング.コマンド名が空白のみの場合、エラーが発生" time="0.0838" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.パフォーマンス" executed="True" result="Success" success="True" time="2.6059" asserts="0" description="Test-Command.パフォーマンス">
+                <results>
+                  <test-case description="複数のコマンドを高速に検査できる" name="Test-Command.パフォーマンス.複数のコマンドを高速に検査できる" time="0.0652" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.スクリプト特有のコマンド" executed="True" result="Success" success="True" time="2.6527" asserts="0" description="Test-Command.スクリプト特有のコマンド">
+                <results>
+                  <test-case description="dll ファイルベースのコマンドを検出" name="Test-Command.スクリプト特有のコマンド.dll ファイルベースのコマンドを検出" time="0.0413" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.モジュール修飾コマンド名" executed="True" result="Success" success="True" time="2.8016" asserts="0" description="Test-Command.モジュール修飾コマンド名">
+                <results>
+                  <test-case description="モジュール修飾された既存コマンドが存在することを検出" name="Test-Command.モジュール修飾コマンド名.モジュール修飾された既存コマンドが存在することを検出" time="0.0394" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="モジュール修飾された存在しないコマンドが見つからないことを検出" name="Test-Command.モジュール修飾コマンド名.モジュール修飾された存在しないコマンドが見つからないことを検出" time="0.1041" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.ワイルドカード指定時の警告" executed="True" result="Success" success="True" time="3.026" asserts="0" description="Test-Command.ワイルドカード指定時の警告">
+                <results>
+                  <test-case description="ワイルドカードを含むコマンド名で警告が発生" name="Test-Command.ワイルドカード指定時の警告.ワイルドカードを含むコマンド名で警告が発生" time="0.1297" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ワイルドカードなしのコマンド名で警告が発生しない" name="Test-Command.ワイルドカード指定時の警告.ワイルドカードなしのコマンド名で警告が発生しない" time="0.0885" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.Verbose 出力" executed="True" result="Success" success="True" time="3.3177" asserts="0" description="Test-Command.Verbose 出力">
+                <results>
+                  <test-case description="Verbose モードで詳細情報が出力される" name="Test-Command.Verbose 出力.Verbose モードで詳細情報が出力される" time="0.1013" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="Verbose モードで存在しないコマンドは検出されない" name="Test-Command.Verbose 出力.Verbose モードで存在しないコマンドは検出されない" time="0.1843" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.外部実行可能ファイル検出" executed="True" result="Success" success="True" time="3.6328" asserts="0" description="Test-Command.外部実行可能ファイル検出">
+                <results>
+                  <test-case description="PATH 上の notepad.exe が検出される（存在する場合）" name="Test-Command.外部実行可能ファイル検出.PATH 上の notepad.exe が検出される（存在する場合）" time="0.0679" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="PATH 上の cmd.exe が検出される（存在する場合）" name="Test-Command.外部実行可能ファイル検出.PATH 上の cmd.exe が検出される（存在する場合）" time="0.057" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="PATH 上に存在しない外部コマンドが検出されない" name="Test-Command.外部実行可能ファイル検出.PATH 上に存在しない外部コマンドが検出されない" time="0.1837" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Test-Command.エッジケース: コマンド名" executed="True" result="Success" success="True" time="4.4889" asserts="0" description="Test-Command.エッジケース: コマンド名">
+                <results>
+                  <test-case description="非常に長いコマンド名でもエラーが発生しない" name="Test-Command.エッジケース: コマンド名.非常に長いコマンド名でもエラーが発生しない" time="0.2805" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="非常に長いコマンド名は存在しないと判定される" name="Test-Command.エッジケース: コマンド名.非常に長いコマンド名は存在しないと判定される" time="0.1738" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="Unicode を含むコマンド名が存在しないことを検出" name="Test-Command.エッジケース: コマンド名.Unicode を含むコマンド名が存在しないことを検出" time="0.1665" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="Unicode を含むコマンド名でもエラーが発生しない" name="Test-Command.エッジケース: コマンド名.Unicode を含むコマンド名でもエラーが発生しない" time="0.219" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>
