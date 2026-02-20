@@ -8,4 +8,5 @@
 - ADR-9006-emergency-protocol / 非常時プロトコル（迷ったら戻る判断基準）
 - ADR-9007-notebook-lifecycle / Copilot Notebookのライフサイクル
 - ADR-9008-red-team-review / 赤チーム（意地悪レビュー）運用
+- ADR-9009-pester-ci-centralization-guardrails / ADR-0009（Pester CI集約）の運用ガード条件
   
