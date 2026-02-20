@@ -3,24 +3,12 @@ name: Pester Tests
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - '**.ps1'
-      - '**.psm1'
-      - '**.psd1'
-      - 'Tests/**'
-      - '.github/workflows/pester.yml'
     paths-ignore:
       - 'Run-Pester5.ps1'
       - 'Run-Pester5.txt'
       - '.localmodules/**'
   pull_request:
     branches: [ main, develop ]
-    paths:
-      - '**.ps1'
-      - '**.psm1'
-      - '**.psd1'
-      - 'Tests/**'
-      - '.github/workflows/pester.yml'
     paths-ignore:
       - 'Run-Pester5.ps1'
       - 'Run-Pester5.txt'
