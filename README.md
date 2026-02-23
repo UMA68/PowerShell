@@ -2,17 +2,36 @@
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.x-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
-![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)
+![CI](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml/badge.svg)
+![PSScriptAnalyzer](https://img.shields.io/badge/PSScriptAnalyzer-enabled-brightgreen.svg)
+
 ![Code Quality](https://img.shields.io/badge/Code%20Quality-Good-brightgreen.svg)
 
+---
+
+## 🔬 品質と設計方針（Public 向け補足）
+
+このリポジトリは **業務コードを直接公開するものではありません**。
+個人環境で検証・設計した **サンプル／試作（演武）スクリプト集** を公開しています。
+
+### クリーンルーム運用
+
+- 業務環境（ネット分離・管理端末）とは **ファイルを移動せず完全分離**
+- 実装コードは業務端末で **ゼロから再入力・再構築** する運用を徹底
+- 本リポジトリに **業務情報・機密情報は含まれません**
+
+### 品質保証（CI）
+
+- **Pester** による自動テスト（ローカル / GitHub Actions）
+- **PSScriptAnalyzer** による静的解析（明示ルールのみ適用）
+- CI では *テスト + 静的解析* を必須とし、品質基準を満たす変更のみを許可します
+
+この構成により、
+> 「実務に持ち込めるかどうか」を判断するための *安全な検証台*  
+として利用できることを目的としています。
+
+---
 実務で役立つPowerShellスクリプト・ユーティリティのコレクションです。開発、セキュリティ、システム管理、データベース操作など、さまざまな用途に対応したツールを提供します。
-
-```Attention
-GitHub Copilotより
-
-ステータスバッジについて、「パブリック公開するので GitHub Actions バッジに戻して」と言ってください。その際に実装します。
-```
 
 ## 📚 目次
 
