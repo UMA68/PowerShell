@@ -1,5 +1,9 @@
 # PowerShell ユーティリティ集
 
+実務で役立つ PowerShell ユーティリティ集です。
+テスト（Pester）と静的解析（PSScriptAnalyzer）を前提に、迷わず・壊れず・あとで自分が助かる自動化を積み上げています。
+定年後も通用する「安全に使える PowerShell の型」を残すことを目的としています。
+
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.x-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![CI](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml/badge.svg)
@@ -31,7 +35,6 @@
 として利用できることを目的としています。
 
 ---
-実務で役立つPowerShellスクリプト・ユーティリティのコレクションです。開発、セキュリティ、システム管理、データベース操作など、さまざまな用途に対応したツールを提供します。
 
 ## 📚 目次
 
