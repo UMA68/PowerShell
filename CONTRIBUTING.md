@@ -231,7 +231,7 @@ Invoke-ScriptAnalyzer -Path .\Script\YourScript.ps1 -Settings .\PSScriptAnalyzer
 ```
 
 - 抑制は最小単位（関数単位）で実施し、`Justification` に理由を明記してください。
-- `Error`/`Warning` の抑制は原則不可です（必要時は ADR または PR 説明で合意を取る）。
+- `Error`/`Warning` の抑制は原則不可です（必要時はADRまたはPR説明で合意を取る）。
 
 ### ファイル構成
 
