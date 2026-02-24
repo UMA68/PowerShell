@@ -49,6 +49,10 @@
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Write-Log', Justification = 'end ブロック内の内部関数のため')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Test-AdminPrivilege', Justification = 'end ブロック内の内部関数のため')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Test-FirewallRule', Justification = 'end ブロック内の内部関数のため')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Get-FirewallRuleState', Justification = 'end ブロック内の内部関数のため')]
 param (
     [Parameter(Mandatory = $false)]
     [ValidateSet("uninstall", "update", "ci")]  # コマンドの選択肢を制限
