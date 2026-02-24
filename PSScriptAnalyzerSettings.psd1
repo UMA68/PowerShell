@@ -68,12 +68,6 @@
         'PSUsePSCredentialType'                    # PSCredential型の使用
     )
     
-    # CI の品質ゲート対象外にするスクリプト
-    ExcludePaths = @(
-        '.\audit-prepublic.ps1'                    # 監査用スクリプト（品質ゲート対象外）
-    )
-
-
     Rules = @{
         # 空白の一貫性ルール
         PSUseConsistentWhitespace = @{
