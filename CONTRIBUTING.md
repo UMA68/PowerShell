@@ -215,6 +215,24 @@ Invoke-ScriptAnalyzer -Path .\Script\YourScript.ps1 -Settings .\PSScriptAnalyzer
 - `PSUseApprovedVerbs`: 承認された動詞を使用
 - `PSAvoidUsingWriteHost`: `Write-Host`の代わりに`Write-Output`を使用
 
+**`PSProvideCommentHelp` の補足（内部関数）**:
+
+- `begin/process/end` ブロック内に定義する内部関数は、コメントヘルプを記述していても `PSProvideCommentHelp` が検出する場合があります。
+- その場合は設定全体を緩めず、対象関数のみをスクリプト属性で限定抑制してください。
+
+```powershell
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSProvideCommentHelp',
+    '',
+    Scope = 'Function',
+    Target = 'Function-Name',
+    Justification = 'begin/process/end 内の内部関数のため'
+)]
+```
+
+- 抑制は最小単位（関数単位）で実施し、`Justification` に理由を明記してください。
+- `Error`/`Warning` の抑制は原則不可です（必要時は ADR または PR 説明で合意を取る）。
+
 ### ファイル構成
 
 ```powershell
