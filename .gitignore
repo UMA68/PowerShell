@@ -1,60 +1,85 @@
-# 以下を管理対象から除外
+# =========================================================
+# 公開リポジトリ向け .gitignore
+# 方針:
+# - 業務由来データ・取得物・生成物・ログは commit しない
+# - サンプル／コード／再現可能な定義のみを GitHub に残す
+# =========================================================
 
-# セキュア情報（暗号化鍵・パスワード）
+# ---------------------------------------------------------
+# セキュア情報（鍵・パスワード・復号素材）
+# ---------------------------------------------------------
 Common/Encryption.Key
 *.pass
 
-# SQLクエリー実行
-SQLクエリー実行/LOG
-SQLクエリー実行/SQL
+# ---------------------------------------------------------
+# 実行ログ・生成物（業務スクリプト系）
+# ---------------------------------------------------------
+SQLクエリー実行/LOG/
+SQLクエリー実行/SQL/
 
-# 必要なモジュールの導入
-必要なモジュールの導入/LOG
+必要なモジュールの導入/LOG/
 
-# ファイルアクセスブロック解除
-ファイルアクセスブロック解除/FileAccessBlock
+ファイルアクセスブロック解除/FileAccessBlock/
 
-# ILSpyCmdの入手
-ILSpyCmdの入手/LOG/*
+# ---------------------------------------------------------
+# 取得ツール・インストーラ（再取得可能なもの）
+# ---------------------------------------------------------
+ILSpyCmdの入手/LOG/
 ILSpyCmdの入手/DotnetSDK/dotnet-sdk-8.0.411-win-x64.exe
 
-# dotNetSdkUninstallToolの入手
 dotNetSdkUninstallToolの入手/dotNetSdkUninstallTool/dotnet-core-uninstall.msi
-dotNetSdkUninstallToolの入手/LOG/*
+dotNetSdkUninstallToolの入手/LOG/
 
-# DecompileDLL
-DecompileDLL/Dlls/Decompiled/*
-DecompileDLL/Dlls/New/*
-DecompileDLL/Dlls/Old/*
-# DecompileDLL/Dlls/Reports
-DecompileDLL/LOG/*
+# ---------------------------------------------------------
+# DLL 逆コンパイル成果物（生成物）
+# ---------------------------------------------------------
+DecompileDLL/Dlls/Decompiled/
+DecompileDLL/Dlls/New/
+DecompileDLL/Dlls/Old/
+DecompileDLL/LOG/
 
-# DotnetSdk削除
-DotnetSdk削除/LOG/*
+# ---------------------------------------------------------
+# SDK / 環境操作ログ
+# ---------------------------------------------------------
+DotnetSdk削除/LOG/
+Node.js通信ブロック対応/LOG/
 
-# Node.js通信ブロック対応
-Node.js通信ブロック対応/LOG/*
-
-# Excelの操作
+# ---------------------------------------------------------
+# Excel 操作（個別データ）
+# ---------------------------------------------------------
 Excelの操作/Excel/compdata.xlsx
 Excelの操作/Excel/ExptExcel.xlsx
 
-# OS・IDE生成ファイル
+# ---------------------------------------------------------
+# テスト・CI 生成物（公開前監査対象）
+# ※ audit-prepublic.ps1 で 🔴 判定されるもの
+# ---------------------------------------------------------
+testResults.xml
+**/testResults.xml
+AllTests-Report.xml
+**/AllTests-Report.xml
+ReleaseProcess-Test.xml
+**/ReleaseProcess-Test.xml
+
+LOG/
+**/LOG/
+**/*.xml
+**/*.log
+
+# ---------------------------------------------------------
+# OS / IDE 生成ファイル
+# ---------------------------------------------------------
 .DS_Store
 Thumbs.db
-*.log
 *.tmp
+
 .vscode/settings.json
 .vscode/launch.json
 SQLクエリー実行/.vscode/launch.json
 暗号化文字列の復元/.vscode/launch.json
 必要なモジュールの導入/.vscode/launch.json
 
+# ---------------------------------------------------------
 # その他テンポラリ
+# ---------------------------------------------------------
 */.vs
-
-
-
-
-
-
