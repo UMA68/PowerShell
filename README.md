@@ -1,8 +1,8 @@
 # PowerShell ユーティリティ集
 
-実務で役立つ PowerShell ユーティリティ集です。
+実務で役立つPowerShellユーティリティ集です。
 テスト（Pester）と静的解析（PSScriptAnalyzer）を前提に、迷わず・壊れず・あとで自分が助かる自動化を積み上げています。
-定年後も通用する「安全に使える PowerShell の型」を残すことを目的としています。
+定年後も通用する「安全に使えるPowerShellの型」を残すことを目的としています。
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.x-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -28,7 +28,7 @@
 
 - **Pester** による自動テスト（ローカル / GitHub Actions）
 - **PSScriptAnalyzer** による静的解析（明示ルールのみ適用）
-- CI では *テスト + 静的解析* を必須とし、品質基準を満たす変更のみを許可します
+- CIでは *テスト + 静的解析* を必須とし、品質基準を満たす変更のみを許可します
 
 この構成により、
 > 「実務に持ち込めるかどうか」を判断するための *安全な検証台*  
@@ -39,6 +39,9 @@
 ## 📚 目次
 
 - [PowerShell ユーティリティ集](#powershell-ユーティリティ集)
+  - [� 品質と設計方針（Public 向け補足）](#-品質と設計方針public-向け補足)
+    - [クリーンルーム運用](#クリーンルーム運用)
+    - [品質保証（CI）](#品質保証ci)
   - [📚 目次](#-目次)
   - [概要](#概要)
   - [前提条件](#前提条件)
