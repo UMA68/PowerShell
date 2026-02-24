@@ -160,6 +160,9 @@
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Show-Menu', Justification = 'processブロック内内部関数の解析制限対応')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Install-UninstallTool', Justification = 'processブロック内内部関数の解析制限対応')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Scope = 'Function', Target = 'Uninstall-UninstallTool', Justification = 'processブロック内内部関数の解析制限対応')]
 param (
     [Parameter(Mandatory = $false)]
     [switch]$SkipAdminCheck  # 管理者権限チェックをスキップ（デバッグ用）
