@@ -64,6 +64,7 @@ tests/                # Pester テスト
 - [ADR-0007: Windows PowerShell 5.1 のサポート終了と PowerShell Core (7.x) への統一](0007-drop-windows-powershell-5.1.md)
 - [ADR-0008: ShowDialog の COM 解放とテスト容易性](0008-showdialog-com-release-and-testability.md)
 - [ADR-0009: Pester 5 テスト実行環境を GitHub Actions に集約する](0009-pester-test-environments.md)
+- [ADR-0010: ローカル環境における Pester 5.6.1 の動作確認結果とその位置づけ](0010-local-pester-5-6-1-observation.md)
 
 ---
 
