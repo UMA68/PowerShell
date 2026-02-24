@@ -66,10 +66,13 @@
         # パフォーマンス
         'PSAvoidAssignmentToAutomaticVariable',    # 自動変数への代入を回避
         'PSUsePSCredentialType'                    # PSCredential型の使用
-
-          # CI の品質ゲート対象外にするスクリプト
-          '.\audit-prepublic.ps1'                  # 監査スクリプトは品質ゲート対象外（必要に応じて追加）
     )
+    
+    # CI の品質ゲート対象外にするスクリプト
+    ExcludePaths = @(
+        '.\audit-prepublic.ps1'                    # 監査用スクリプト（品質ゲート対象外）
+    )
+
 
     Rules = @{
         # 空白の一貫性ルール
