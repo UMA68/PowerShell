@@ -50,9 +50,37 @@ jobs:
         Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
         Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
 
+        # ADR-0011/0012: CI で常時実行する静的解析モジュール
+        Write-Host "PSScriptAnalyzer をインストール中..." -ForegroundColor Cyan
+        Install-Module -Name PSScriptAnalyzer -MinimumVersion 1.22.0 -Force -Scope CurrentUser
+
         Write-Host "モジュール情報:" -ForegroundColor Cyan
         Get-Module -ListAvailable Pester | Select-Object Name, Version
         Get-Module -ListAvailable PowerShell-Yaml | Select-Object Name, Version
+        Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
+
+    - name: PSScriptAnalyzer を実行（Error/Warning のみ失敗）
+      run: |
+        # ADR-0011/0012: 設定の正本は PSScriptAnalyzerSettings.psd1、CI 失敗条件は Error/Warning のみ
+        $settingsPath = Join-Path $PWD 'PSScriptAnalyzerSettings.psd1'
+        if (-not (Test-Path $settingsPath)) {
+          throw "PSScriptAnalyzer 設定ファイルが見つかりません: $settingsPath"
+        }
+
+        $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings $settingsPath
+
+        if ($results) {
+          # 失敗時に最小限の情報（ファイル/ルール/Severity）が分かる出力
+          $results |
+            Select-Object ScriptName, RuleName, Severity, Line, Message |
+            Sort-Object Severity, ScriptName, RuleName, Line |
+            Format-Table -AutoSize
+        }
+
+        $blocking = @($results | Where-Object { $_.Severity -in @('Error', 'Warning') })
+        if ($blocking.Count -gt 0) {
+          throw "PSScriptAnalyzer で Error/Warning が $($blocking.Count) 件検出されました。"
+        }
 
     - name: Pester テストを実行（Unit テスト）
       run: |
