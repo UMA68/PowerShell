@@ -33,6 +33,7 @@
 - [ADR-9006: 非常時プロトコル（迷ったら戻る）](9000-meta/ADR-9006-emergency-protocol.md)
 - [ADR-9007: Copilot Notebook のライフサイクル](9000-meta/ADR-9007-notebook-lifecycle.md)
 - [ADR-9008: 赤チーム（意地悪レビュー）運用](9000-meta/ADR-9008-red-team-review.md)
+- [ADR-9009: ADR-0009（Pester CI集約）に対する運用ガードレール](9000-meta/ADR-9009-pester-ci-centralization-guardrails.md)
 
 👉 **迷ったら、まずここを読む。**
 
@@ -65,6 +66,9 @@ tests/                # Pester テスト
 - [ADR-0008: ShowDialog の COM 解放とテスト容易性](0008-showdialog-com-release-and-testability.md)
 - [ADR-0009: Pester 5 テスト実行環境を GitHub Actions に集約する](0009-pester-test-environments.md)
 - [ADR-0010: ローカル環境における Pester 5.6.1 の動作確認結果とその位置づけ](0010-local-pester-5-6-1-observation.md)
+- [ADR-0011: リポジトリ全体に対する PSScriptAnalyzer 実行方針を確定する](0011-repository-wide-scriptanalyzer-policy.md)
+- [ADR-0012: PSScriptAnalyzer を CI に組み込むタイミングとローカル実行との責務分離](0012-scriptanalyzer-ci-and-local-responsibilities.md)
+- [ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](0013-quarterly-ci-as-environment-signal.md)
 
 ---
 
