@@ -1,0 +1,33 @@
+# .github/workflows/quarterly-ci.yml
+name: Quarterly CI (Environment Check)
+
+on:
+  schedule:
+    # Quarterly: Jan / Apr / Jul / Oct 01:00 UTC (10:00 JST)
+    - cron: '0 1 1 1,4,7,10 *'
+  workflow_dispatch:
+
+jobs:
+  environment-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show runner environment
+        run: |
+          echo "Runner OS: $RUNNER_OS"
+          uname -a || true
+
+      - name: Show PowerShell version
+        run: |
+          pwsh -Command '$PSVersionTable'
+
+      - name: Show PSScriptAnalyzer version
+        run: |
+          pwsh -Command 'Get-Module PSScriptAnalyzer -ListAvailable | Select Name, Version'
+
+      - name: Show Pester version
+        run: |
+          pwsh -Command 'Get-Module Pester -ListAvailable | Select Name, Version'
