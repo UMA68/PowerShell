@@ -60,19 +60,29 @@
 param(
   [Parameter()] [string]$RepoRoot = (Get-Location).Path,
   [Parameter()] [string]$ForbiddenDomainRegex = $env:FORBIDDEN_DOMAIN_REGEX,
-  [Parameter()] [string]$AllowEmailDomainRegex = '^(example\\.com|example\\.jp|example\\.org)$',
+  [Parameter()] [string]$AllowEmailDomainRegex = '^(example\.com|example\.jp|example\.org)$',
   [Parameter()] [string]$AllowedPathRegex = $env:ALLOWED_PATH_REGEX,
-  [Parameter()] [string[]]$IncludeGlobs = @('**/*.ps1','**/*.psm1','**/*.psd1','**/*.md','**/*.txt','**/*.yml','**/*.yaml','**/*.json','**/*.xml','**/*.sql','**/*.csv'),
-  [Parameter()] [string[]]$ExcludeGlobs = @('**/.git/**','**/bin/**','**/obj/**','**/.vs/**','**/.vscode/**','**/node_modules/**','**/.venv/**','**/__pycache__/**'),
+  # スキャン対象とするファイルのグロブパターン（拡張子ベース）
+  # Get-TargetFile では -like で評価するため、ファイル名ベースのパターンを使用する。
+  [Parameter()] [string[]]$IncludeGlobs = @(
+    '*.ps1', '*.psm1', '*.psd1',
+    '*.md', '*.txt', '*.yml', '*.yaml',
+    '*.json', '*.xml', '*.sql', '*.csv'
+  ),
+  [Parameter()] [string[]]$ExcludeGlobs = @('**/.git/**', '**/bin/**', '**/obj/**', '**/.vs/**', '**/.vscode/**', '**/node_modules/**', '**/.venv/**', '**/__pycache__/**'),
   [Parameter()] [switch]$UseRipgrep
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+<#
+.SYNOPSIS
+  監査結果1件をオブジェクトとして生成します。
+#>
 function Write-Finding {
   param(
-    [ValidateSet('CRITICAL','WARNING','INFO')] [string]$Severity,
+    [ValidateSet('CRITICAL', 'WARNING', 'INFO')] [string]$Severity,
     [string]$Rule,
     [string]$File,
     [int]$Line,
@@ -80,52 +90,73 @@ function Write-Finding {
   )
   [PSCustomObject]@{
     Severity = $Severity
-    Rule     = $Rule
-    File     = $File
-    Line     = $Line
-    Text     = $Text
+    Rule = $Rule
+    File = $File
+    Line = $Line
+    Text = $Text
   }
 }
 
-function Test-CommandExists([string]$Name) {
+<#
+.SYNOPSIS
+  コマンドが実行可能かを判定します。
+#>
+function Test-CommandAvailable([string]$Name) {
   return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
-function Get-TargetFiles {
+<#
+.SYNOPSIS
+  監査対象ファイル一覧を取得します。
+#>
+function Get-TargetFile {
   param([string]$Root)
 
-  # Get-ChildItem で全ファイルを取得し、拡張子ベースでフィルタリングします。
+  # Get-ChildItem で全ファイルを取得し、Include/ExcludeGlobs と既知ディレクトリ除外で絞り込みます。
   $all = Get-ChildItem -Path $Root -Recurse -File -Force -ErrorAction SilentlyContinue
 
-  $excluded = New-Object System.Collections.Generic.HashSet[string]
-  foreach ($g in $ExcludeGlobs) {
-    foreach ($f in $all) {
-      # よくあるパターンだけ簡易に除外（完全なグロブ実装ではなく「実用優先」）
-      if ($g -like '**/.git/**' -and $f.FullName -match '\\|/' ) {
-        if ($f.FullName -match '([\\/])\\.git([\\/])') { $excluded.Add($f.FullName) | Out-Null }
+  # 最低限の既知ディレクトリ除外（README の公開前チェック方針に合わせる）
+  $mandatoryExcludeRegex = '(?i)([\\/])(\.git|bin|obj|node_modules|\.vscode|\.vs|\.venv|__pycache__)([\\/])'
+
+  $targets = foreach ($f in $all) {
+    $relativePath = [System.IO.Path]::GetRelativePath($Root, $f.FullName).Replace('\\', '/')
+
+    if ($f.FullName -match $mandatoryExcludeRegex) { continue }
+
+    $isIncluded = $false
+    foreach ($pattern in $IncludeGlobs) {
+      if ($relativePath -like $pattern) {
+        $isIncluded = $true
+        break
       }
-      elseif ($g -like '**/bin/**' -and $f.FullName -match '([\\/])bin([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/obj/**' -and $f.FullName -match '([\\/])obj([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/node_modules/**' -and $f.FullName -match '([\\/])node_modules([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/.vscode/**' -and $f.FullName -match '([\\/])\\.vscode([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/.vs/**' -and $f.FullName -match '([\\/])\\.vs([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/.venv/**' -and $f.FullName -match '([\\/])\\.venv([\\/])') { $excluded.Add($f.FullName) | Out-Null }
-      elseif ($g -like '**/__pycache__/**' -and $f.FullName -match '([\\/])__pycache__([\\/])') { $excluded.Add($f.FullName) | Out-Null }
     }
+    if (-not $isIncluded) { continue }
+
+    $isExcludedByGlob = $false
+    foreach ($pattern in $ExcludeGlobs) {
+      if ($relativePath -like $pattern -or $f.FullName -replace '\\', '/' -like $pattern) {
+        $isExcludedByGlob = $true
+        break
+      }
+    }
+    if ($isExcludedByGlob) { continue }
+
+    $f
   }
 
-  # 拡張子でシンプルにフィルタ（バイナリを避ける目的）
-  $extAllow = @('.ps1','.psm1','.psd1','.md','.txt','.yml','.yaml','.json','.xml','.sql','.csv')
-  $targets = $all | Where-Object { $extAllow -contains $_.Extension.ToLowerInvariant() } | Where-Object { -not $excluded.Contains($_.FullName) }
   return $targets
 }
 
-function Scan-WithSelectString {
+<#
+.SYNOPSIS
+  Select-String で正規表現検索し、検出結果を返します。
+#>
+function Find-WithSelectString {
   param(
     [System.IO.FileInfo[]]$Files,
     [string]$Regex,
     [string]$Rule,
-    [ValidateSet('CRITICAL','WARNING','INFO')] [string]$Severity,
+    [ValidateSet('CRITICAL', 'WARNING', 'INFO')] [string]$Severity,
     [switch]$SkipIfEmpty
   )
 
@@ -134,35 +165,54 @@ function Scan-WithSelectString {
   $findings = @()
   foreach ($f in $Files) {
     try {
-      $matches = Select-String -Path $f.FullName -Pattern $Regex -AllMatches -Encoding UTF8 -ErrorAction SilentlyContinue
-      foreach ($m in $matches) {
+      $searchMatches = Select-String -Path $f.FullName -Pattern $Regex -AllMatches -Encoding UTF8 -ErrorAction SilentlyContinue
+      foreach ($m in $searchMatches) {
         $findings += Write-Finding -Severity $Severity -Rule $Rule -File (Resolve-Path $f.FullName).Path -Line $m.LineNumber -Text $m.Line.Trim()
       }
     } catch {
-      # バイナリなど読み取れないファイルは黙ってスキップ
+      Write-Verbose "読み取り不可ファイルをスキップしました: $($f.FullName)"
     }
   }
   return $findings
 }
 
-function Scan-WithRipgrep {
+<#
+.SYNOPSIS
+  ripgrep で正規表現検索し、検出結果を返します。
+#>
+function Find-WithRipgrep {
   param(
     [string]$Root,
+    [string[]]$IncludePatterns,
+    [string[]]$ExcludePatterns,
     [string]$Regex,
     [string]$Rule,
-    [ValidateSet('CRITICAL','WARNING','INFO')] [string]$Severity,
+    [ValidateSet('CRITICAL', 'WARNING', 'INFO')] [string]$Severity,
     [switch]$SkipIfEmpty
   )
 
   if ($SkipIfEmpty -and [string]::IsNullOrWhiteSpace($Regex)) { return @() }
   $findings = @()
-  $cmd = @('rg','-n','--hidden','--no-heading','--color','never','-uu','-P',$Regex,$Root)
-  # 除外パターンは .gitignore と ExcludeGlobs に任せて簡素化
+
+  $cmd = @('rg', '-n', '--hidden', '--no-heading', '--color', 'never', '-uu', '-P')
+
+  foreach ($pattern in $IncludePatterns) {
+    $cmd += @('--glob', $pattern)
+  }
+
+  foreach ($pattern in $ExcludePatterns) {
+    $cmd += @('--glob', "!$pattern")
+  }
+
+  # 最低限の既知ディレクトリは明示除外
+  $cmd += @('--glob', '!.git/**', '--glob', '!bin/**', '--glob', '!obj/**', '--glob', '!node_modules/**', '--glob', '!.vscode/**', '--glob', '!.vs/**', '--glob', '!.venv/**', '--glob', '!__pycache__/**')
+
+  $cmd += @($Regex, $Root)
   $out = & $cmd 2>$null
   if (-not $out) { return @() }
   foreach ($line in $out) {
     # 出力形式: file:line:match
-    $parts = $line -split ':',3
+    $parts = $line -split ':', 3
     if ($parts.Count -ge 3) {
       $findings += Write-Finding -Severity $Severity -Rule $Rule -File $parts[0] -Line ([int]$parts[1]) -Text ($parts[2].Trim())
     }
@@ -170,18 +220,38 @@ function Scan-WithRipgrep {
   return $findings
 }
 
-function Assert-NoFindings {
+<#
+.SYNOPSIS
+  検出結果を集計表示し、検出があれば例外を送出します。
+#>
+function Assert-NoFinding {
   param([object[]]$Findings)
   if ($Findings.Count -eq 0) { return }
 
   $grouped = $Findings | Group-Object Severity | Sort-Object Name
   foreach ($g in $grouped) {
-    $color = if ($g.Name -eq 'CRITICAL') {'Red'} elseif ($g.Name -eq 'WARNING') {'Yellow'} else {'Gray'}
+    $color = if ($g.Name -eq 'CRITICAL') { 'Red' } elseif ($g.Name -eq 'WARNING') { 'Yellow' } else { 'Gray' }
     Write-Host "\n[$($g.Name)] $($g.Count) 件" -ForegroundColor $color
-    $g.Group | Select-Object Severity,Rule,File,Line,Text | Format-Table -AutoSize | Out-String | Write-Host
+    $g.Group | Select-Object Severity, Rule, File, Line, Text | Format-Table -AutoSize | Out-String | Write-Host
   }
 
   throw "公開前監査で $($Findings.Count) 件の指摘が見つかりました。"
+}
+
+<#
+.SYNOPSIS
+  検出結果コレクションへ null 安全に複数追加します。
+#>
+function Add-FindingRange {
+  param(
+    [System.Collections.Generic.List[object]]$Target,
+    [object[]]$Items
+  )
+
+  if ($null -eq $Items) { return }
+  foreach ($item in $Items) {
+    $Target.Add($item)
+  }
 }
 
 # --- ルール定義 ---
@@ -191,32 +261,35 @@ function Assert-NoFindings {
 $emailRegex = '(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})(?![A-Za-z0-9._%+-])'
 
 # (B) 絶対パス／ユーザー・マシン名を含むパス
-$absPathRegex = 'C:\\Users\\|/Users/|/home/|\\\\[A-Za-z0-9._-]+\\[A-Za-z0-9._-]+'
-$hostEnvRegex = '(?i)DESKTOP-|LAPTOP-|WIN-|HOSTNAME\b|COMPUTERNAME\b|USERPROFILE\b'
+#  - C:\Users\..., C:\home\...
+#  - /Users/..., /home/...
+#  - \\server\share 形式の UNC パス
+$absPathRegex = '(?i)(?:[A-Z]:\\Users\\|[A-Z]:\\home\\|/Users/|/home/|\\\\[^\\/:*?"<>\r\n]+\\[^\\/:*?"<>\r\n]+)'
+$hostEnvRegex = '(?i)(DESKTOP-|LAPTOP-|WIN-|HOSTNAME\b|COMPUTERNAME\b|USERPROFILE\b)'
 
 # (C) secret っぽいキーワード（ヒューリスティック）
 $secretsRegex = '(?i)\b(password|passwd|pwd|api[_-]?key|token|secret|connectionstring|connstr|credential)\b'
 
 # (D) テスト結果・ログのファイル名（コミット禁止対象）
-$artifactFileRegex = '(?i)(testresults\.xml$|alltests-report\.xml$|releaseprocess-test\.xml$)'
+$artifactFileRegex = '(?i)(testresults\.xml$|alltests-report\.xml$|releaseprocess-test\.xml$|[\\/]LOG[\\/].*\.xml$)'
 
-$scanWithRg = $UseRipgrep -and (Test-CommandExists 'rg')
-$files = Get-TargetFiles -Root $RepoRoot
+$scanWithRg = $UseRipgrep -and (Test-CommandAvailable 'rg')
+$files = Get-TargetFile -Root $RepoRoot
 
 $findings = New-Object System.Collections.Generic.List[object]
 
 # 1) 禁止ドメインの直接ヒット
 if ($scanWithRg) {
-  $findings.AddRange((Scan-WithRipgrep -Root $RepoRoot -Regex $ForbiddenDomainRegex -Rule 'ForbiddenDomain' -Severity 'CRITICAL' -SkipIfEmpty:$true))
+  Add-FindingRange -Target $findings -Items (Find-WithRipgrep -Root $RepoRoot -IncludePatterns $IncludeGlobs -ExcludePatterns $ExcludeGlobs -Regex $ForbiddenDomainRegex -Rule 'ForbiddenDomain' -Severity 'CRITICAL' -SkipIfEmpty:$true)
 } else {
-  $findings.AddRange((Scan-WithSelectString -Files $files -Regex $ForbiddenDomainRegex -Rule 'ForbiddenDomain' -Severity 'CRITICAL' -SkipIfEmpty:$true))
+  Add-FindingRange -Target $findings -Items (Find-WithSelectString -Files $files -Regex $ForbiddenDomainRegex -Rule 'ForbiddenDomain' -Severity 'CRITICAL' -SkipIfEmpty:$true)
 }
 
 # 2) メールアドレス検出 → 許可ドメインかどうか判定
 $emailHits = if ($scanWithRg) {
-  Scan-WithRipgrep -Root $RepoRoot -Regex $emailRegex -Rule 'EmailAddress' -Severity 'WARNING'
+  Find-WithRipgrep -Root $RepoRoot -IncludePatterns $IncludeGlobs -ExcludePatterns $ExcludeGlobs -Regex $emailRegex -Rule 'EmailAddress' -Severity 'WARNING'
 } else {
-  Scan-WithSelectString -Files $files -Regex $emailRegex -Rule 'EmailAddress' -Severity 'WARNING'
+  Find-WithSelectString -Files $files -Regex $emailRegex -Rule 'EmailAddress' -Severity 'WARNING'
 }
 
 foreach ($h in $emailHits) {
@@ -232,32 +305,35 @@ foreach ($h in $emailHits) {
 
 # 3) 絶対パスとホスト／環境情報
 $pathHits = if ($scanWithRg) {
-  Scan-WithRipgrep -Root $RepoRoot -Regex $absPathRegex -Rule 'AbsolutePath' -Severity 'CRITICAL'
+  Find-WithRipgrep -Root $RepoRoot -IncludePatterns $IncludeGlobs -ExcludePatterns $ExcludeGlobs -Regex $absPathRegex -Rule 'AbsolutePath' -Severity 'CRITICAL'
 } else {
-  Scan-WithSelectString -Files $files -Regex $absPathRegex -Rule 'AbsolutePath' -Severity 'CRITICAL'
+  Find-WithSelectString -Files $files -Regex $absPathRegex -Rule 'AbsolutePath' -Severity 'CRITICAL'
 }
 foreach ($h in $pathHits) {
   if (-not [string]::IsNullOrWhiteSpace($AllowedPathRegex) -and ($h.Text -match $AllowedPathRegex)) { continue }
   $findings.Add($h)
 }
 
-$findings.AddRange((($scanWithRg) ? (Scan-WithRipgrep -Root $RepoRoot -Regex $hostEnvRegex -Rule 'HostEnvLeak' -Severity 'WARNING') : (Scan-WithSelectString -Files $files -Regex $hostEnvRegex -Rule 'HostEnvLeak' -Severity 'WARNING')))
+Add-FindingRange -Target $findings -Items (($scanWithRg) ? (Find-WithRipgrep -Root $RepoRoot -IncludePatterns $IncludeGlobs -ExcludePatterns $ExcludeGlobs -Regex $hostEnvRegex -Rule 'HostEnvLeak' -Severity 'WARNING') : (Find-WithSelectString -Files $files -Regex $hostEnvRegex -Rule 'HostEnvLeak' -Severity 'WARNING'))
 
 # 4) secret っぽいキーワード（警告扱い）
-$findings.AddRange((($scanWithRg) ? (Scan-WithRipgrep -Root $RepoRoot -Regex $secretsRegex -Rule 'SecretsKeyword' -Severity 'WARNING') : (Scan-WithSelectString -Files $files -Regex $secretsRegex -Rule 'SecretsKeyword' -Severity 'WARNING')))
+Add-FindingRange -Target $findings -Items (($scanWithRg) ? (Find-WithRipgrep -Root $RepoRoot -IncludePatterns $IncludeGlobs -ExcludePatterns $ExcludeGlobs -Regex $secretsRegex -Rule 'SecretsKeyword' -Severity 'WARNING') : (Find-WithSelectString -Files $files -Regex $secretsRegex -Rule 'SecretsKeyword' -Severity 'WARNING'))
 
 # 5) テスト／ログ成果物がリポジトリに含まれていないか
 foreach ($f in $files) {
   if ($f.FullName -match $artifactFileRegex) {
-    $findings.Add((Write-Finding -Severity 'CRITICAL' -Rule 'CommittedArtifact' -File $f.FullName -Line 0 -Text 'テスト結果 XML は Git 管理せず、CI の成果物などで扱ってください。'))
-  }
-  if ($f.FullName -match '(?i)([\\/])LOG[\\/].*\.xml$') {
-    $findings.Add((Write-Finding -Severity 'CRITICAL' -Rule 'CommittedLogXml' -File $f.FullName -Line 0 -Text 'LOG/*.xml はユーザー名・パスなどを含む可能性があるため、コミットしないでください。'))
+    $artifactRule = if ($f.FullName -match '(?i)(?:[\\/])LOG(?:[\\/]).*\.xml$') { 'CommittedLogXml' } else { 'CommittedArtifact' }
+    $artifactMessage = if ($artifactRule -eq 'CommittedLogXml') {
+      'LOG/*.xml はユーザー名・パスなどを含む可能性があるため、コミットしないでください。'
+    } else {
+      'テスト結果 XML は Git 管理せず、CI の成果物などで扱ってください。'
+    }
+    $findings.Add((Write-Finding -Severity 'CRITICAL' -Rule $artifactRule -File $f.FullName -Line 0 -Text $artifactMessage))
   }
 }
 
 try {
-  Assert-NoFindings -Findings $findings
+  Assert-NoFinding -Findings $findings
   Write-Host "\n✅ 公開前監査: 問題は検出されませんでした" -ForegroundColor Green
   exit 0
 } catch {
