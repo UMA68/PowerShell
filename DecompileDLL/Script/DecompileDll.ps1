@@ -266,15 +266,10 @@ begin {
     # カスタムログ初期化
     $script:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path   # スクリプトの実行パスを取得
     $script:UpperPath = Split-Path -Parent $script:ScriptPath             # スクリプトの親パスを取得  
-    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"   # ログフォルダーパス
-    
-    if (-not (Test-Path $script:LogDir)) { # ログフォルダーが存在しない場合は作成
-        New-Item -Path $script:LogDir -ItemType Directory -Force | Out-Null
-    }
-    
-    $script:timestamp = Get-Date -Format "yyyyMMdd-HHmmss"                     # タイムスタンプ（グローバルで保持）
-    $script:logPath = Join-Path $script:LogDir "DecompileDll_$script:timestamp.log"   # ログファイルパス
-    
+
+    # スクリプトの実行環境を取得（既にBeginで初期化済み）
+    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
+
     # Common フォルダから Write-CommonLog をインポート
     $commonLogPath = Join-Path (Split-Path -Parent (Split-Path -Parent $script:ScriptPath)) "Common\Write-CommonLog.ps1"
     if (-not (Test-Path $commonLogPath)) {
@@ -282,6 +277,53 @@ begin {
         exit 1
     }
     . $commonLogPath
+
+    # powershell-yamlモジュールの確認(終了コードは固定値)
+    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # モジュールが存在しない場合
+        Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
+        exit 4  # YAML読み込み前なので固定値
+    }
+    Import-Module powershell-yaml -ErrorAction Stop
+
+    # YAMLファイルの存在チェック(終了コードは固定値)
+    if (-not (Test-Path $YamlPath)) { # YAML設定ファイルが存在しない場合
+        Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
+        exit 4  # YAML読み込み前なので固定値
+    }
+    
+    # YAMLファイルの読み込み
+    try {
+        $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
+        Write-Verbose "YAML設定を読み込みました"
+        Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
+    } catch {
+        $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
+        Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
+        Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
+        exit 1
+    }
+
+    
+    # ログフォルダーパスの設定（YAML設定から取得）
+    # $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"   # ログフォルダーパス
+    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath $config.LOG.Path   # YAML設定からログフォルダーパスを取得
+
+    if (-not (Test-Path $script:LogDir)) { # ログフォルダーが存在しない場合は作成
+        New-Item -Path $script:LogDir -ItemType Directory -Force | Out-Null
+    }
+    
+    $script:timestamp = Get-Date -Format "yyyyMMdd-HHmmss"                     # タイムスタンプ（グローバルで保持）
+    # ログファイル名の生成（YAML設定のファイル名 + タイムスタンプ + 拡張子）
+    # $script:logPath = Join-Path $script:LogDir "DecompileDll_$script:timestamp.log"   # ログファイルパス
+    $script:logPath = Join-Path $script:LogDir ($config.LOG.FILENAME + "_" + $script:timestamp + $config.LOG.EXTENSION)  # YAML設定からログファイル名を生成
+    
+    # # Common フォルダから Write-CommonLog をインポート
+    # $commonLogPath = Join-Path (Split-Path -Parent (Split-Path -Parent $script:ScriptPath)) "Common\Write-CommonLog.ps1"
+    # if (-not (Test-Path $commonLogPath)) {
+    #     Show-ErrorPopup "Write-CommonLog.ps1が見つかりません。`r`n`r`n$commonLogPath`r`nを確認してください。"
+    #     exit 1
+    # }
+    # . $commonLogPath
     
     # ログ開始
     Write-CommonLog -Message "────────────────────────────────────────" -LogPath $script:logPath -Level "INFO"
@@ -442,41 +484,45 @@ begin {
         }
     }
 
-    # スクリプトの実行環境を取得（既にBeginで初期化済み）
-    $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
+    # # スクリプトの実行環境を取得（既にBeginで初期化済み）
+    # $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
 
-    $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\Old"        # 古いDLLフォルダー
-    $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\New"        # 新しいDLLフォルダー
-    $outputFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Decompiled" # 出力フォルダー
+    # DLLフォルダーパスの設定（YAML設定から取得）
+    # $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\Old"        # 古いDLLフォルダー
+    # $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\New"        # 新しいDLLフォルダー
+    # $outputFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Decompiled" # 出力フォルダー
+    $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.Old)        # 古いDLLフォルダー
+    $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.New)        # 新しいDLLフォルダー
+    $outputFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.Decompile)  # 出力フォルダー
     
     Write-Verbose "スクリプトパス: $scriptPath"
     Write-Verbose "YAML設定ファイル: $YamlPath"
     Write-Verbose "出力フォルダー: $outputFolder"
     
-    # powershell-yamlモジュールの確認(終了コードは固定値)
-    if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # モジュールが存在しない場合
-        Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
-        exit 4  # YAML読み込み前なので固定値
-    }
-    Import-Module powershell-yaml -ErrorAction Stop
+    # # powershell-yamlモジュールの確認(終了コードは固定値)
+    # if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # モジュールが存在しない場合
+    #     Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
+    #     exit 4  # YAML読み込み前なので固定値
+    # }
+    # Import-Module powershell-yaml -ErrorAction Stop
 
-    # YAMLファイルの存在チェック(終了コードは固定値)
-    if (-not (Test-Path $YamlPath)) { # YAML設定ファイルが存在しない場合
-        Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
-        exit 4  # YAML読み込み前なので固定値
-    }
+    # # YAMLファイルの存在チェック(終了コードは固定値)
+    # if (-not (Test-Path $YamlPath)) { # YAML設定ファイルが存在しない場合
+    #     Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
+    #     exit 4  # YAML読み込み前なので固定値
+    # }
     
-    # YAMLファイルの読み込み
-    try {
-        $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
-        Write-Verbose "YAML設定を読み込みました"
-        Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
-    } catch {
-        $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
-        Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
-        Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
-        exit 1
-    }
+    # # YAMLファイルの読み込み
+    # try {
+    #     $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
+    #     Write-Verbose "YAML設定を読み込みました"
+    #     Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
+    # } catch {
+    #     $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
+    #     Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
+    #     Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
+    #     exit 1
+    # }
     
     # YAML設定値の取得(デフォルト値あり) - スクリプトスコープで定義
     $script:folderOld = if ($config.Folders.Old) { $config.Folders.Old } else { "old" }
