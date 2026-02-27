@@ -14,6 +14,7 @@ PowerShell:
 # -----------------
 LOG:                    # ログ設定
 #  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ Path: LOG              # ログ保存先(フォルダ名)
  FILENAME: Report(dll)  # ログファイル名
  EXTENSION: .log        # ログファイル拡張子
 
@@ -21,6 +22,7 @@ LOG:                    # ログ設定
 # フォルダー名設定
 # -----------------
 Folders:                # フォルダー名設定
+ Decompile: Decompiled  # 逆コンパイル出力フォルダー名
  Old: old               # 古いDLL逆コンパイル出力フォルダー名
  New: new               # 新しいDLL逆コンパイル出力フォルダー名
 
