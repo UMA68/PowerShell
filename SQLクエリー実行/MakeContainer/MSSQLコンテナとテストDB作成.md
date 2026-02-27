@@ -11,6 +11,9 @@
 - docker-compose.ymlファイルが同じフォルダーに存在すること
 - init_customer_orders.sqlファイルが同じフォルダーに存在すること
 
+※ 本手順で使用するSAパスワード **Str0ngP@ssw0rd2025!** は、
+本番利用を想定しないローカル検証用のサンプル値です。
+
 **準備：**
 PowerShellに設定したWindowsTerminal等で、このフォルダーをカレントにしてください（フォルダーを開いてください）。
 
