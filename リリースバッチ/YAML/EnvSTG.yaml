@@ -38,18 +38,18 @@ Module:
   Version: 22.1.1
 #  Version: 21.1.18235
 
-# -----------------
-# 接続情報
-# -----------------
-# VERSIONには"SELECT @@VERSION;"の結果をコピペ
+# # -----------------
+# # 接続情報
+# # -----------------
+# # VERSIONには"SELECT @@VERSION;"の結果をコピペ
 
-HOST:
- APServer:
-  - \\localhost\C$      # サーバー名orIPアドレス
-#  BKServer:
-#   - \\192.168.1.11\f$   # サーバー名orIPアドレス
- USERNAME: Administrator       # ユーザー名
- PWF: test.pass     # パスワードファイル名
+# HOST:
+#  APServer:
+#   - \\localhost\C$      # サーバー名orIPアドレス
+# #  BKServer:
+# #   - \\192.168.1.11\f$   # サーバー名orIPアドレス
+#  USERNAME: Administrator       # ユーザー名
+#  PWF: test.pass     # パスワードファイル名
 
 # -----------------
 # ログ保存先
