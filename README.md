@@ -4,6 +4,8 @@
 テスト（Pester）と静的解析（PSScriptAnalyzer）を前提に、迷わず・壊れず・あとで自分が助かる自動化を積み上げています。
 定年後も通用する「安全に使えるPowerShellの型」を残すことを目的としています。
 
+※ 本リポジトリはPublic化前にaudit-prepublic.ps1による公開前チェックを実施しています。
+
 ![PowerShell](https://img.shields.io/badge/PowerShell-7.x-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![CI](https://github.com/UMA68/PowerShell/actions/workflows/pester.yml/badge.svg)
@@ -15,8 +17,8 @@
 
 ## 🔬 品質と設計方針（Public 向け補足）
 
-このリポジトリは **業務コードを直接公開するものではありません**。
-個人環境で検証・設計した **サンプル／試作（演武）スクリプト集** を公開しています。
+このリポジトリは **個人および業務でそのまま利用できる完成コードを公開するものではありません**。
+個人環境で検証・設計した **サンプル／試作スクリプト集** を目的として公開しています。
 
 ### クリーンルーム運用
 
