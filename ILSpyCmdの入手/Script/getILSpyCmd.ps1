@@ -211,7 +211,7 @@ begin {
             $script:YamlPath = Join-Path -Path $script:YamlDir -ChildPath $EnvYaml
         }
     }
-    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
+    # $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"           # ログフォルダのパスを取得
     $script:ComPath = Join-Path -Path $script:PowerShellDir -ChildPath "Common"   # 共通スクリプトのパス
     
     # COMオブジェクトの作成（スクリプト全体で使用）
@@ -359,6 +359,9 @@ begin {
         $script:ExitCode = 2
         return
     }
+
+    # ログディレクトリのパスを取得
+    $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath ($script:Yaml.LOG.LOG_FOLDER)
 
     # ログディレクトリが作成されていなければ作成
     if (-not (Test-Path -Path $LogDir)) { # ログディレクトリ作成
