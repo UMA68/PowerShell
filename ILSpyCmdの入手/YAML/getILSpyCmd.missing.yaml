@@ -2,6 +2,7 @@
 Project: ILSpyCmd Missing Test
 Version: 1.4.0
 LOG:
+  LOG_FOLDER: LOG
   FILENAME: ILSpyCmd_missing
   EXTENSION: .log
 # DotnetSdk: section is missing entirely to cause failure
