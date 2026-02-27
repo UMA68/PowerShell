@@ -32,6 +32,6 @@ ILSpyCmd:
 # ログ設定
 # -----------------
 LOG:
-#  Path: \\localhost\C$\SandBox\TEST_FOLDER\リリース元\LOG   # ログ保存先(フォルダ名)
+ LOG_FOLDER: LOG    # ログ保存先(フォルダ名)
  FILENAME: ILSpyCmd # ログファイル名
  EXTENSION: .log    # ログファイル拡張子
