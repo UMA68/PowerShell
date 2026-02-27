@@ -33,5 +33,6 @@ ILSpyCmd:
 # ログ設定
 # -----------------
 LOG:
+  LOG_FOLDER: LOG
   FILENAME: ILSpyCmd_test
   EXTENSION: .log
