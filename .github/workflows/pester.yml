@@ -5,11 +5,13 @@ on:
     branches: [ main, develop ]
     paths-ignore:
       - 'Run-Pester5.ps1'
+      - 'make_sandbox_folders.ps1'
       - '.localmodules/**'
   pull_request:
     branches: [ main, develop ]
     paths-ignore:
       - 'Run-Pester5.ps1'
+      - 'make_sandbox_folders.ps1'
       - '.localmodules/**'
   workflow_dispatch:
 
