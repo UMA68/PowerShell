@@ -78,14 +78,27 @@ function ConvertTo-RelativePath {
         [string]$Root
     )
 
-    $resolvedPath = (Resolve-Path -Path $Path).Path
     $resolvedRoot = (Resolve-Path -Path $Root).Path
+
+    $candidatePath = $Path
+    if (-not [System.IO.Path]::IsPathRooted($candidatePath)) {
+        $rootRelativePath = Join-Path -Path $resolvedRoot -ChildPath $candidatePath
+        if (Test-Path -LiteralPath $rootRelativePath) {
+            $candidatePath = $rootRelativePath
+        }
+    }
+
+    try {
+        $resolvedPath = (Resolve-Path -Path $candidatePath -ErrorAction Stop).Path
+    } catch {
+        return ($Path -replace '\\', '/').TrimStart([char[]]@('.', '/'))
+    }
 
     if (-not $resolvedPath.StartsWith($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         return $Path -replace '\\', '/'
     }
 
-    $relative = $resolvedPath.Substring($resolvedRoot.Length).TrimStart('\\', '/')
+    $relative = $resolvedPath.Substring($resolvedRoot.Length).TrimStart([char[]]@('\', '/'))
     return $relative -replace '\\', '/'
 }
 
@@ -169,7 +182,7 @@ function Get-ChangedFiles {
             $relativePath = $parts[2]
         }
 
-        $normalizedRelativePath = ($relativePath -replace '\\', '/').TrimStart('./')
+        $normalizedRelativePath = ($relativePath -replace '\\', '/').TrimStart([char[]]@('.', '/'))
         $extension = [System.IO.Path]::GetExtension($normalizedRelativePath)
 
         if ($Extensions -notcontains $extension.ToLowerInvariant()) {
