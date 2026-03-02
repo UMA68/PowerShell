@@ -467,7 +467,7 @@ begin {
     $script:retryTimeoutSeconds = if ($config.Retry.TimeoutSeconds) { $config.Retry.TimeoutSeconds } else { 300 }
     
     Write-Verbose "YAML設定値を読み込みました: Folders(Old=$script:folderOld, New=$script:folderNew), Colors(Info=$script:colorInfo, Success=$script:colorSuccess)"
-    Write-Verbose "リトライ設定: MaxAttempts=$script:retryMaxAttempts, Delay=$script:retryDelaySeconds秒, Timeout=$script:retryTimeoutSeconds秒"
+    Write-Verbose "リトライ設定: MaxAttempts=${script:retryMaxAttempts}, Delay=${script:retryDelaySeconds}秒, Timeout=${script:retryTimeoutSeconds}秒"
     
     # YAML構造の検証
     if (-not $config.InstWinMerge) { # InstWinMergeセクションがない場合
