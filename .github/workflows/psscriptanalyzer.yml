@@ -49,7 +49,15 @@ jobs:
             git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
           }
           elseif ('${{ github.event_name }}' -eq 'push') {
-            $baseRef = 'HEAD~1'
+            $baseRef = '${{ github.event.before }}'
+            if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -match '^0+$') {
+              $baseRef = 'HEAD~1'
+            }
+
+            $null = git rev-parse --verify $baseRef 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              $baseRef = 'HEAD~1'
+            }
           }
 
           .\scripts\Invoke-ScriptAnalyzerChanged.ps1 `
