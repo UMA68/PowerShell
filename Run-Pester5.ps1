@@ -5,7 +5,9 @@
 .DESCRIPTION
     Pester 5.6.1 をロードして、指定されたテストファイルまたはディレクトリを実行します。
 .PARAMETER Path
-    テストファイルまたはテストディレクトリのパス (必須)
+    テストファイルまたはテストディレクトリのパス
+.PARAMETER DecompileDll
+    DecompileDll の統合テスト (Tests/Integration/DecompileDll.Tests.ps1) を実行します
 .PARAMETER Verbose
     詳細出力を有効にします
 .PARAMETER EnableExit
@@ -16,14 +18,28 @@
 
     # テストディレクトリ全体を実行
     .\Run-Pester5.ps1 -Path .\Tests\Pester5 -Verbose
+
+    # DecompileDll 統合テストを実行
+    .\Run-Pester5.ps1 -DecompileDll
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Path,
+
+    [switch]$DecompileDll,
 
     [switch]$EnableExit
 )
+
+if ($DecompileDll -and [string]::IsNullOrWhiteSpace($Path)) {
+    $Path = Join-Path $PSScriptRoot 'Tests\Integration\DecompileDll.Tests.ps1'
+}
+
+if ([string]::IsNullOrWhiteSpace($Path)) {
+    Write-Host "✗ Specify -Path or use -DecompileDll" -ForegroundColor Red
+    exit 1
+}
 
 # 既存の Pester モジュールをアンロード
 Remove-Module Pester -ErrorAction SilentlyContinue
