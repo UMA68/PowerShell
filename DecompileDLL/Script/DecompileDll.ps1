@@ -15,10 +15,11 @@
     - 自動リトライ機能（最大3回、タイムアウト制御付き）
     - ETA付き進捗状況表示
     - 詳細なエラーレポートとスキップ理由の記録
+    - 新DLLの完全一致がない場合、部分一致の最新DLLを自動選択
     - OS自動判定によるWinMergeパス解決
-    - YAML設定による柔軟な設定管理
+    - YAML設定による柔軟な設定管理（フォルダー名・色・終了コード・ログ出力先など）
     - 共通ログ機能による堅牢なログ管理（Write-CommonLog使用）
-    - 完全な非対話実行対応（-NoKeyWaitオプション）
+    - 完全な非対話実行対応（-NoKeyWaitオプション、ショートカット実行時の待機制御）
 
 .PARAMETER EnvYaml
     使用するYAML設定ファイル名。デフォルトは"Decompile.yaml"。
@@ -81,8 +82,8 @@
     用途: バッチ処理、スケジューラー実行、CI/CD パイプライン
 
 .PARAMETER WhatIf
-    実際には処理を実行せず、実行される内容を表示します。
-    事前確認やテスト実行に使用します。
+    共通パラメーターです。実際には処理を実行せず、実行される内容を表示します。
+    CmdletBinding(SupportsShouldProcess = $true) により利用できます。
 
 .EXAMPLE
     .\DecompileDll.ps1
@@ -146,6 +147,8 @@
 
 .OUTPUTS
     終了コード:
+    YAMLの ExitCodes セクションで定義された値を返します。
+    既定値:
     0 - Success: 正常終了
     1 - GeneralError: 一般エラー（YAML読込失敗など）
     3 - OSNotSupported: OS非対応（Windows 10/11以外）
@@ -153,8 +156,8 @@
     5 - DecompileFailed: 逆コンパイル失敗
     
     出力ファイル:
-    ログファイル:       Log\DecompileDll_yyyyMMdd-HHmmss.log
-    エラーレポート:     Log\DecompileErrors_yyyyMMdd-HHmmss.txt（エラー発生時のみ）
+    ログファイル:       YAMLの LOG.Path / LOG.FILENAME / LOG.EXTENSION に従って生成
+    エラーレポート:     <LOG.Path>\DecompileErrors_yyyyMMdd-HHmmss.txt（エラー発生時のみ）
 
 .NOTES
     File Name      : DecompileDll.ps1
@@ -270,6 +273,29 @@ begin {
     # スクリプトの実行環境を取得（既にBeginで初期化済み）
     $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
 
+    # エラー表示用ヘルパー関数（非対話環境ではポップアップの代わりに警告出力）
+    function Show-ErrorPopup {
+        param([string]$Message)
+
+        if ($NoKeyWait) {
+            Write-Warning $Message
+            return
+        }
+
+        $shell = $null
+        try {
+            $shell = New-Object -ComObject WScript.Shell
+            $shell.Popup($Message, 0, "エラー", 0x30) | Out-Null
+        } catch {
+            Write-Warning "エラーポップアップの表示に失敗しました。メッセージをコンソールに出力します。"
+            Write-Warning $Message
+        } finally {
+            if ($shell) {
+                [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+            }
+        }
+    }
+
     # Common フォルダから Write-CommonLog をインポート
     $commonLogPath = Join-Path (Split-Path -Parent (Split-Path -Parent $script:ScriptPath)) "Common\Write-CommonLog.ps1"
     if (-not (Test-Path $commonLogPath)) {
@@ -295,17 +321,15 @@ begin {
     try {
         $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
         Write-Verbose "YAML設定を読み込みました"
-        Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
     } catch {
         $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
-        Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
+        Write-Error $errorMsg
         Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
         exit 1
     }
 
     
     # ログフォルダーパスの設定（YAML設定から取得）
-    # $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath "Log"   # ログフォルダーパス
     $script:LogDir = Join-Path -Path $script:UpperPath -ChildPath $config.LOG.Path   # YAML設定からログフォルダーパスを取得
 
     if (-not (Test-Path $script:LogDir)) { # ログフォルダーが存在しない場合は作成
@@ -314,16 +338,7 @@ begin {
     
     $script:timestamp = Get-Date -Format "yyyyMMdd-HHmmss"                     # タイムスタンプ（グローバルで保持）
     # ログファイル名の生成（YAML設定のファイル名 + タイムスタンプ + 拡張子）
-    # $script:logPath = Join-Path $script:LogDir "DecompileDll_$script:timestamp.log"   # ログファイルパス
     $script:logPath = Join-Path $script:LogDir ($config.LOG.FILENAME + "_" + $script:timestamp + $config.LOG.EXTENSION)  # YAML設定からログファイル名を生成
-    
-    # # Common フォルダから Write-CommonLog をインポート
-    # $commonLogPath = Join-Path (Split-Path -Parent (Split-Path -Parent $script:ScriptPath)) "Common\Write-CommonLog.ps1"
-    # if (-not (Test-Path $commonLogPath)) {
-    #     Show-ErrorPopup "Write-CommonLog.ps1が見つかりません。`r`n`r`n$commonLogPath`r`nを確認してください。"
-    #     exit 1
-    # }
-    # . $commonLogPath
     
     # ログ開始
     Write-CommonLog -Message "────────────────────────────────────────" -LogPath $script:logPath -Level "INFO"
@@ -345,72 +360,8 @@ begin {
     # 処理時間計測開始
     $script:startTime = Get-Date
     
-    # エラー表示用ヘルパー関数
-    function Show-ErrorPopup {
-        <#
-    .SYNOPSIS
-        エラーメッセージをポップアップ表示します
-    
-    .DESCRIPTION
-        Windows Script Shellを使用してエラーポップアップを表示します。
-        COMオブジェクトはtry-finallyで確実に解放します。
-    
-    .PARAMETER Message
-        表示するエラーメッセージ
-    
-    .EXAMPLE
-        Show-ErrorPopup "エラーが発生しました"
-    
-    .NOTES
-        COMオブジェクトリークを防止するためtry-finallyで管理
-    #>
-
-        param([string]$Message)
-        $shell = $null
-        try {
-            $shell = New-Object -ComObject WScript.Shell
-            $shell.Popup($Message, 0, "エラー", 0x30) | Out-Null
-        } finally {
-            if ($shell) {
-                [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
-            }
-        }
-    }
-    
     # リトライ付き逆コンパイル関数
     function Invoke-DecompileWithRetry {
-        <#
-    .SYNOPSIS
-    ${1:Short description}
-    
-    .DESCRIPTION
-    ${2:Long description}
-    
-    .PARAMETER DllPath
-    ${3:Parameter description}
-    
-    .PARAMETER OutputPath
-    ${4:Parameter description}
-    
-    .PARAMETER DllType
-    ${5:Parameter description}
-    
-    .PARAMETER MaxAttempts
-    ${6:Parameter description}
-    
-    .PARAMETER DelaySeconds
-    ${7:Parameter description}
-    
-    .PARAMETER TimeoutSeconds
-    ${8:Parameter description}
-    
-    .EXAMPLE
-    ${9:An example}
-    
-    .NOTES
-    ${10:General notes}
-    #>
-
         param(
             [string]$DllPath,                   # DLLファイルパス
             [string]$OutputPath,                # 出力フォルダー
@@ -484,13 +435,7 @@ begin {
         }
     }
 
-    # # スクリプトの実行環境を取得（既にBeginで初期化済み）
-    # $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
-
     # DLLフォルダーパスの設定（YAML設定から取得）
-    # $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\Old"        # 古いDLLフォルダー
-    # $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath "Dlls\New"        # 新しいDLLフォルダー
-    # $outputFolder = Join-Path -Path $UpperPath -ChildPath "Dlls\Decompiled" # 出力フォルダー
     $oldDllFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.Old)        # 古いDLLフォルダー
     $newDllFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.New)        # 新しいDLLフォルダー
     $outputFolder = Join-Path -Path $script:UpperPath -ChildPath ("Dlls\" + $config.Folders.Decompile)  # 出力フォルダー
@@ -498,31 +443,6 @@ begin {
     Write-Verbose "スクリプトパス: $scriptPath"
     Write-Verbose "YAML設定ファイル: $YamlPath"
     Write-Verbose "出力フォルダー: $outputFolder"
-    
-    # # powershell-yamlモジュールの確認(終了コードは固定値)
-    # if (-not (Get-Module -ListAvailable -Name powershell-yaml)) { # モジュールが存在しない場合
-    #     Show-ErrorPopup "powershell-yamlモジュールがインストールされていません。`r`n`r`n以下のコマンドを実行してインストールしてください:`r`nInstall-Module powershell-yaml -Scope CurrentUser"
-    #     exit 4  # YAML読み込み前なので固定値
-    # }
-    # Import-Module powershell-yaml -ErrorAction Stop
-
-    # # YAMLファイルの存在チェック(終了コードは固定値)
-    # if (-not (Test-Path $YamlPath)) { # YAML設定ファイルが存在しない場合
-    #     Show-ErrorPopup "YAML設定ファイルが見つかりません。`r`n`r`n$YamlPath`r`nを確認してください。"
-    #     exit 4  # YAML読み込み前なので固定値
-    # }
-    
-    # # YAMLファイルの読み込み
-    # try {
-    #     $config = Get-Content -Path $YamlPath -Raw -ErrorAction Stop | ConvertFrom-Yaml -Ordered
-    #     Write-Verbose "YAML設定を読み込みました"
-    #     Write-CommonLog -Message "YAML設定を読み込みました: $YamlPath" -LogPath $script:logPath -Level "INFO"
-    # } catch {
-    #     $errorMsg = "YAMLファイルの読み込みに失敗しました: $($_.Exception.Message)"
-    #     Write-CommonLog -Message $errorMsg -LogPath $script:logPath -Level "ERROR"
-    #     Show-ErrorPopup "YAMLファイルの読み込みに失敗しました。`r`n`r`n$($_.Exception.Message)"
-    #     exit 1
-    # }
     
     # YAML設定値の取得(デフォルト値あり) - スクリプトスコープで定義
     $script:folderOld = if ($config.Folders.Old) { $config.Folders.Old } else { "old" }
@@ -562,11 +482,9 @@ begin {
     Write-Verbose "OS: $($osInfo.Caption) (Build: $osBuild)"
     
     if ($osBuild -ge $win11MinBuild) { # Windows 11 (YAML設定のビルド番号以降)
-        # Windows 11 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win11 -replace '\$HOME', $HOME
         Write-Verbose "Windows 11を検出しました (Build: $osBuild >= $win11MinBuild)"
     } elseif ($osBuild -ge $win10MinBuild) { # Windows 10 (YAML設定のビルド番号以降)
-        # Windows 10 (YAML設定のビルド番号以降)
         $winMergePath = $config.InstWinMerge.Win10
         Write-Verbose "Windows 10を検出しました (Build: $osBuild >= $win10MinBuild)"
     } else { # 対応OS以外
@@ -578,6 +496,16 @@ begin {
 
     # ILSpyCmd(逆コンパイルコマンド)の存在チェック
     $ilspyCmd = Get-Command "ILSpyCmd" -ErrorAction SilentlyContinue
+    if (-not $ilspyCmd) {
+        $ilspyCmd = Get-Command "ilspycmd.exe" -ErrorAction SilentlyContinue
+    }
+    if (-not $ilspyCmd) {
+        $dotnetToolPath = Join-Path $HOME ".dotnet\tools\ilspycmd.exe"
+        if (Test-Path $dotnetToolPath) {
+            $ilspyCmd = Get-Command $dotnetToolPath -ErrorAction SilentlyContinue
+        }
+    }
+
     if (-not $ilspyCmd) { # ILSpyCmdが見つからない場合
         Show-ErrorPopup $script:MSG_NO_ILSPYCMD
         exit $script:exitFileNotFound
@@ -733,38 +661,6 @@ process {
             
             # リトライ付き逆コンパイル関数（並列処理用）
             function Invoke-DecompileWithRetryParallel {
-                <#
-            .SYNOPSIS
-            ${1:Short description}
-            
-            .DESCRIPTION
-            ${2:Long description}
-            
-            .PARAMETER DllPath
-            ${3:Parameter description}
-            
-            .PARAMETER OutputPath
-            ${4:Parameter description}
-            
-            .PARAMETER DllType
-            ${5:Parameter description}
-            
-            .PARAMETER MaxAttempts
-            ${6:Parameter description}
-            
-            .PARAMETER DelaySeconds
-            ${7:Parameter description}
-            
-            .PARAMETER TimeoutSeconds
-            ${8:Parameter description}
-            
-            .EXAMPLE
-            ${9:An example}
-            
-            .NOTES
-            ${10:General notes}
-            #>
-
                 param(
                     [string]$DllPath,       # DLLパス
                     [string]$OutputPath,    # 出力パス
