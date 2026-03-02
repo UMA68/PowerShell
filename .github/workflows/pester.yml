@@ -81,6 +81,61 @@ jobs:
 
         Invoke-Pester -Configuration $config
 
+    - name: DecompileDLL WhatIf スモーク検証
+      run: |
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = 'Stop'
+
+        $projectRoot = Join-Path $PWD 'DecompileDLL'
+        $scriptDir   = Join-Path $projectRoot 'Script'
+        $yamlDir     = Join-Path $projectRoot 'YAML'
+        $oldDir      = Join-Path $projectRoot 'Dlls/Old'
+        $newDir      = Join-Path $projectRoot 'Dlls/New'
+        $scriptPath  = Join-Path $scriptDir 'DecompileDll.ps1'
+
+        foreach ($dir in @($scriptDir, $yamlDir, $oldDir, $newDir)) {
+          if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+            Write-Error "必須ディレクトリが見つかりません: $dir"
+            exit 2
+          }
+        }
+
+        $yamlFile = Join-Path $yamlDir 'Decompile.yaml'
+        if (-not (Test-Path -LiteralPath $yamlFile -PathType Leaf)) {
+          Write-Error "YAML 設定ファイルが見つかりません: $yamlFile"
+          exit 2
+        }
+
+        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+          Write-Error "対象スクリプトが見つかりません: $scriptPath"
+          exit 2
+        }
+
+        $oldDlls = Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop
+        $newDlls = Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop
+
+        if ($oldDlls.Count -eq 0 -or $newDlls.Count -eq 0) {
+          Write-Error "DLL ペア不足: Old=$($oldDlls.Count), New=$($newDlls.Count)"
+          exit 3
+        }
+
+        $oldBase = $oldDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
+        $newBase = $newDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
+        $pairCount = @($oldBase | Where-Object { $_ -in $newBase }).Count
+        if ($pairCount -eq 0) {
+          Write-Error "対応する DLL ペアがありません（ベース名一致 0 件）"
+          exit 3
+        }
+
+        $LASTEXITCODE = 0
+        & $scriptPath -WhatIf -Verbose -NoKeyWait -Force -DiffTool Custom
+        $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+
+        if ($exitCode -ne 0) {
+          Write-Error "DecompileDLL WhatIf スモーク失敗: exit=$exitCode"
+          exit $exitCode
+        }
+
     - name: テスト結果をアップロード（Unit）
       if: always() && hashFiles('test-results-unit.xml') != ''
       uses: actions/upload-artifact@v4
