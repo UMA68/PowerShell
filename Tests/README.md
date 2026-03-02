@@ -14,7 +14,7 @@ Tests/
 │   └── CheckCommand.Tests.ps1                   # ✅ 実装完了 (15テストケース)
 ├── Integration/                                 # 統合テスト
 │   ├── ReleaseProcess.Tests.ps1                 # ✅ 実装完了 (17テストケース)
-│   ├── DecompileDLL.Tests.ps1                   # 📋 テンプレート
+│   ├── DecompileDll.Tests.ps1                   # ✅ 実装完了 (8テストケース: Pass 6 / Skip 2)
 │   └── SQLQuery.Tests.ps1                       # 📋 テンプレート
 └── Fixtures/                                    # テスト用のサンプルファイル
     ├── SampleConfig.yaml
@@ -75,6 +75,12 @@ Invoke-Pester -Path .\Tests\Common\FindModule.Tests.ps1 -Verbose
 
 # 統合テストのみ
 Invoke-Pester -Path .\Tests\Integration\ -Verbose
+
+# DecompileDll 統合テスト（ファイル単体）
+Invoke-Pester -Path .\Tests\Integration\DecompileDll.Tests.ps1 -Verbose
+
+# DecompileDll 統合テスト（Pester 5 ランナー経由）
+pwsh -NoProfile -File .\Run-Pester5.ps1 -DecompileDll
 ```
 
 ### 特定のテストを実行（フィルタリング）

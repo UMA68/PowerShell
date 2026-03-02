@@ -700,7 +700,15 @@ pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\ -Tag 'Unit'"
 
 # Integration テストがある場合
 pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\"
+
+# DecompileDll 統合テスト（Pester 5 ランナー経由）
+pwsh -NoProfile -File .\Run-Pester5.ps1 -DecompileDll
+
+# DecompileDll 統合テスト（直接実行）
+pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\DecompileDll.Tests.ps1"
 ```
+
+> **Note**: `DecompileDll.Tests.ps1` では、`Show-ErrorPopup` がブロッキングになる2ケース（`Error-FileNotFound-OldEmpty` / `Error-GeneralError-InvalidYaml`）を既定で `Skip` としています。
 
 ```powershell
 # PowerShell 7.x を起動

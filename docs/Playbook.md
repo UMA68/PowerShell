@@ -39,6 +39,22 @@ CIを「すべてを自動判断する装置」にしない。
   - 運用補助スクリプト
   - 一時的な検証用コード
 
+### ローカル再現コマンド（DecompileDLL Integration）
+- `DecompileDLL/Script/DecompileDll.ps1` の統合テストは `Tests/Integration/DecompileDll.Tests.ps1` を正本とする
+- 実行コマンド（Pester 5ランナー経由）
+
+```powershell
+pwsh -NoProfile -File .\Run-Pester5.ps1 -DecompileDll
+```
+
+- 実行コマンド（直接実行）
+
+```powershell
+pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\DecompileDll.Tests.ps1"
+```
+
+- 備考: `Show-ErrorPopup` がブロッキングになる2ケース（`Error-FileNotFound-OldEmpty` / `Error-GeneralError-InvalidYaml`）は、CI向けに `Skip` で運用する
+
 ---
 
 ### 定期 CI（四半期に一回）

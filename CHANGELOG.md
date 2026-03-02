@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-02
+
+- DecompileDll integration tests migrated and stabilized
+  - Moved test file to `Tests/Integration/DecompileDll.Tests.ps1`
+  - Fixed repository root resolution in moved test to keep `DecompileDLL/Script/DecompileDll.ps1` lookup valid
+  - Verified execution paths: direct `Invoke-Pester` and `Run-Pester5.ps1 -DecompileDll`
+- Test runner and docs synchronized with new path
+  - Updated `Run-Pester5.ps1` default `-DecompileDll` target to `Tests/Integration/DecompileDll.Tests.ps1`
+  - Updated references in `README.md`, `docs/Playbook.md`, and `Tests/README.md`
+  - Added DecompileDll integration run examples (direct and runner-based)
+
 ## 2026-02-12
 
 - Code quality improvements: Fixed PSScriptAnalyzer warnings across multiple files
