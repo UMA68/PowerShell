@@ -34,12 +34,12 @@ dotNetSdkUninstallToolの入手/LOG/
 # DLL 逆コンパイル成果物（生成物）
 # ---------------------------------------------------------
 DecompileDLL/Dlls/Decompiled/
-DecompileDLL/Dlls/New/
-DecompileDLL/Dlls/Old/
+DecompileDLL/Dlls/New/*
+DecompileDLL/Dlls/Old/*
 DecompileDLL/LOG/
 # ただし .gitkeep は追跡する
-!DecompileDLL/Dlls/Old/.gitkeep
 !DecompileDLL/Dlls/New/.gitkeep
+!DecompileDLL/Dlls/Old/.gitkeep
 
 # ---------------------------------------------------------
 # SDK / 環境操作ログ
