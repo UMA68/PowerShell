@@ -111,8 +111,8 @@ jobs:
           exit 2
         }
 
-        $oldDlls = Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop
-        $newDlls = Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop
+        $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop)
+        $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop)
 
         if ($oldDlls.Count -eq 0 -or $newDlls.Count -eq 0) {
           Write-Error "DLL ペア不足: Old=$($oldDlls.Count), New=$($newDlls.Count)"
