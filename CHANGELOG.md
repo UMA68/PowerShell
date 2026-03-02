@@ -10,6 +10,12 @@
   - Updated `Run-Pester5.ps1` default `-DecompileDll` target to `Tests/Integration/DecompileDll.Tests.ps1`
   - Updated references in `README.md`, `docs/Playbook.md`, and `Tests/README.md`
   - Added DecompileDll integration run examples (direct and runner-based)
+- CI guard added for DecompileDLL WhatIf smoke step
+  - Updated `.github/workflows/pester.yml` to skip the `DecompileDLL WhatIf` smoke check with `exit 0` when `ILSpyCmd` is not installed on the runner
+  - Ensured `LOG` directory creation before the smoke step so log-path assumptions stay consistent
+- ADR updated for temporary CI policy alignment
+  - Extended `adr/0014-psscriptanalyzer-failonseverity-error-only.md` with the decision to skip `DecompileDLL WhatIf` smoke in CI environments without `ILSpyCmd`
+  - Clarified rationale/consequences: avoid environment-noise failures while keeping `ILSpyCmd`-dependent validation in local or dedicated tests
 
 ## 2026-02-12
 
