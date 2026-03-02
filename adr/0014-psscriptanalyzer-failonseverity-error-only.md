@@ -17,9 +17,13 @@ Accepted
 `Invoke-ScriptAnalyzerChanged.ps1` の `FailOnSeverity` は、当面 `@('Error')` のみを指定する。  
 `Warning` はCIの失敗条件に含めない。
 
+あわせて、`pester.yml` の「DecompileDLL WhatIfスモーク検証」では、CI実行環境に `ILSpyCmd` が存在しない場合は当該スモークをスキップ（`exit 0`）する。  
+`ILSpyCmd` 前提の検証は、ローカル環境または別テストで担保する。
+
 ## Rationale
 
 - DecompileDLLのCI組み込みと、差分チェック基盤そのものの安定稼働を優先するため。
+- GitHub Actionsランナーでは `ILSpyCmd` が必ずしも導入済みでないため、ツール非依存の経路を不必要に失敗させないため。
 - 試行錯誤フェーズでは、`Warning` レベルのスタイル指摘で開発速度が阻害されるリスクが高いため。
 - ただし `Warning` を無視するわけではなく、`LOG/psscriptanalyzer-changed.json` へ出力し、継続的に観察・棚卸しを行うため。
 - 将来的には `Warning` の一部を `Error` 扱いに格上げすることを検討し、段階的に品質ゲートを強化するため。
@@ -27,6 +31,7 @@ Accepted
 ## Consequences
 
 - `Error` が存在する場合のみCIは失敗し、品質ゲートとしての機能を維持できる。
+- `ILSpyCmd` 未導入のCI環境でも、DecompileDLL WhatIfスモークは明示的にスキップされ、環境差異によるノイズ失敗を抑制できる。
 - `Warning` はCIを停止しないが、JSONとログには残るため、後続の改善対象としてレビューできる。
 - 運用が安定した段階で、ルール見直しサイクル（例：月次レビュー）を導入し、`Warning` の扱いを再評価する余地がある。
 
@@ -36,4 +41,5 @@ Accepted
 - [ADR-0009: テスト基盤を PowerShell 7 上での Pester 実行を CI に集約する](0009-pester-test-environments.md)
 - [PSScriptAnalyzerSettings.psd1](../PSScriptAnalyzerSettings.psd1)
 - [scripts/Invoke-ScriptAnalyzerChanged.ps1](../scripts/Invoke-ScriptAnalyzerChanged.ps1)
+- [DecompileDLL/Script/DecompileDll.ps1](../DecompileDLL/Script/DecompileDll.ps1)
 - [.github/workflows/pester.yml](../.github/workflows/pester.yml)
