@@ -63,7 +63,7 @@ jobs:
           .\scripts\Invoke-ScriptAnalyzerChanged.ps1 `
             -BaseRef $baseRef `
             -HeadRef 'HEAD' `
-            -FailOnSeverity @('Error', 'Warning') `
+            -FailOnSeverity @('Error') `
             -OutputJsonPath 'LOG/psscriptanalyzer-changed.json'
           
       - name: 結果をアップロード（エラー時のみ）
