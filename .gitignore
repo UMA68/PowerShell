@@ -37,6 +37,9 @@ DecompileDLL/Dlls/Decompiled/
 DecompileDLL/Dlls/New/
 DecompileDLL/Dlls/Old/
 DecompileDLL/LOG/
+# ただし .gitkeep は追跡する
+!DecompileDLL/Dlls/Old/.gitkeep
+!DecompileDLL/Dlls/New/.gitkeep
 
 # ---------------------------------------------------------
 # SDK / 環境操作ログ
