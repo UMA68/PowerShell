@@ -111,6 +111,11 @@ jobs:
           exit 2
         }
 
+        $logDir = Join-Path $projectRoot 'LOG'
+        if (-not (Test-Path -LiteralPath $logDir -PathType Container)) {
+          New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+        }
+
         $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop)
         $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop)
 
