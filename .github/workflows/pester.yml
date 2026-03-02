@@ -1,5 +1,4 @@
 name: Pester Tests
-
 on:
   push:
     branches: [ main, develop ]
@@ -29,235 +28,262 @@ jobs:
     # Windows PowerShell 5.1 ジョブは ADR-0007 により削除
     name: Pester ユニットテスト (PowerShell 7.x)
     runs-on: windows-latest
-
     steps:
       # NOTE: ローカル専用の Run-Pester5.* は CI では使用しない（ADR-0009 / ADR-9009）。CI はこの workflow の手順で Pester を導入・実行する。
-    - name: リポジトリをチェックアウト
-      uses: actions/checkout@v4
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
 
-    - name: PowerShell バージョンを確認
-      run: |
-        Write-Host "PowerShell バージョン: $($PSVersionTable.PSVersion)" -ForegroundColor Cyan
-        Write-Host "要求バージョン: 7.x (windows-latest 同梱)" -ForegroundColor Cyan
+      - name: PowerShell バージョンを確認
+        run: |
+          Write-Host "PowerShell バージョン: $($PSVersionTable.PSVersion)" -ForegroundColor Cyan
+          Write-Host "要求バージョン: 7.x (windows-latest 同梱)" -ForegroundColor Cyan
 
-    - name: 必要なモジュールをインストール
-      run: |
-        Set-PSRepository PSGallery -InstallationPolicy Trusted
+      - name: 必要なモジュールをインストール
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
 
-        Write-Host "Pester をインストール中..." -ForegroundColor Cyan
-        Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
+          Write-Host "Pester をインストール中..." -ForegroundColor Cyan
+          Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
 
-        Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
-        Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
+          Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
+          Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
 
-        # ADR-0011/0012: CI で常時実行する静的解析モジュール
-        Write-Host "PSScriptAnalyzer をインストール中..." -ForegroundColor Cyan
-        Install-Module -Name PSScriptAnalyzer -MinimumVersion 1.22.0 -Force -Scope CurrentUser
+          # ADR-0011/0012: CI で常時実行する静的解析モジュール
+          Write-Host "PSScriptAnalyzer をインストール中..." -ForegroundColor Cyan
+          Install-Module -Name PSScriptAnalyzer -MinimumVersion 1.22.0 -Force -Scope CurrentUser
 
-        Write-Host "モジュール情報:" -ForegroundColor Cyan
-        Get-Module -ListAvailable Pester | Select-Object Name, Version
-        Get-Module -ListAvailable PowerShell-Yaml | Select-Object Name, Version
-        Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
+          Write-Host "モジュール情報:" -ForegroundColor Cyan
+          Get-Module -ListAvailable Pester |
+            Select-Object Name, Version
+          Get-Module -ListAvailable PowerShell-Yaml |
+            Select-Object Name, Version
+          Get-Module -ListAvailable PSScriptAnalyzer |
+            Select-Object Name, Version
 
-    - name: PSScriptAnalyzer を実行（Error/Warning のみ失敗）
-      run: |
-        # ADR-0011/0012: 設定の正本は PSScriptAnalyzerSettings.psd1、CI 失敗条件は Error/Warning のみ
-        $settingsPath = Join-Path $PWD 'PSScriptAnalyzerSettings.psd1'
-        if (-not (Test-Path $settingsPath)) {
-          throw "PSScriptAnalyzer 設定ファイルが見つかりません: $settingsPath"
-        }
-
-    - name: Pester テストを実行（Unit テスト）
-      run: |
-        Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
-        $config = New-PesterConfiguration
-        $config.Run.Path = '.\Tests\'
-        $config.Filter.Tag = @('Unit')
-        $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
-        $config.Output.Verbosity = 'Detailed'
-        $config.TestResult.Enabled = $true
-        $config.TestResult.OutputPath = 'test-results-unit.xml'
-        $config.TestResult.OutputFormat = 'NUnitXml'
-
-        Invoke-Pester -Configuration $config
-
-    - name: DecompileDLL WhatIf スモーク検証
-      run: |
-        Set-StrictMode -Version Latest
-        $ErrorActionPreference = 'Stop'
-
-        $projectRoot = Join-Path $PWD 'DecompileDLL'
-        $scriptDir   = Join-Path $projectRoot 'Script'
-        $yamlDir     = Join-Path $projectRoot 'YAML'
-        $oldDir      = Join-Path $projectRoot 'Dlls/Old'
-        $newDir      = Join-Path $projectRoot 'Dlls/New'
-        $scriptPath  = Join-Path $scriptDir 'DecompileDll.ps1'
-
-        foreach ($dir in @($scriptDir, $yamlDir, $oldDir, $newDir)) {
-          if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
-            Write-Error "必須ディレクトリが見つかりません: $dir"
-            exit 2
+      - name: PSScriptAnalyzer を実行（Error/Warning のみ失敗）
+        run: |
+          # ADR-0011/0012: 設定の正本は PSScriptAnalyzerSettings.psd1、CI 失敗条件は Error/Warning のみ
+          $settingsPath = Join-Path $PWD 'PSScriptAnalyzerSettings.psd1'
+          if (-not (Test-Path $settingsPath)) {
+            throw "PSScriptAnalyzer 設定ファイルが見つかりません: $settingsPath"
           }
-        }
 
-        $yamlFile = Join-Path $yamlDir 'Decompile.yaml'
-        if (-not (Test-Path -LiteralPath $yamlFile -PathType Leaf)) {
-          Write-Error "YAML 設定ファイルが見つかりません: $yamlFile"
-          exit 2
-        }
+          # 差分実行スクリプト（Invoke-ScriptAnalyzerChanged.ps1）があればここで呼び出してもよいが、
+          # このサンプルでは従来通りの設定ファイル存在チェックのみとしている。
 
-        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
-          Write-Error "対象スクリプトが見つかりません: $scriptPath"
-          exit 2
-        }
+      - name: Pester テストを実行（Unit テスト）
+        run: |
+          Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
 
-        $logDir = Join-Path $projectRoot 'LOG'
-        if (-not (Test-Path -LiteralPath $logDir -PathType Container)) {
-          New-Item -Path $logDir -ItemType Directory -Force | Out-Null
-        }
-
-        $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop)
-        $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop)
-
-        if ($oldDlls.Count -eq 0 -or $newDlls.Count -eq 0) {
-          Write-Error "DLL ペア不足: Old=$($oldDlls.Count), New=$($newDlls.Count)"
-          exit 3
-        }
-
-        $oldBase = $oldDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
-        $newBase = $newDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
-        $pairCount = @($oldBase | Where-Object { $_ -in $newBase }).Count
-        if ($pairCount -eq 0) {
-          Write-Error "対応する DLL ペアがありません（ベース名一致 0 件）"
-          exit 3
-        }
-
-        $LASTEXITCODE = 0
-        & $scriptPath -WhatIf -Verbose -NoKeyWait -Force -DiffTool Custom
-        $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
-
-        if ($exitCode -ne 0) {
-          Write-Error "DecompileDLL WhatIf スモーク失敗: exit=$exitCode"
-          exit $exitCode
-        }
-
-    - name: テスト結果をアップロード（Unit）
-      if: always() && hashFiles('test-results-unit.xml') != ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-unit-7x
-        path: test-results-unit.xml
-        retention-days: 30
-
-    - name: Pester テストレポートを発行（Unit）
-      if: always() && hashFiles('test-results-unit.xml') != ''
-      continue-on-error: true
-      uses: EnricoMi/publish-unit-test-result-action/windows@v2
-      with:
-        files: test-results-unit.xml
-        check_name: Unit Test Results (7.x)
-        comment_mode: always
-
-    - name: Pester テストを実行（Integration テスト）
-      continue-on-error: true
-      run: |
-        Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
-
-        # Integration テストが存在するか確認
-        $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '*.Tests.ps1' -ErrorAction SilentlyContinue
-
-        if ($integrationTests.Count -gt 0) {
           $config = New-PesterConfiguration
-          $config.Run.Path = '.\Tests\Integration\'
+          $config.Run.Path = '.\Tests\'
+          $config.Filter.Tag = @('Unit')
+          $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
           $config.Output.Verbosity = 'Detailed'
           $config.TestResult.Enabled = $true
-          $config.TestResult.OutputPath = 'test-results-integration.xml'
+          $config.TestResult.OutputPath = 'test-results-unit.xml'
           $config.TestResult.OutputFormat = 'NUnitXml'
 
           Invoke-Pester -Configuration $config
-        } else {
-          Write-Host "⚠️ Integration テストファイルが見つかりません" -ForegroundColor Yellow
-        }
 
-    - name: テスト結果をアップロード（Integration）
-      if: always() && hashFiles('test-results-integration.xml') != ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-integration-7x
-        path: test-results-integration.xml
-        retention-days: 30
+      - name: DecompileDLL WhatIf スモーク検証
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
 
-    # See ADR-0003 (0003-pwsh-for-test-summary.md)
-    - name: テスト概要を表示
-      if: always()
-      run: |
-        Write-Host "`n" + "="*70 -ForegroundColor Cyan
-        Write-Host "テスト実行概要" -ForegroundColor Cyan
-        Write-Host "="*70 -ForegroundColor Cyan
+          $projectRoot = Join-Path $PWD 'DecompileDLL'
+          $scriptDir   = Join-Path $projectRoot 'Script'
+          $yamlDir     = Join-Path $projectRoot 'YAML'
+          $oldDir      = Join-Path $projectRoot 'Dlls/Old'
+          $newDir      = Join-Path $projectRoot 'Dlls/New'
+          $scriptPath  = Join-Path $scriptDir 'DecompileDll.ps1'
 
-        if (Test-Path 'test-results-unit.xml') {
-          [xml]$unitResults = Get-Content 'test-results-unit.xml'
-          $unitTests = $unitResults.'test-results'.tests
-          $unitPassed = ($unitResults.'test-results'.'test-suite' | Where-Object { $_.name -like 'Pester*' } | Measure-Object).Count
-
-          Write-Host "`n📋 Unit テスト結果:" -ForegroundColor Yellow
-          if ($unitResults.'test-results'.'test-suite') {
-            foreach ($suite in $unitResults.'test-results'.'test-suite') {
-              $passed = [int]$suite.tests - [int]$suite.failures
-              Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Red' })
+          foreach ($dir in @($scriptDir, $yamlDir, $oldDir, $newDir)) {
+            if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+              Write-Error "必須ディレクトリが見つかりません: $dir"
+              exit 2
             }
           }
-        }
 
-        if (Test-Path 'test-results-integration.xml') {
-          [xml]$integrationResults = Get-Content 'test-results-integration.xml'
-          Write-Host "`n📋 Integration テスト結果:" -ForegroundColor Yellow
-          if ($integrationResults.'test-results'.'test-suite') {
-            foreach ($suite in $integrationResults.'test-results'.'test-suite') {
-              $passed = [int]$suite.tests - [int]$suite.failures
-              Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Yellow' })
-            }
-          } else {
-            Write-Host "  テストが実行されませんでした" -ForegroundColor DarkGray
+          $yamlFile = Join-Path $yamlDir 'Decompile.yaml'
+          if (-not (Test-Path -LiteralPath $yamlFile -PathType Leaf)) {
+            Write-Error "YAML 設定ファイルが見つかりません: $yamlFile"
+            exit 2
           }
-        }
 
-        Write-Host "`n" + "="*70 -ForegroundColor Cyan
+          if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+            Write-Error "対象スクリプトが見つかりません: $scriptPath"
+            exit 2
+          }
 
-    - name: コードカバレッジを測定
-      run: |
-        Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
+          $logDir = Join-Path $projectRoot 'LOG'
+          if (-not (Test-Path -LiteralPath $logDir -PathType Container)) {
+            New-Item -Path $logDir -ItemType Directory -Force |
+              Out-Null
+          }
 
-        $config = New-PesterConfiguration
-        $config.Run.Path = '.\Tests\Common\'
-        $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
-        $config.Run.PassThru = $true
-        $config.CodeCoverage.Enabled = $true
-        $config.CodeCoverage.Path = '.\Common\*.ps1'
-        $config.CodeCoverage.OutputPath = 'coverage.xml'
-        $config.CodeCoverage.OutputFormat = 'CoverageGutters'
-        $config.Output.Verbosity = 'Minimal'
+          # ILSpyCmd が無い環境では DecompileDLL スモークをスキップする
+          if (-not (Get-Command -Name 'ILSpyCmd' -ErrorAction SilentlyContinue)) {
+            Write-Host "ILSpyCmd が見つからないため、DecompileDLL WhatIf スモークをスキップします。" -ForegroundColor Yellow
+            Write-Host "ローカルまたは別テストで ILSpyCmd 前提のパスを検証してください。" -ForegroundColor DarkYellow
+            exit 0
+          }
 
-        $results = Invoke-Pester -Configuration $config
+          $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '\*.dll' -File -ErrorAction Stop)
+          $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '\*.dll' -File -ErrorAction Stop)
 
-        # カバレッジレポートを表示
-        if ($results.CodeCoverage) {
-          Write-Host "`nコードカバレッジ結果:" -ForegroundColor Cyan
-          Write-Host "測定ファイル数: $($results.CodeCoverage.Count)" -ForegroundColor Yellow
-        }
+          if ($oldDlls.Count -eq 0 -or $newDlls.Count -eq 0) {
+            Write-Error "DLL ペア不足: Old=$($oldDlls.Count), New=$($newDlls.Count)"
+            exit 3
+          }
 
-    - name: カバレッジレポートをアップロード
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report-7x
-        path: coverage.xml
-        retention-days: 30
+          $oldBase = $oldDlls |
+            ForEach-Object { $_.BaseName } |
+            Sort-Object -Unique
 
-    - name: テスト失敗時のログをアップロード
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pester-logs-7x
-        path: ${{ github.workspace }}
-        retention-days: 30
+          $newBase = $newDlls |
+            ForEach-Object { $_.BaseName } |
+            Sort-Object -Unique
+
+          $pairCount = @($oldBase |
+            Where-Object { $_ -in $newBase }).Count
+
+          if ($pairCount -eq 0) {
+            Write-Error "対応する DLL ペアがありません（ベース名一致 0 件）"
+            exit 3
+          }
+
+          $LASTEXITCODE = 0
+          & $scriptPath -WhatIf -Verbose -NoKeyWait -Force -DiffTool Custom
+          $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+
+          if ($exitCode -ne 0) {
+            Write-Error "DecompileDLL WhatIf スモーク失敗: exit=$exitCode"
+            exit $exitCode
+          }
+
+      - name: テスト結果をアップロード（Unit）
+        if: always() && hashFiles('test-results-unit.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit-7x
+          path: test-results-unit.xml
+          retention-days: 30
+
+      - name: Pester テストレポートを発行（Unit）
+        if: always() && hashFiles('test-results-unit.xml') != ''
+        continue-on-error: true
+        uses: EnricoMi/publish-unit-test-result-action/windows@v2
+        with:
+          files: test-results-unit.xml
+          check_name: Unit Test Results (7.x)
+          comment_mode: always
+
+      - name: Pester テストを実行（Integration テスト）
+        continue-on-error: true
+        run: |
+          Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
+
+          # Integration テストが存在するか確認
+          $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '\*.Tests.ps1' -ErrorAction SilentlyContinue
+          if ($integrationTests.Count -gt 0) {
+            $config = New-PesterConfiguration
+            $config.Run.Path = '.\Tests\Integration\'
+            $config.Output.Verbosity = 'Detailed'
+            $config.TestResult.Enabled = $true
+            $config.TestResult.OutputPath = 'test-results-integration.xml'
+            $config.TestResult.OutputFormat = 'NUnitXml'
+
+            Invoke-Pester -Configuration $config
+          }
+          else {
+            Write-Host "⚠️ Integration テストファイルが見つかりません" -ForegroundColor Yellow
+          }
+
+      - name: テスト結果をアップロード（Integration）
+        if: always() && hashFiles('test-results-integration.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-integration-7x
+          path: test-results-integration.xml
+          retention-days: 30
+
+      # See ADR-0003 (0003-pwsh-for-test-summary.md)
+      - name: テスト概要を表示
+        if: always()
+        run: |
+          Write-Host "`n" + "="*70 -ForegroundColor Cyan
+          Write-Host "テスト実行概要" -ForegroundColor Cyan
+          Write-Host "="*70 -ForegroundColor Cyan
+
+          if (Test-Path 'test-results-unit.xml') {
+            [xml]$unitResults = Get-Content 'test-results-unit.xml'
+            $unitTests = $unitResults.'test-results'.tests
+            $unitPassed = ($unitResults.'test-results'.'test-suite' |
+              Where-Object { $_.name -like 'Pester*' } |
+              Measure-Object).Count
+
+            Write-Host "`n📋 Unit テスト結果:" -ForegroundColor Yellow
+            if ($unitResults.'test-results'.'test-suite') {
+              foreach ($suite in $unitResults.'test-results'.'test-suite') {
+                $passed = [int]$suite.tests - [int]$suite.failures
+                Write-Host " $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Red' })
+              }
+            }
+          }
+
+          if (Test-Path 'test-results-integration.xml') {
+            [xml]$integrationResults = Get-Content 'test-results-integration.xml'
+
+            Write-Host "`n📋 Integration テスト結果:" -ForegroundColor Yellow
+            if ($integrationResults.'test-results'.'test-suite') {
+              foreach ($suite in $integrationResults.'test-results'.'test-suite') {
+                $passed = [int]$suite.tests - [int]$suite.failures
+                Write-Host " $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Yellow' })
+              }
+            }
+            else {
+              Write-Host " テストが実行されませんでした" -ForegroundColor DarkGray
+            }
+          }
+
+          Write-Host "`n" + "="*70 -ForegroundColor Cyan
+
+      - name: コードカバレッジを測定
+        run: |
+          Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
+
+          $config = New-PesterConfiguration
+          $config.Run.Path = '.\Tests\Common\'
+          $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
+          $config.Run.PassThru = $true
+
+          $config.CodeCoverage.Enabled = $true
+          $config.CodeCoverage.Path = '.\Common\*.ps1'
+          $config.CodeCoverage.OutputPath = 'coverage.xml'
+          $config.CodeCoverage.OutputFormat = 'CoverageGutters'
+          $config.Output.Verbosity = 'Minimal'
+
+          $results = Invoke-Pester -Configuration $config
+
+          # カバレッジレポートを表示
+          if ($results.CodeCoverage) {
+            Write-Host "`nコードカバレッジ結果:" -ForegroundColor Cyan
+            Write-Host "測定ファイル数: $($results.CodeCoverage.Count)" -ForegroundColor Yellow
+          }
+
+      - name: カバレッジレポートをアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-7x
+          path: coverage.xml
+          retention-days: 30
+
+      - name: テスト失敗時のログをアップロード
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-logs-7x
+          path: ${{ github.workspace }}
+          retention-days: 30
