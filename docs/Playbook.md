@@ -80,6 +80,51 @@ pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\DecompileDll.T
 
 ---
 
+## ScriptAnalyzer（差分チェック）運用指針
+
+### 目的
+`scripts/Invoke-ScriptAnalyzerChanged.ps1` による差分チェック運用の目的は、
+**mainに入る変更で、直ちに危険な問題だけを確実に止める**ことにある。
+
+CIを「すべてを自動判定する装置」にしない。  
+ScriptAnalyzerも、判断を助けるための信号機として扱う。
+
+### 常時 CI における役割
+- `pester.yml` の品質ゲートで、Git差分（`BaseRef..HeadRef`）に対して
+  `scripts/Invoke-ScriptAnalyzerChanged.ps1` を実行する
+- 対象は「今回の変更に含まれる PowerShell スクリプト」に限定する
+- これにより、全量検査の重さを避けつつ、変更起点の品質低下を検知する
+
+### FailOnSeverity の扱い（現行）
+- FailOnSeverity は `@('Error')` のみを失敗条件とする
+- Warning は検知しても、常時CIの失敗条件には含めない
+
+### Warning をゲートから除外した理由
+- これまで Error / Warning の両方をゲートにしていたため、
+  軽微なWarningでCIが不要に赤くなるケースが多発した
+- 品質ゲートのノイズが増えると、
+  本当に止めるべき異常（Error）の信号が埋もれる
+- そのため、常時CIでは「止めるべきもの」を Error に絞る
+
+### Warning をログに残す運用
+- Warning を無視するのではなく、JSONに蓄積して後から棚卸しする
+- 出力先は `LOG/psscriptanalyzer-changed.json`
+- 常時CIでは「即時停止」と「継続的改善」を分離して扱う
+
+### 将来的な見直し
+- 蓄積したWarningは定期的に棚卸しし、
+  影響の大きいものから修正・ルール化する
+- 運用が安定した領域は、
+  Warning → Error へ段階的に格上げすることを検討する
+
+この方針は、CIを判断装置にしないというPlaybook全体の原則に従う。  
+**CIは決定装置ではなく、判断を支援する信号機である。**
+
+### ADR 参照
+- [ADR-0014: PSScriptAnalyzerのFailOnSeverityをErrorのみに変更する](../adr/0014-psscriptanalyzer-failonseverity-error-only.md)
+
+---
+
 ## CI に含めないもの
 以下はCIの品質ゲート対象外とする。
 
