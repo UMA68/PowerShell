@@ -38,8 +38,9 @@ Accepted
    - ローカル実行は開発補助と位置づけ、最終判定には使用しない
 
 4. **テストの物理ディレクトリを系統別に分離する**
-   - `Tests/Pester4/` → Pester 4系テスト
-   - `Tests/Pester5/` → Pester 5系テスト
+  - `Tests/Common/` → 共通テスト
+  - `Tests/Integration/` → 統合テスト
+  - 注記：本ADR策定当初は `Tests/Pester4/` と `Tests/Pester5/` の系統分離を想定していたが、現行運用では用途別（Common / Integration）へ再編されている
 
 5. **GitHub Actions を Windows / Ubuntu の 2 ジョブ構成とする**
    - `windows-latest` + `pwsh` → Pester 4実行
@@ -99,7 +100,7 @@ Accepted
 
 ## Actions
 
-1. `Tests/Pester4/` と `Tests/Pester5/` ディレクトリを作成する
+1. `Tests/Common/` と `Tests/Integration/` ディレクトリ構成を維持する
 2. Pester 4テストをpwsh上で動作するよう最小限調整する
 3. Pester 5テストを新規作成または移植する
 4. `.github/workflows/pester.yml` を2ジョブ構成に変更する
