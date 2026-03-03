@@ -1,6 +1,6 @@
 # Runbooks index
 
-実行系フォルダの Readme へのリンク集です（ファイル自体は移動しません）。
+実行系フォルダーのReadmeへのリンク集です（ファイル自体は移動しません）。
 
 - [DecompileDLL](../../DecompileDLL/Readme.md)
 - [dotNetSdkUninstallToolの入手](../../dotNetSdkUninstallToolの入手/Readme.md)
