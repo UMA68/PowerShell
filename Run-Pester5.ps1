@@ -17,7 +17,7 @@
     .\Run-Pester5.ps1 -Path .\Tests\Common\Get-ScriptPaths.Tests.ps1 -Verbose
 
     # テストディレクトリ全体を実行
-    .\Run-Pester5.ps1 -Path .\Tests\Pester5 -Verbose
+    .\Run-Pester5.ps1 -Path .\Tests -Verbose
 
     # DecompileDll 統合テストを実行
     .\Run-Pester5.ps1 -DecompileDll
