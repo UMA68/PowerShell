@@ -1,7 +1,5 @@
 # .NET Uninstall Tool 管理スクリプト（DotNetUninstallTool.ps1）
 
-English: [Readme.en.md](./Readme.en.md)
-
 .NET Uninstall Tool（`dotnet-core-uninstall`）のインストール/アンインストールを、対話式メニューとYAML設定で安全・簡単に管理するためのスクリプトです（v1.2.0）。ドライラン（`-WhatIf`）と対話的確認（`-Confirm`）に対応し、実際に変更を加える前に「何が行われるか」を確認できます。ログは常に作成され、実行後に自動で開きます。
 
 ---

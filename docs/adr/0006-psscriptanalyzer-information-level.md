@@ -77,7 +77,7 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 ### 📝 関連ファイル
 
 - [PSScriptAnalyzerSettings.psd1](../PSScriptAnalyzerSettings.psd1)
-- [CHANGELOG.md](../CHANGELOG.md) (2026-02-12エントリ）
+- [CHANGELOG.md](../CHANGELOG.md)（現時点では英語ベース、2026-02-12エントリ）
 - [README.md](../README.md) (コード品質チェックセクション）
 
 ### 🔄 今後の見直し

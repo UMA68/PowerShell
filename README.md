@@ -347,7 +347,7 @@ Microsoftの .NET Uninstall Toolを自動ダウンロード・実行するスク
 
 - **機能**: .NET Uninstall Toolの取得と実行
 - **用途**: 不要な .NET SDK/Runtimeのクリーンアップ
-- **ドキュメント**: [日本語](dotNetSdkUninstallToolの入手/Readme.md) | [English](dotNetSdkUninstallToolの入手/Readme.en.md)
+- **ドキュメント**: [日本語](dotNetSdkUninstallToolの入手/Readme.md)
 
 ```powershell
 ./dotNetSdkUninstallToolの入手/Script/DotNetUninstallTool.ps1
