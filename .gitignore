@@ -74,6 +74,7 @@ ReleaseProcess-Test.xml
 LOG/
 **/LOG/
 **/*.xml
+PSScriptAnalyzer-*.txt
 **/*.log
 
 # ---------------------------------------------------------
