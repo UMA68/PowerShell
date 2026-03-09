@@ -71,6 +71,7 @@ tests/                # Pester テスト
 - [ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](0013-quarterly-ci-as-environment-signal.md)
 - [ADR-0014: ScriptAnalyzer 差分チェックの FailOnSeverity を当面 Error のみにする](0014-psscriptanalyzer-failonseverity-error-only.md)
 - [ADR-0015: ドキュメント配置・ディレクトリ構成方針](0015-documentation-directory-structure.md)
+- [ADR-0016: Release & Tagging Policy（リリースおよびタグ運用方針）](0016-release-and-tagging-policy.md)
 
 CI / ScriptAnalyzerの具体的な運用手順は [Playbook — PowerShell リポジトリ CI / 運用](../guides/Playbook.md) を参照。
 
