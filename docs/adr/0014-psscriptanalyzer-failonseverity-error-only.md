@@ -39,7 +39,7 @@ Accepted
 
 - [ADR-0006: PSScriptAnalyzer Information レベルの扱い](0006-psscriptanalyzer-information-level.md)
 - [ADR-0009: テスト基盤を PowerShell 7 上での Pester 実行を CI に集約する](0009-pester-test-environments.md)
-- [PSScriptAnalyzerSettings.psd1](../PSScriptAnalyzerSettings.psd1)
-- [scripts/Invoke-ScriptAnalyzerChanged.ps1](../scripts/Invoke-ScriptAnalyzerChanged.ps1)
-- [DecompileDLL/Script/DecompileDll.ps1](../DecompileDLL/Script/DecompileDll.ps1)
-- [.github/workflows/pester.yml](../.github/workflows/pester.yml)
+- [PSScriptAnalyzerSettings.psd1](../../PSScriptAnalyzerSettings.psd1)
+- [scripts/Invoke-ScriptAnalyzerChanged.ps1](../../scripts/Invoke-ScriptAnalyzerChanged.ps1)
+- [DecompileDLL/Script/DecompileDll.ps1](../../DecompileDLL/Script/DecompileDll.ps1)
+- [.github/workflows/pester.yml](../../.github/workflows/pester.yml)
