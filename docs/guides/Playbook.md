@@ -76,7 +76,7 @@ pwsh -NoProfile -Command "Invoke-Pester -Path .\Tests\Integration\DecompileDll.T
 **自動的に是正しない**。
 
 ※ 定期（四半期）CIを自動判断しない理由は
-[ADR-0013](../30_ADR/ADR-0013-quarterly-ci-as-environment-signal.md) に定義されている。
+[ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](../ADR/0013-quarterly-ci-as-environment-signal.md) に定義されている。
 
 ---
 
@@ -201,12 +201,12 @@ CIは決定装置ではない。
 ※ 本チェックリストは「自動判断」ではなく、  
 **人間の判断を補助するためのもの**である。  
 設計判断の背景については  
-[ADR-0013](../30_ADR/ADR-0013-quarterly-ci-as-environment-signal.md) を参照。
+[ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](../ADR/0013-quarterly-ci-as-environment-signal.md) を参照。
 
 ---
 
 > 🔗 定期（四半期）CI を「環境変化検知専用」とし、人間判断を前提とする設計判断については
-> [ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](../30_ADR/ADR-0013-quarterly-ci-as-environment-signal.md) を参照する。
+> [ADR-0013: 定期（四半期）CIを環境変化検知専用とし、人間判断を前提とする](../ADR/0013-quarterly-ci-as-environment-signal.md) を参照する。
 
 ---
 
