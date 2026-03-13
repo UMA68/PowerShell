@@ -46,9 +46,8 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
 
           Write-Host "Pester をインストール中..." -ForegroundColor Cyan
-          # ADR-0009/0010: CI では Pester 5.6.1 を使用
-          # Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
-          Install-Module -Name Pester -RequiredVersion 5.6.1 -Force -Scope CurrentUser
+          # ADR-0009/0010: CI では Pester 5.x 系を使用
+          Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
 
           Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
           Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
@@ -77,12 +76,12 @@ jobs:
         run: |
           Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
 
-          $requiredPesterVersion = [version]'5.6.1'
+          $minimumPesterVersion = [version]'5.0.0'
           Remove-Module Pester -Force -ErrorAction SilentlyContinue
-          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          Import-Module Pester -MinimumVersion $minimumPesterVersion -Force -ErrorAction Stop
           $loadedPesterVersion = (Get-Module Pester).Version
-          if ($loadedPesterVersion -ne $requiredPesterVersion) {
-            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          if ($loadedPesterVersion -lt $minimumPesterVersion) {
+            throw "Pester version too old. Minimum: $minimumPesterVersion, Loaded: $loadedPesterVersion"
           }
           Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Cyan
 
@@ -187,12 +186,12 @@ jobs:
         run: |
           Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
 
-          $requiredPesterVersion = [version]'5.6.1'
+          $minimumPesterVersion = [version]'5.0.0'
           Remove-Module Pester -Force -ErrorAction SilentlyContinue
-          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          Import-Module Pester -MinimumVersion $minimumPesterVersion -Force -ErrorAction Stop
           $loadedPesterVersion = (Get-Module Pester).Version
-          if ($loadedPesterVersion -ne $requiredPesterVersion) {
-            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          if ($loadedPesterVersion -lt $minimumPesterVersion) {
+            throw "Pester version too old. Minimum: $minimumPesterVersion, Loaded: $loadedPesterVersion"
           }
           Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Yellow
 
@@ -264,12 +263,12 @@ jobs:
         run: |
           Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
 
-          $requiredPesterVersion = [version]'5.6.1'
+          $minimumPesterVersion = [version]'5.0.0'
           Remove-Module Pester -Force -ErrorAction SilentlyContinue
-          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          Import-Module Pester -MinimumVersion $minimumPesterVersion -Force -ErrorAction Stop
           $loadedPesterVersion = (Get-Module Pester).Version
-          if ($loadedPesterVersion -ne $requiredPesterVersion) {
-            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          if ($loadedPesterVersion -lt $minimumPesterVersion) {
+            throw "Pester version too old. Minimum: $minimumPesterVersion, Loaded: $loadedPesterVersion"
           }
           Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Cyan
 
