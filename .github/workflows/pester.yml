@@ -46,9 +46,9 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
 
           Write-Host "Pester をインストール中..." -ForegroundColor Cyan
-          # ADR-0009/0010: CI では Pester 5.x 系を使用
+          # ADR-0009/0010: CI では Pester 5.6.1 を使用
           # Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
-          Install-Module -Name Pester -MinimumVersion 5.6.1 -Force -Scope CurrentUser
+          Install-Module -Name Pester -RequiredVersion 5.6.1 -Force -Scope CurrentUser
 
           Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
           Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force -Scope CurrentUser
