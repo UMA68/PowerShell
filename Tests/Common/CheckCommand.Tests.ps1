@@ -139,6 +139,57 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
     }
     
     Context 'エラーハンドリング' {
+        It 'CommandNotFoundException かつ ShowDialog の場合、WScript.Shell.Popup 経由で false を返す' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'NonExistentDialogCommand999'
+            Mock Get-Command {
+                throw [System.Management.Automation.CommandNotFoundException]::new('mocked command not found')
+            }
+            Mock Write-Error { }
+
+            # ダイアログが表示された場合に Enter キーで自動クローズ
+            $dismissJob = Start-Job -ScriptBlock {
+                Start-Sleep -Milliseconds 800
+                try {
+                    $ws = New-Object -ComObject WScript.Shell
+                    $ws.SendKeys('{ENTER}')
+                }
+                catch {
+                    # ダイアログ非表示環境でもテストを継続
+                }
+            }
+
+            try {
+                # Act
+                $result = Test-Command -ComName $commandName -ShowDialog
+            }
+            finally {
+                Receive-Job -Job $dismissJob -Wait -AutoRemoveJob | Out-Null
+            }
+
+            # Assert
+            $result | Should -BeFalse
+            Should -Invoke Write-Error -Times 0
+        }
+
+        It '予期しない例外が発生した場合は catch で false を返す' -Tag 'Negative' {
+            # Arrange
+            $commandName = 'Get-ChildItem'
+            Mock Get-Command {
+                throw [System.InvalidOperationException]::new('unexpected test exception')
+            }
+            Mock Write-Error { }
+
+            # Act
+            $result = Test-Command -ComName $commandName
+
+            # Assert
+            $result | Should -BeFalse
+            Should -Invoke Write-Error -Times 1 -ParameterFilter {
+                $Message -like 'コマンド確認中に予期しないエラーが発生しました:*'
+            }
+        }
+
         It 'コマンド名が null の場合、エラーが発生' -Tag 'Negative' {
             # Arrange
             $commandName = $null
