@@ -312,33 +312,15 @@ Invoke-Pester -Configuration $config
 
 ### CheckCommand.Tests.ps1（更新）
 
-PowerShellコマンド／外部コマンド検出関数Test-Commandのテスト。
-
-- 正常系・異常系を大幅強化
-- COM（WScript.Shell）によるポップアップ分岐もテスト
-- Mock-ParameterFilterを用いた安定したモック方式へ更新
+Test-Commandの仕様変更に伴いテスト全面改修。正常系・異常系・COMのポップアップ分岐などを網羅。
 
 ### NoDoubleActivation.Tests.ps1（新規）
 
-二重起動防止ロジック (NoDoubleActivation.ps1) のテスト。
-
-- PIDロックファイル生成／削除のモック化
-- ポップアップ表示（WScript.Shell）を含む分岐の網羅
-- CheckCommandと同じテストパターンを採用
+NoDoubleActivation.ps1の二重起動防止ロジックのテスト。PIDロックファイル操作をモック化し、ポップアップ分岐も含めて検証。
 
 ### sqlMain.Tests.ps1（新規）
 
-SQLクエリー実行のメインスクリプトsqlMain.ps1の統合テスト。
-
-主なテスト対象：
-
-- YAML読み込み
-- SQLフォルダー検出
-- nkf32をモック化したエンコード変換
-- Key/passの存在確認
-- SQL実行の成功／失敗ハンドリング
-- 一時ファイル生成／削除
-- SQL実行フロー全体のE2Eテスト
+SQL実行メインスクリプトの統合テスト。YAMLロード、SQLフォルダー検出、nkf32のモック、KEY/PASSチェック、SQL実行成功/失敗、一時ファイル削除までE2Eを再現。
 
 ## 参考資料
 
