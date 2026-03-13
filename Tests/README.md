@@ -11,11 +11,13 @@ Tests/
 │   ├── Get-ScriptPaths.Tests.ps1                # ✅ 実装完了 (40テストケース)
 │   ├── Write-CommonLog.Tests.ps1                # ✅ 実装完了 (30テストケース)
 │   ├── Import-YamlConfig.Tests.ps1              # ✅ 実装完了 (35テストケース)
-│   └── CheckCommand.Tests.ps1                   # ✅ 実装完了 (15テストケース)
+│   ├── CheckCommand.Tests.ps1                   # ✅ 更新: 内容を全面改修
+│   └── NoDoubleActivation.Tests.ps1             # ✅ 新規追加: 二重起動防止機能のテスト
 ├── Integration/                                 # 統合テスト
 │   ├── ReleaseProcess.Tests.ps1                 # ✅ 実装完了 (17テストケース)
 │   ├── DecompileDll.Tests.ps1                   # ✅ 実装完了 (8テストケース: Pass 6 / Skip 2)
-│   └── SQLQuery.Tests.ps1                       # 📋 テンプレート
+│   ├── SQLQuery.Tests.ps1                       # 📋 テンプレート
+│   └── sqlMain.Tests.ps1                        # ✅ 新規追加: SQL 実行フローの統合テスト
 └── Fixtures/                                    # テスト用のサンプルファイル
     ├── SampleConfig.yaml
     ├── SampleScript.ps1
@@ -26,6 +28,8 @@ Tests/
 
 - ✅ 実装完了 - テストケースが完成して実行可能
 - 📋 テンプレート - 実装ガイドとしてご利用ください
+- 更新 - 既存テストを全面改修して保守性・網羅性を強化
+- 新規追加 - 新しい対象機能に対して追加したテスト
 
 ## 前提条件
 
@@ -303,6 +307,38 @@ Invoke-Pester -Configuration $config
 - [ ] テストが高速に実行される（遅いテストは注記を追加）
 - [ ] テストが繰り返し実行できる（テスト間で依存がない）
 - [ ] コード行数が合理的（大きすぎないテスト）
+
+## 追加・更新した主なテスト
+
+### CheckCommand.Tests.ps1（更新）
+
+PowerShellコマンド／外部コマンド検出関数Test-Commandのテスト。
+
+- 正常系・異常系を大幅強化
+- COM（WScript.Shell）によるポップアップ分岐もテスト
+- Mock-ParameterFilterを用いた安定したモック方式へ更新
+
+### NoDoubleActivation.Tests.ps1（新規）
+
+二重起動防止ロジック (NoDoubleActivation.ps1) のテスト。
+
+- PIDロックファイル生成／削除のモック化
+- ポップアップ表示（WScript.Shell）を含む分岐の網羅
+- CheckCommandと同じテストパターンを採用
+
+### sqlMain.Tests.ps1（新規）
+
+SQLクエリー実行のメインスクリプトsqlMain.ps1の統合テスト。
+
+主なテスト対象：
+
+- YAML読み込み
+- SQLフォルダー検出
+- nkf32をモック化したエンコード変換
+- Key/passの存在確認
+- SQL実行の成功／失敗ハンドリング
+- 一時ファイル生成／削除
+- SQL実行フロー全体のE2Eテスト
 
 ## 参考資料
 
