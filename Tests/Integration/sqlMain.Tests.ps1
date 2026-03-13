@@ -279,11 +279,13 @@ function Test-Command {
 
         It 'shows popup and stops when nkf32 command check fails' {
             Mock Test-Command { $false }
+            Mock Write-Error {}
 
             Invoke-TestSqlMain | Out-Null
 
             Should -Invoke New-Object -Times 1 -ParameterFilter { $ComObject -eq 'WScript.Shell' }
             Should -Invoke Invoke-Sqlcmd -Times 0
+            $script:PopupCalls.Count | Should -Be 1
         }
     }
 
@@ -313,9 +315,11 @@ function Test-Command {
 
         It 'stops before SQL execution when encrypted password file is missing' {
             Remove-Item -Path (Join-Path $script:SqlProjectRoot 'test-db.pass') -Force
+            Mock Write-Error {}
 
             Invoke-TestSqlMain | Out-Null
 
+            Should -Invoke Write-Error -Times 1 -ParameterFilter { $Message -match 'パスワードファイル' }
             Should -Invoke Invoke-Sqlcmd -Times 0
         }
     }
@@ -323,9 +327,11 @@ function Test-Command {
     Context 'SQL folder and file detection' {
         It 'stops when SQL folder configured in YAML does not exist' {
             $script:CurrentYamlObject.RELEASE.SQL.FolderBy = @('SQL_NOT_FOUND')
+            Mock Write-Error {}
 
             Invoke-TestSqlMain | Out-Null
 
+            Should -Invoke Write-Error -Times 1 -ParameterFilter { $Message -match 'SQLフォルダ' }
             Should -Invoke Invoke-Sqlcmd -Times 0
 
             $logPath = Get-LatestLogPath
