@@ -1,4 +1,5 @@
 name: Pester Tests
+
 on:
   push:
     branches: [ main, develop ]
@@ -28,8 +29,10 @@ jobs:
     # Windows PowerShell 5.1 ジョブは ADR-0007 により削除
     name: Pester ユニットテスト (PowerShell 7.x)
     runs-on: windows-latest
+
     steps:
-      # NOTE: ローカル専用の Run-Pester5.* は CI では使用しない（ADR-0009 / ADR-9009）。CI はこの workflow の手順で Pester を導入・実行する。
+      # NOTE: ローカル専用の Run-Pester5.* は CI では使用しない（ADR-0009 / ADR-9009）。
+      # CI はこの workflow の手順で Pester を導入・実行する。
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
 
@@ -43,6 +46,7 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
 
           Write-Host "Pester をインストール中..." -ForegroundColor Cyan
+          # ADR-0009/0010: CI では Pester 5.x 系を使用
           Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser
 
           Write-Host "PowerShell-Yaml をインストール中..." -ForegroundColor Cyan
@@ -53,12 +57,9 @@ jobs:
           Install-Module -Name PSScriptAnalyzer -MinimumVersion 1.22.0 -Force -Scope CurrentUser
 
           Write-Host "モジュール情報:" -ForegroundColor Cyan
-          Get-Module -ListAvailable Pester |
-            Select-Object Name, Version
-          Get-Module -ListAvailable PowerShell-Yaml |
-            Select-Object Name, Version
-          Get-Module -ListAvailable PSScriptAnalyzer |
-            Select-Object Name, Version
+          Get-Module -ListAvailable Pester           | Select-Object Name, Version
+          Get-Module -ListAvailable PowerShell-Yaml  | Select-Object Name, Version
+          Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
 
       - name: PSScriptAnalyzer を実行（Error/Warning のみ失敗）
         run: |
@@ -76,13 +77,14 @@ jobs:
           Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
 
           $config = New-PesterConfiguration
-          $config.Run.Path = '.\Tests\'
-          $config.Filter.Tag = @('Unit')
-          $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
-          $config.Output.Verbosity = 'Detailed'
-          $config.TestResult.Enabled = $true
-          $config.TestResult.OutputPath = 'test-results-unit.xml'
-          $config.TestResult.OutputFormat = 'NUnitXml'
+          $config.Run.Path               = '.\Tests\'
+          $config.Filter.Tag             = @('Unit')
+          # See ADR-0004 (0004-exclude-performance-tests-from-ci)
+          $config.Filter.ExcludeTag      = @('Performance')
+          $config.Output.Verbosity       = 'Detailed'
+          $config.TestResult.Enabled     = $true
+          $config.TestResult.OutputPath  = 'test-results-unit.xml'
+          $config.TestResult.OutputFormat= 'NUnitXml'
 
           Invoke-Pester -Configuration $config
 
@@ -118,8 +120,7 @@ jobs:
 
           $logDir = Join-Path $projectRoot 'LOG'
           if (-not (Test-Path -LiteralPath $logDir -PathType Container)) {
-            New-Item -Path $logDir -ItemType Directory -Force |
-              Out-Null
+            New-Item -Path $logDir -ItemType Directory -Force | Out-Null
           }
 
           # ILSpyCmd が無い環境では DecompileDLL スモークをスキップする
@@ -129,24 +130,17 @@ jobs:
             exit 0
           }
 
-          $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '\*.dll' -File -ErrorAction Stop)
-          $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '\*.dll' -File -ErrorAction Stop)
+          $oldDlls = @(Get-ChildItem -LiteralPath $oldDir -Filter '*.dll' -File -ErrorAction Stop)
+          $newDlls = @(Get-ChildItem -LiteralPath $newDir -Filter '*.dll' -File -ErrorAction Stop)
 
           if ($oldDlls.Count -eq 0 -or $newDlls.Count -eq 0) {
             Write-Error "DLL ペア不足: Old=$($oldDlls.Count), New=$($newDlls.Count)"
             exit 3
           }
 
-          $oldBase = $oldDlls |
-            ForEach-Object { $_.BaseName } |
-            Sort-Object -Unique
-
-          $newBase = $newDlls |
-            ForEach-Object { $_.BaseName } |
-            Sort-Object -Unique
-
-          $pairCount = @($oldBase |
-            Where-Object { $_ -in $newBase }).Count
+          $oldBase  = $oldDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
+          $newBase  = $newDlls | ForEach-Object { $_.BaseName } | Sort-Object -Unique
+          $pairCount= @($oldBase | Where-Object { $_ -in $newBase }).Count
 
           if ($pairCount -eq 0) {
             Write-Error "対応する DLL ペアがありません（ベース名一致 0 件）"
@@ -180,19 +174,21 @@ jobs:
           comment_mode: always
 
       - name: Pester テストを実行（Integration テスト）
-        continue-on-error: true
         run: |
           Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
 
           # Integration テストが存在するか確認
-          $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '\*.Tests.ps1' -ErrorAction SilentlyContinue
+          $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '*.Tests.ps1' -ErrorAction SilentlyContinue
           if ($integrationTests.Count -gt 0) {
             $config = New-PesterConfiguration
-            $config.Run.Path = '.\Tests\Integration\'
-            $config.Output.Verbosity = 'Detailed'
-            $config.TestResult.Enabled = $true
-            $config.TestResult.OutputPath = 'test-results-integration.xml'
-            $config.TestResult.OutputFormat = 'NUnitXml'
+            $config.Run.Path               = '.\Tests\Integration\'
+            # ADR-0017: Integration テストは Tag='Integration' を前提とする（例: sqlMain）
+            $config.Filter.Tag             = @('Integration')
+            $config.Filter.ExcludeTag      = @('Performance')
+            $config.Output.Verbosity       = 'Detailed'
+            $config.TestResult.Enabled     = $true
+            $config.TestResult.OutputPath  = 'test-results-integration.xml'
+            $config.TestResult.OutputFormat= 'NUnitXml'
 
             Invoke-Pester -Configuration $config
           }
@@ -218,32 +214,28 @@ jobs:
 
           if (Test-Path 'test-results-unit.xml') {
             [xml]$unitResults = Get-Content 'test-results-unit.xml'
-            $unitTests = $unitResults.'test-results'.tests
-            $unitPassed = ($unitResults.'test-results'.'test-suite' |
-              Where-Object { $_.name -like 'Pester*' } |
-              Measure-Object).Count
-
             Write-Host "`n📋 Unit テスト結果:" -ForegroundColor Yellow
+
             if ($unitResults.'test-results'.'test-suite') {
               foreach ($suite in $unitResults.'test-results'.'test-suite') {
                 $passed = [int]$suite.tests - [int]$suite.failures
-                Write-Host " $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Red' })
+                Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Red' })
               }
             }
           }
 
           if (Test-Path 'test-results-integration.xml') {
             [xml]$integrationResults = Get-Content 'test-results-integration.xml'
-
             Write-Host "`n📋 Integration テスト結果:" -ForegroundColor Yellow
+
             if ($integrationResults.'test-results'.'test-suite') {
               foreach ($suite in $integrationResults.'test-results'.'test-suite') {
                 $passed = [int]$suite.tests - [int]$suite.failures
-                Write-Host " $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Yellow' })
+                Write-Host "  $($suite.name): $passed / $($suite.tests) 成功" -ForegroundColor $(if ([int]$suite.failures -eq 0) { 'Green' } else { 'Yellow' })
               }
             }
             else {
-              Write-Host " テストが実行されませんでした" -ForegroundColor DarkGray
+              Write-Host "  テストが実行されませんでした" -ForegroundColor DarkGray
             }
           }
 
@@ -254,15 +246,17 @@ jobs:
           Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
 
           $config = New-PesterConfiguration
-          $config.Run.Path = '.\Tests\Common\'
-          $config.Filter.ExcludeTag = @('Performance') # See ADR-0004 (0004-exclude-performance-tests-from-ci)
-          $config.Run.PassThru = $true
-
-          $config.CodeCoverage.Enabled = $true
-          $config.CodeCoverage.Path = '.\Common\*.ps1'
-          $config.CodeCoverage.OutputPath = 'coverage.xml'
+          $config.Run.Path               = '.\Tests\Common\'
+          $config.Filter.ExcludeTag      = @('Performance') # See ADR-0004
+          $config.Run.PassThru           = $true
+          $config.CodeCoverage.Enabled   = $true
+          $config.CodeCoverage.Path      = @(
+            '.\Common\*.ps1',
+            '.\SQLクエリー実行\Script\sqlMain.ps1'
+          )
+          $config.CodeCoverage.OutputPath   = 'coverage.xml'
           $config.CodeCoverage.OutputFormat = 'CoverageGutters'
-          $config.Output.Verbosity = 'Minimal'
+          $config.Output.Verbosity          = 'Minimal'
 
           $results = Invoke-Pester -Configuration $config
 
