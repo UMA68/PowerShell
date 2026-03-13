@@ -1,5 +1,5 @@
 # .github/workflows/quarterly-ci.yml
-name: Quarterly CI (Environment Check)
+name: Quarterly CI (SQL Container + sqlMain E2E)
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  environment-check:
+  sqlmain-e2e-with-container:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +24,71 @@ jobs:
         run: |
           pwsh -Command '$PSVersionTable'
 
-      - name: Show PSScriptAnalyzer version
+      - name: Show Pester / PSScriptAnalyzer versions (optional)
         run: |
-          pwsh -Command 'Get-Module PSScriptAnalyzer -ListAvailable | Select Name, Version'
+          pwsh -Command '
+            Get-Module Pester -ListAvailable           | Select-Object Name, Version;
+            Get-Module PSScriptAnalyzer -ListAvailable | Select-Object Name, Version
+          ' || true
 
-      - name: Show Pester version
+      # --- SQL Server 2022 コンテナ起動（MakeContainer/docker-compose.yml を利用） ---
+      - name: Start SQL Server 2022 container via docker-compose
+        working-directory: MakeContainer
         run: |
-          pwsh -Command 'Get-Module Pester -ListAvailable | Select Name, Version'
+          echo "Starting MSSQL container (mssql2022) using docker-compose.yml..."
+          docker compose up -d
+          echo "Waiting for SQL Server to finish startup..."
+          # 初期化完了を待機（必要に応じて時間を調整）
+          sleep 60
+
+      # --- init_customer_orders.sql をコンテナへコピー ---
+      - name: Copy init_customer_orders.sql into container
+        working-directory: MakeContainer
+        run: |
+          echo "Copying init_customer_orders.sql to container mssql2022..."
+          docker cp ./init_customer_orders.sql mssql2022:/init_customer_orders.sql
+
+      # --- init_customer_orders.sql を実 DB に対して実行 ---
+      - name: Initialize appdb in container (run init_customer_orders.sql)
+        run: |
+          echo "Running init_customer_orders.sql against container mssql2022..."
+          docker exec mssql2022 /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost \
+            -U sa \
+            -P "Str0ngP@ssw0rd2025!" \
+            -C \
+            -i /init_customer_orders.sql
+
+      # --- DB 作成確認（OPTIONAL：ログ用に軽く確認） ---
+      - name: Verify appdb and tables exist
+        run: |
+          echo "Verifying appdb and its tables..."
+          docker exec mssql2022 /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost \
+            -U sa \
+            -P "Str0ngP@ssw0rd2025!" \
+            -C \
+            -Q "SELECT name FROM sys.databases"
+          docker exec mssql2022 /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost \
+            -U sa \
+            -P "Str0ngP@ssw0rd2025!" \
+            -C \
+            -d appdb \
+            -Q "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES"
+
+      # --- sqlMain.ps1 を実 DB 相手に実行する ---
+      - name: Run sqlMain.ps1 against appdb in container
+        run: |
+          echo "Running sqlMain.ps1 against appdb in container..."
+          # SQLクエリー実行/Script/sqlMain.ps1 を実行
+          # ここでは既定の sql.yaml (YAML/sql.yaml) が 127.0.0.1:11433/appdb を指している前提
+          pwsh -File "./SQLクエリー実行/Script/sqlMain.ps1"
+
+      # --- 後処理：コンテナを停止・削除 ---
+      - name: Stop and remove SQL container (docker-compose down)
+        if: always()
+        working-directory: MakeContainer
+        run: |
+          echo "Stopping and removing MSSQL container via docker-compose..."
+          docker compose down
