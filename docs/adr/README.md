@@ -72,6 +72,7 @@ tests/                # Pester テスト
 - [ADR-0014: ScriptAnalyzer 差分チェックの FailOnSeverity を当面 Error のみにする](0014-psscriptanalyzer-failonseverity-error-only.md)
 - [ADR-0015: ドキュメント配置・ディレクトリ構成方針](0015-documentation-directory-structure.md)
 - [ADR-0016: Release & Tagging Policy（リリースおよびタグ運用方針）](0016-release-and-tagging-policy.md)
+- [ADR-0017: sqlMain と Common のテスト境界を固定する](0017-sqlmain-test-strategy.md)
 
 CI / ScriptAnalyzerの具体的な運用手順は [Playbook — PowerShell リポジトリ CI / 運用](../guides/Playbook.md) を参照。
 
