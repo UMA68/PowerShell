@@ -33,7 +33,7 @@ jobs:
 
       # --- SQL Server 2022 コンテナ起動（MakeContainer/docker-compose.yml を利用） ---
       - name: Start SQL Server 2022 container via docker-compose
-        working-directory: MakeContainer
+        working-directory: SQLクエリー実行/MakeContainer
         run: |
           echo "Starting MSSQL container (mssql2022) using docker-compose.yml..."
           docker compose up -d
@@ -43,7 +43,7 @@ jobs:
 
       # --- init_customer_orders.sql をコンテナへコピー ---
       - name: Copy init_customer_orders.sql into container
-        working-directory: MakeContainer
+        working-directory: SQLクエリー実行/MakeContainer
         run: |
           echo "Copying init_customer_orders.sql to container mssql2022..."
           docker cp ./init_customer_orders.sql mssql2022:/init_customer_orders.sql
@@ -88,7 +88,7 @@ jobs:
       # --- 後処理：コンテナを停止・削除 ---
       - name: Stop and remove SQL container (docker-compose down)
         if: always()
-        working-directory: MakeContainer
+        working-directory: SQLクエリー実行/MakeContainer
         run: |
           echo "Stopping and removing MSSQL container via docker-compose..."
           docker compose down
