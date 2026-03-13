@@ -8,7 +8,7 @@
     are mocked for deterministic CI execution.
 #>
 
-Describe 'sqlMain.ps1' -Tag 'Unit', 'SQL', 'Integration' {
+Describe 'sqlMain.ps1' -Tag 'SQL', 'Integration' {
     BeforeAll {
         $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
         $script:SourceScriptPath = Join-Path $script:RepoRoot 'SQLクエリー実行\Script\sqlMain.ps1'
