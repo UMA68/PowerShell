@@ -24,12 +24,20 @@ $ErrorActionPreference = 'Stop'
 
 Describe 'DecompileDll integration tests' {
     BeforeAll {
+        <#
+        .SYNOPSIS
+            値が真偽として true と判定されるとき $true、それ以外は $false を返す。
+        #>
         function script:Test-Truthy {
             param([string]$Value)
             if ([string]::IsNullOrWhiteSpace($Value)) { return $false }
             return $Value -match '^(?i:1|true|yes|on)$'
         }
 
+        <#
+        .SYNOPSIS
+            ILSpyCmd のスタブ用 cmd シムファイルを作成して返す。
+        #>
         function script:New-IlspyShim {
             param([Parameter(Mandatory = $true)][string]$ShimDirectory)
 
@@ -67,6 +75,10 @@ exit /b 0
             return $shimPath
         }
 
+        <#
+        .SYNOPSIS
+            テスト用の Old/New DLL ペアをファイルシステム上に作成する。
+        #>
         function script:New-TestDllPair {
             param(
                 [Parameter(Mandatory = $true)][string]$OldDir,
@@ -80,6 +92,10 @@ exit /b 0
             Set-Content -Path (Join-Path $NewDir ("{0}.dll" -f $BaseName)) -Value 'new-dummy' -Encoding UTF8
         }
 
+        <#
+        .SYNOPSIS
+            テスト用の YAML 設定ファイルを指定パスへ書き込む。
+        #>
         function script:New-TestYaml {
             param(
                 [Parameter(Mandatory = $true)][string]$YamlPath,
@@ -141,6 +157,10 @@ InstWinMerge:
             Set-Content -Path $YamlPath -Value $yaml -Encoding UTF8
         }
 
+        <#
+        .SYNOPSIS
+            DecompileDll.ps1 を子プロセスで実行し、終了コードと標準出力を返す。
+        #>
         function script:Invoke-DecompileScript {
             param(
                 [Parameter(Mandatory = $true)][string]$ScriptPath,
@@ -164,7 +184,7 @@ InstWinMerge:
 
             $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
             if ($timedOut) {
-                try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch {}
+                try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { Write-Debug "Stop-Process skipped: $_" }
                 return [PSCustomObject]@{
                     TimedOut = $true
                     ExitCode = $null
@@ -183,6 +203,10 @@ InstWinMerge:
             }
         }
 
+        <#
+        .SYNOPSIS
+            指定フォルダー内で条件に一致するファイル数を返す。
+        #>
         function script:Get-ArtifactFileCount {
             param(
                 [Parameter(Mandatory = $true)][string]$Path,
@@ -192,7 +216,11 @@ InstWinMerge:
             return @(Get-ChildItem -Path $Path -Filter $Filter -File -ErrorAction SilentlyContinue).Count
         }
 
-        function script:Register-CaseArtifacts {
+        <#
+        .SYNOPSIS
+            テストケースで生成したアーティファクトをクリーンアップリストに登録する。
+        #>
+        function script:Register-CaseArtifact {
             param(
                 [Parameter(Mandatory = $true)][pscustomobject]$SetupInfo,
                 [Parameter(Mandatory = $true)][string]$StdoutPath,
@@ -209,7 +237,11 @@ InstWinMerge:
             }) | Out-Null
         }
 
-        function script:Clear-CaseArtifacts {
+        <#
+        .SYNOPSIS
+            登録済みのテストアーティファクトをすべて削除する。
+        #>
+        function script:Clear-CaseArtifact {
             foreach ($artifact in @($script:CaseArtifacts)) {
                 Remove-Item -Path $artifact.YamlPath -Force -ErrorAction SilentlyContinue
                 Remove-Item -Path $artifact.OldDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -221,6 +253,10 @@ InstWinMerge:
             $script:CaseArtifacts.Clear()
         }
 
+        <#
+        .SYNOPSIS
+            テストケース定義オブジェクトを生成して返す。
+        #>
         function script:New-CaseDefinition {
             param(
                 [Parameter(Mandatory = $true)][string]$Name,
@@ -246,6 +282,10 @@ InstWinMerge:
             }
         }
 
+        <#
+        .SYNOPSIS
+            テストケースのセットアップ情報オブジェクトを生成して返す。
+        #>
         function script:New-SetupInfo {
             param(
                 [Parameter(Mandatory = $true)][string]$Suffix,
@@ -271,6 +311,10 @@ InstWinMerge:
             }
         }
 
+        <#
+        .SYNOPSIS
+            テストケースを実行し、検証結果オブジェクトを返す。
+        #>
         function script:Invoke-DecompileCase {
             param([Parameter(Mandatory = $true)][pscustomobject]$Case)
 
@@ -280,17 +324,17 @@ InstWinMerge:
             }
 
             $setupInfo = & $Case.Setup $script:DecompileRoot $script:YamlDir $script:DllRoot $script:SuiteRootRelative
-            $args = @('-EnvYaml', $setupInfo.EnvYaml) + $Case.Args
+            $scriptArgs = @('-EnvYaml', $setupInfo.EnvYaml) + $Case.Args
             $logAbs = Join-Path $script:DecompileRoot ($setupInfo.LogPath -replace '/', '\\')
             $stdoutPath = Join-Path $script:TempWork ("stdout_{0}_{1}.txt" -f $setupInfo.Tag, ([guid]::NewGuid().ToString('N')))
             $stderrPath = Join-Path $script:TempWork ("stderr_{0}_{1}.txt" -f $setupInfo.Tag, ([guid]::NewGuid().ToString('N')))
 
-            Register-CaseArtifacts -SetupInfo $setupInfo -StdoutPath $stdoutPath -StderrPath $stderrPath
+            Register-CaseArtifact -SetupInfo $setupInfo -StdoutPath $stdoutPath -StderrPath $stderrPath
 
             $beforeLogCount = Get-ArtifactFileCount -Path $logAbs -Filter 'DecompileDll_*.log'
             $beforeErrorCount = Get-ArtifactFileCount -Path $logAbs -Filter 'DecompileErrors_*.txt'
 
-            $invokeResult = Invoke-DecompileScript -ScriptPath $script:TargetScript -WorkingDirectory $script:DecompileRoot -Arguments $args -StdoutPath $stdoutPath -StderrPath $stderrPath -TimeoutSeconds $script:TimeoutSeconds -IlspyMode $Case.IlspyMode
+            $invokeResult = Invoke-DecompileScript -ScriptPath $script:TargetScript -WorkingDirectory $script:DecompileRoot -Arguments $scriptArgs -StdoutPath $stdoutPath -StderrPath $stderrPath -TimeoutSeconds $script:TimeoutSeconds -IlspyMode $Case.IlspyMode
 
             $afterLogCount = Get-ArtifactFileCount -Path $logAbs -Filter 'DecompileDll_*.log'
             $afterErrorCount = Get-ArtifactFileCount -Path $logAbs -Filter 'DecompileErrors_*.txt'
@@ -428,7 +472,7 @@ InstWinMerge:
 
     AfterEach {
         if (-not $script:KeepArtifacts) {
-            Clear-CaseArtifacts
+            Clear-CaseArtifact
         }
     }
 
@@ -437,7 +481,7 @@ InstWinMerge:
         Remove-Item Env:ILSPY_SHIM_MODE -ErrorAction SilentlyContinue
 
         if (-not $script:KeepArtifacts) {
-            Clear-CaseArtifacts
+            Clear-CaseArtifact
             Remove-Item -Path $script:TempWork -Recurse -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $script:SuiteRootAbsolute -Recurse -Force -ErrorAction SilentlyContinue
         }
