@@ -156,6 +156,7 @@ Describe 'Test-Command' -Tag 'Unit', 'Common' {
                 }
                 catch {
                     # ダイアログ非表示環境でもテストを継続
+                    Write-Debug "SendKeys skipped (no dialog): $_"
                 }
             }
 
