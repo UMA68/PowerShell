@@ -64,6 +64,10 @@ function Test-Command {
         . $script:NoDoubleActivationPath
         . $script:CheckCommandPath
 
+        <#
+        .SYNOPSIS
+            テスト用の YAML 設定オブジェクトを生成して返す。
+        #>
         function script:New-YamlObject {
             return [ordered]@{
                 PowerShell = [ordered]@{
@@ -100,7 +104,13 @@ function Test-Command {
             }
         }
 
+        <#
+        .SYNOPSIS
+            テストプロジェクトの SQL・LOG・YAML・パスファイルを初期状態にリセットする。
+        #>
         function script:Reset-TestProject {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'テスト用の既知パスワードを暗号化してパスファイルを作成するため')]
+            param()
             Get-ChildItem -Path $script:SqlDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
             Get-ChildItem -Path $script:LogDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
@@ -118,6 +128,10 @@ function Test-Command {
             $script:CurrentYamlObject = New-YamlObject
         }
 
+        <#
+        .SYNOPSIS
+            テスト用ログディレクトリ内で最新の .log ファイルのパスを返す。
+        #>
         function script:Get-LatestLogPath {
             $log = Get-ChildItem -Path $script:LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($null -eq $log) {
@@ -126,6 +140,10 @@ function Test-Command {
             return $log.FullName
         }
 
+        <#
+        .SYNOPSIS
+            テスト用に sqlMain.ps1 をドットソースで実行し、出力を返す。
+        #>
         function script:Invoke-TestSqlMain {
             param(
                 [string]$DecryptionKey = 'Encryption.Key',
