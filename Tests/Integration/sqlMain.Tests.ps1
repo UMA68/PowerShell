@@ -64,6 +64,24 @@ function Test-Command {
         . $script:NoDoubleActivationPath
         . $script:CheckCommandPath
 
+        # Fallback nkf32 command for CI environments where nkf32 is unavailable.
+        function nkf32 {
+            $nkfArgs = @($args)
+
+            if ($nkfArgs.Count -ge 1 -and $nkfArgs[0] -eq '--guess') {
+                return 'UTF-8 (CRLF)'
+            }
+
+            if ($nkfArgs -contains '-O') {
+                $sourcePath = $nkfArgs[$nkfArgs.Count - 2]
+                $targetPath = $nkfArgs[$nkfArgs.Count - 1]
+                Copy-Item -Path $sourcePath -Destination $targetPath -Force
+                return
+            }
+
+            return
+        }
+
         <#
         .SYNOPSIS
             テスト用の YAML 設定オブジェクトを生成して返す。
