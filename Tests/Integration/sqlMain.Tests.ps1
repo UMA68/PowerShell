@@ -142,6 +142,28 @@ function Test-Command {
 
         <#
         .SYNOPSIS
+            Popup を即時 return するテスト用 WScript.Shell 代替オブジェクトを返す。
+        #>
+        function script:New-WScriptShellMock {
+            $shell = [PSCustomObject]@{}
+            $shell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+                param($message, $timeout, $title, $icon)
+
+                $script:PopupCalls += [PSCustomObject]@{
+                    Message = $message
+                    Timeout = $timeout
+                    Title = $title
+                    Icon = $icon
+                }
+
+                return 1
+            }
+
+            return $shell
+        }
+
+        <#
+        .SYNOPSIS
             テスト用に sqlMain.ps1 をドットソースで実行し、出力を返す。
         #>
         function script:Invoke-TestSqlMain {
@@ -162,9 +184,13 @@ function Test-Command {
 
     BeforeEach {
         Reset-TestProject
+        $script:PopupCalls = @()
 
         Mock Test-NoDoubleActivation { $true }
         Mock Test-Command { $true }
+        Mock New-Object {
+            New-WScriptShellMock
+        } -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
         Mock ConvertTo-SecureString {
             $secure = New-Object System.Security.SecureString
@@ -235,11 +261,6 @@ function Test-Command {
 
         It 'shows popup and stops when nkf32 command check fails' {
             Mock Test-Command { $false }
-            Mock New-Object {
-                $shell = [PSCustomObject]@{}
-                $shell | Add-Member -MemberType ScriptMethod -Name Popup -Value { param($m, $t, $title, $icon) 1 }
-                return $shell
-            } -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
             Invoke-TestSqlMain | Out-Null
 
