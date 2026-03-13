@@ -77,6 +77,15 @@ jobs:
         run: |
           Write-Host "Unit テストを実行中..." -ForegroundColor Cyan
 
+          $requiredPesterVersion = [version]'5.6.1'
+          Remove-Module Pester -Force -ErrorAction SilentlyContinue
+          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          $loadedPesterVersion = (Get-Module Pester).Version
+          if ($loadedPesterVersion -ne $requiredPesterVersion) {
+            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          }
+          Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Cyan
+
           $config = New-PesterConfiguration
           $config.Run.Path               = '.\Tests\'
           $config.Filter.Tag             = @('Unit')
@@ -178,6 +187,15 @@ jobs:
         run: |
           Write-Host "Integration テストを実行中..." -ForegroundColor Yellow
 
+          $requiredPesterVersion = [version]'5.6.1'
+          Remove-Module Pester -Force -ErrorAction SilentlyContinue
+          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          $loadedPesterVersion = (Get-Module Pester).Version
+          if ($loadedPesterVersion -ne $requiredPesterVersion) {
+            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          }
+          Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Yellow
+
           # Integration テストが存在するか確認
           $integrationTests = Get-ChildItem -Path '.\Tests\Integration\' -Filter '*.Tests.ps1' -ErrorAction SilentlyContinue
           if ($integrationTests.Count -gt 0) {
@@ -245,6 +263,15 @@ jobs:
       - name: コードカバレッジを測定
         run: |
           Write-Host "コードカバレッジを測定中..." -ForegroundColor Cyan
+
+          $requiredPesterVersion = [version]'5.6.1'
+          Remove-Module Pester -Force -ErrorAction SilentlyContinue
+          Import-Module Pester -RequiredVersion $requiredPesterVersion -Force -ErrorAction Stop
+          $loadedPesterVersion = (Get-Module Pester).Version
+          if ($loadedPesterVersion -ne $requiredPesterVersion) {
+            throw "Pester version mismatch. Required: $requiredPesterVersion, Loaded: $loadedPesterVersion"
+          }
+          Write-Host "Using Pester v$loadedPesterVersion" -ForegroundColor Cyan
 
           $config = New-PesterConfiguration
           $config.Run.Path               = '.\Tests\Common\'
