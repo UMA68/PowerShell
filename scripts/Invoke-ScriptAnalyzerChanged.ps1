@@ -68,8 +68,13 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+<#
+.SYNOPSIS
+    絶対/相対パスを指定ルート基準の相対パスに変換します。
+#>
 function ConvertTo-RelativePath {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -102,8 +107,13 @@ function ConvertTo-RelativePath {
     return $relative -replace '\\', '/'
 }
 
+<#
+.SYNOPSIS
+    パスがいずれかのグロブに一致するか判定します。
+#>
 function Test-MatchGlob {
     [CmdletBinding()]
+    [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -125,8 +135,13 @@ function Test-MatchGlob {
     return $false
 }
 
-function Get-ChangedFiles {
+<#
+.SYNOPSIS
+    Git 差分から解析対象の変更ファイル一覧を取得します。
+#>
+function Get-ChangedFile {
     [CmdletBinding()]
+    [OutputType([string[]])]
     param(
         [Parameter(Mandatory)]
         [string]$RepositoryRoot,
@@ -205,7 +220,7 @@ function Get-ChangedFiles {
         }
     }
 
-    return ,($result.ToArray())
+    return $result.ToArray()
 }
 
 if (-not (Get-Command -Name git -ErrorAction SilentlyContinue)) {
@@ -235,7 +250,7 @@ if (-not (Test-Path -LiteralPath $settingsFullPath)) {
 Write-Host "差分解析: $BaseRef..$HeadRef" -ForegroundColor Cyan
 Write-Host "設定ファイル: $settingsFullPath" -ForegroundColor DarkCyan
 
-$changedFiles = Get-ChangedFiles -RepositoryRoot $repositoryRoot -Base $BaseRef -Head $HeadRef -Extensions ($IncludeExtensions | ForEach-Object { $_.ToLowerInvariant() }) -ExcludePatterns $ExcludeGlobs
+$changedFiles = Get-ChangedFile -RepositoryRoot $repositoryRoot -Base $BaseRef -Head $HeadRef -Extensions ($IncludeExtensions | ForEach-Object { $_.ToLowerInvariant() }) -ExcludePatterns $ExcludeGlobs
 
 if ($changedFiles.Count -eq 0) {
     Write-Host '解析対象の変更ファイルはありません。' -ForegroundColor Green

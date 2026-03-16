@@ -274,7 +274,18 @@ begin {
     $script:YamlPath = Join-Path -Path $script:UpperPath -ChildPath "YAML\$EnvYaml"       # YAML設定ファイル
 
     # エラー表示用ヘルパー関数（非対話環境ではポップアップの代わりに警告出力）
+    <#
+    .SYNOPSIS
+        エラーメッセージを表示します。
+    #>
     function Show-ErrorPopup {
+        <#
+        .SYNOPSIS
+            エラーメッセージを表示します。
+
+        .PARAMETER Message
+            表示するエラーメッセージです。
+        #>
         param([string]$Message)
 
         if ($NoKeyWait) {
@@ -361,7 +372,18 @@ begin {
     $script:startTime = Get-Date
     
     # リトライ付き逆コンパイル関数
+    <#
+    .SYNOPSIS
+        逆コンパイルをリトライ付きで実行します。
+    #>
     function Invoke-DecompileWithRetry {
+        <#
+        .SYNOPSIS
+            逆コンパイルをリトライ付きで実行します。
+
+        .PARAMETER DllPath
+            逆コンパイル対象の DLL パスです。
+        #>
         param(
             [string]$DllPath,                   # DLLファイルパス
             [string]$OutputPath,                # 出力フォルダー
@@ -660,7 +682,18 @@ process {
             }
             
             # リトライ付き逆コンパイル関数（並列処理用）
+            <#
+            .SYNOPSIS
+                並列処理用に逆コンパイルをリトライ付きで実行します。
+            #>
             function Invoke-DecompileWithRetryParallel {
+                <#
+                .SYNOPSIS
+                    並列処理用に逆コンパイルをリトライ付きで実行します。
+
+                .PARAMETER DllPath
+                    逆コンパイル対象の DLL パスです。
+                #>
                 param(
                     [string]$DllPath,       # DLLパス
                     [string]$OutputPath,    # 出力パス

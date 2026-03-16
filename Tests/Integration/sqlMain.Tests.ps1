@@ -65,7 +65,18 @@ function Test-Command {
         . $script:CheckCommandPath
 
         # Fallback nkf32 command for CI environments where nkf32 is unavailable.
+        <#
+        .SYNOPSIS
+            CI 環境向けの nkf32 代替関数です。
+        #>
         function nkf32 {
+            <#
+            .SYNOPSIS
+                CI 環境向けの nkf32 代替関数です。
+
+            .DESCRIPTION
+                --guess と -O の最低限の挙動だけをテスト用に再現します。
+            #>
             $nkfArgs = @($args)
 
             if ($nkfArgs.Count -ge 1 -and $nkfArgs[0] -eq '--guess') {

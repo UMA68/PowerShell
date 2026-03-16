@@ -1,7 +1,7 @@
 Describe 'audit-prepublic.ps1' -Tag 'Unit' {
     BeforeAll {
         # テスト対象スクリプトのパスを決定（Tests/ 直下から想定）
-        $scriptPath = Join-Path $PSScriptRoot '..' 'audit-prepublic.ps1'
+        $scriptPath = Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..') -ChildPath 'audit-prepublic.ps1'
         if (-not (Test-Path $scriptPath)) {
             throw "audit-prepublic.ps1 が見つかりません。パスを確認してください: $scriptPath"
         }
