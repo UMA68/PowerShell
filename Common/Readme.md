@@ -4,7 +4,7 @@
 
 ## 前提条件
 
-- PowerShell 5.1以上
+- PowerShell 7.x（原則として最新バージョン）
 - 必要に応じてPowerShell-Yaml (0.4.7+) — `Import-YamlConfig` で利用
 	- インストール: `Install-Module -Name PowerShell-Yaml -MinimumVersion 0.4.7 -Force`
 	- バージョン確認: `Get-Module PowerShell-Yaml -ListAvailable | Select Name,Version`
