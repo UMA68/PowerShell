@@ -250,7 +250,7 @@ if (-not (Test-Path -LiteralPath $settingsFullPath)) {
 Write-Host "差分解析: $BaseRef..$HeadRef" -ForegroundColor Cyan
 Write-Host "設定ファイル: $settingsFullPath" -ForegroundColor DarkCyan
 
-$changedFiles = Get-ChangedFile -RepositoryRoot $repositoryRoot -Base $BaseRef -Head $HeadRef -Extensions ($IncludeExtensions | ForEach-Object { $_.ToLowerInvariant() }) -ExcludePatterns $ExcludeGlobs
+$changedFiles = @(Get-ChangedFile -RepositoryRoot $repositoryRoot -Base $BaseRef -Head $HeadRef -Extensions ($IncludeExtensions | ForEach-Object { $_.ToLowerInvariant() }) -ExcludePatterns $ExcludeGlobs)
 
 if ($changedFiles.Count -eq 0) {
     Write-Host '解析対象の変更ファイルはありません。' -ForegroundColor Green
@@ -265,7 +265,17 @@ foreach ($target in $displayTargets) {
     Write-Host "  - $relative" -ForegroundColor Gray
 }
 
-$analysisResults = Invoke-ScriptAnalyzer -Path $displayTargets -Settings $settingsFullPath
+$analysisResults = New-Object System.Collections.Generic.List[object]
+foreach ($targetPath in $displayTargets) {
+    $fileResults = Invoke-ScriptAnalyzer -Path $targetPath -Settings $settingsFullPath
+    if ($fileResults) {
+        foreach ($item in @($fileResults)) {
+            $analysisResults.Add($item)
+        }
+    }
+}
+
+$analysisResults = @($analysisResults)
 
 Write-Host ''
 Write-Host 'PSScriptAnalyzer 結果:' -ForegroundColor Yellow
