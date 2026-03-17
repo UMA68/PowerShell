@@ -73,6 +73,7 @@ tests/                # Pester テスト
 - [ADR-0015: ドキュメント配置・ディレクトリ構成方針](0015-documentation-directory-structure.md)
 - [ADR-0016: Release & Tagging Policy（リリースおよびタグ運用方針）](0016-release-and-tagging-policy.md)
 - [ADR-0017: sqlMain と Common のテスト境界を固定する](0017-sqlmain-test-strategy.md)
+- [ADR-0018: PSScriptAnalyzer の Path 型差異を吸収するため、差分チェック実装を単一ファイル解析方式に変更する](0018-scriptanalyzer-single-file-analysis-for-path-type-compatibility.md)
 
 CI / ScriptAnalyzerの具体的な運用手順は [Playbook — PowerShell リポジトリ CI / 運用](../guides/Playbook.md) を参照。
 
