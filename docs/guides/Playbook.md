@@ -98,6 +98,7 @@ ScriptAnalyzerも、判断を助けるための信号機として扱う。
 ### FailOnSeverity の扱い（現行）
 - FailOnSeverityは `@('Error')` のみを失敗条件とする
 - Warningは検知しても、常時CIの失敗条件には含めない
+- GitHub Actionsのrun: からPowerShellスクリプトを呼び出す場合、配列パラメーターは直接渡さず、事前に `[string[]]` 等で型を確定させてから渡す
 
 ### Warning をゲートから除外した理由
 - これまでError / Warningの両方をゲートにしていたため、
