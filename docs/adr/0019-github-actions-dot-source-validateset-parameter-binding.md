@@ -93,3 +93,6 @@ ADR-0007でPowerShell Core（7.x）への統一を決定済みであり、整合
 - [ADR-0018: PSScriptAnalyzer の Path 型差異を吸収するため、差分チェック実装を単一ファイル解析方式に変更する](0018-scriptanalyzer-single-file-analysis-for-path-type-compatibility.md)
 - [.github/workflows/psscriptanalyzer.yml](../../.github/workflows/psscriptanalyzer.yml)
 - [scripts/Invoke-ScriptAnalyzerChanged.ps1](../../scripts/Invoke-ScriptAnalyzerChanged.ps1)
+- Playbook: [PowerShell リポジトリ CI 運用 Playbook](../guides/Playbook.md)
+ （ScriptAnalyzer（差分チェック）運用指針：run: 経由呼び出し時は配列パラメーターを事前に型確定）
+ 
