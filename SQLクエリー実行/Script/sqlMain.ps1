@@ -489,6 +489,7 @@ process {
             if ($fileEncoding -ne "UTF-8 (CRLF)") { # UTF-8(CRLF)でない場合
                 Write-Output "///文字エンコーディング変換: $fileEncoding → UTF-8 (CRLF)///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
                 $tempFile = $sqlFile.FullName + ".utf8(CRLF)"
+                # Microsoft 独自の Unicode (UCS) マッピング互換を有効にするオプション(--ms-ucs-map)を追加して変換精度を向上
                 & nkf32 --ms-ucs-map -x -wLw -O $sqlFile.FullName $tempFile # UTF-8(CRLF)に変換して一時ファイルに保存
                 Write-Output "///一時ファイル作成: $tempFile///" | Tee-Object -FilePath $script:LogPath -Append | Out-Default
                 $sqlFile = Get-Item -Path $tempFile
