@@ -864,26 +864,91 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context 'YAML 読み込みエラー (Env.yaml が壊れている、または存在しない)' {
 		It 'Env.yaml 読み込みエラー時にエラーダイアログが表示されること' {
 			# Arrange: テスト環境の準備
-			# TODO: 壊れた YAML または存在しない YAML の条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock Test-EnvModule { $true }
+			Mock ConvertFrom-Yaml { throw 'YAML parse error (mock)' }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: エラー通知の検証
-			# TODO: エラーダイアログ表示を検証する
+			Assert-MockCalled New-Object -Times 1 -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 		}
 
 		It 'YAML 読み込みエラー発生後にモジュール処理が実行されないこと' {
 			# Arrange: テスト環境の準備
-			# TODO: YAML 読み込み失敗後の処理を観測できる条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock Test-EnvModule { $true }
+			Mock ConvertFrom-Yaml { throw 'YAML parse error (mock)' }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if ($Message -match '\[(EXIST|INSTALL)\]') {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: 非実行の検証
-			# TODO: モジュール処理が実行されないことを検証する
+			$script:LogMessages | Should -BeNullOrEmpty
+			Assert-MockCalled Test-EnvModule -Times 0
+			Assert-MockCalled Install-Module -Times 0
 		}
 	}
 
