@@ -1,32 +1,116 @@
 # TODO: 共通ヘルパー関数 Invoke-InstMainUnderTest を用意して、各 It から呼び出すことも検討
 Describe 'InstMain' -Tag 'Integration', 'Script' {
 	BeforeAll {
-		# TODO: ここで ScriptRoot やテスト用一時ディレクトリを準備する予定
-		# TODO: ここで ./必要なモジュールの導入/Script/InstMain.ps1 のパス解決を行う予定
+		$script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "InstMainTest_$(New-Guid)"
+		New-Item -ItemType Directory -Path $script:TestRoot -Force | Out-Null
 
-        # 例:
-        # $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        # $scriptDir   = Join-Path $projectRoot 'Script'
-        # $yamlDir     = Join-Path $projectRoot 'YAML'
-        # $instMainPath = Join-Path $scriptDir 'InstMain.ps1'
-
+		$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+		$projectRoot = Join-Path $repoRoot '必要なモジュールの導入'
+		$scriptDir = Join-Path $projectRoot 'Script'
+		$yamlDir = Join-Path $projectRoot 'YAML'
+		$script:CommonDir = Join-Path $repoRoot 'Common'
+		$script:ScriptDir = $scriptDir
+		$script:InstMainPath = Join-Path $scriptDir 'InstMain.ps1'
+		$script:LogDir = Join-Path $projectRoot 'LOG'
+		$script:YamlDir = $yamlDir
+		$script:CreatedLogFiles = [System.Collections.Generic.List[string]]::new()
 	}
 
 	AfterAll {
-		# TODO: ここで一時ディレクトリや生成物のクリーンアップを行う予定
+		if ($script:CreatedLogFiles) {
+			foreach ($createdLogFile in $script:CreatedLogFiles) {
+				if (Test-Path $createdLogFile) {
+					Remove-Item -Path $createdLogFile -Force
+				}
+			}
+		}
+
+		if (Test-Path $script:TestRoot) {
+			Remove-Item -Path $script:TestRoot -Recurse -Force
+		}
 	}
 
 	Context '正常系: すべてのモジュールが既にインストール済み' {
 		It 'ログファイルが生成され、基本ヘッダが出力されること' {
 			# Arrange: テスト環境の準備
-			# TODO: Test-EnvModule が常に EXIST を返すように Mock を設定する
-            # TODO: Test-YamlModule は成功扱いで通過させる
+			$existingLogFiles = @(Get-ChildItem -Path $script:LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue)
+			$existingLogPaths = @($existingLogFiles.FullName)
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = ($PSVersionTable.PSVersion).ToString()
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml' -ShowInConsole
 
 			# Assert: ログ内容の検証
-			# TODO: ログファイル生成と基本ヘッダ出力を検証する
+			$logFile = Get-ChildItem -Path $script:LogDir -Filter '*.log' -File |
+				Sort-Object LastWriteTime -Descending |
+				Select-Object -First 1
+
+			$logFile | Should -Not -BeNullOrEmpty
+			Test-Path $logFile.FullName | Should -Be $true
+			$logFile.FullName | Should -Not -BeIn $existingLogPaths
+
+			if ($script:CreatedLogFiles -notcontains $logFile.FullName) {
+				[void]$script:CreatedLogFiles.Add($logFile.FullName)
+			}
+
+			$logContent = Get-Content -Path $logFile.FullName
+			$joinedLogContent = $logContent -join [Environment]::NewLine
+
+			$joinedLogContent | Should -Match 'HOST: '
+			$joinedLogContent | Should -Match 'USER: '
+			$joinedLogContent | Should -Match 'Running PowerShell Version: '
+			$joinedLogContent | Should -Match '\[\[\[START\]\]\]'
+			$joinedLogContent | Should -Match '\[\[\[END\]\]\]'
+			$joinedLogContent | Should -Match 'InstallModule'
+			$joinedLogContent | Should -Match 'Version: 1\.0\.0'
 		}
 
 		It '各モジュールについて EXIST ログが出力されること' {
