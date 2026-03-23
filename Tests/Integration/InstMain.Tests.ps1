@@ -14,6 +14,7 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		$script:LogDir = Join-Path $projectRoot 'LOG'
 		$script:YamlDir = $yamlDir
 		$script:CreatedLogFiles = [System.Collections.Generic.List[string]]::new()
+		$script:LogMessages = [System.Collections.Generic.List[string]]::new()
 	}
 
 	AfterAll {
@@ -191,6 +192,85 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			$joinedLogContent | Should -Match '\[EXIST\].*powershell-yaml'
 			$joinedLogContent | Should -Match '\[EXIST\].*SqlServer'
 			$joinedLogContent | Should -Match '\[EXIST\].*ImportExcel'
+		}
+
+		It '各モジュールについて EXIST ログが Write-CommonLog 経由で出力されること' {
+			# Arrange: テスト環境の準備
+			$script:LogMessages.Clear()
+
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = ($PSVersionTable.PSVersion).ToString()
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+				Write-CommonLog -Message "[EXIST] $ModuleName Version: $ModuleVersion" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+				$true
+			}
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if ($Message -match '\[EXIST\]') {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
+
+			# Act: InstMain.ps1 の実行
+			. $script:InstMainPath -envFileName 'Env.yaml' -ShowInConsole
+
+			# Assert: ログ内容の検証
+			$script:LogMessages | Should -Not -BeNullOrEmpty
+			$allMessages = $script:LogMessages -join [Environment]::NewLine
+			$allMessages | Should -Match '\[EXIST\].*powershell-yaml'
+			$allMessages | Should -Match '\[EXIST\].*SqlServer'
+			$allMessages | Should -Match '\[EXIST\].*ImportExcel'
 		}
 	}
 
