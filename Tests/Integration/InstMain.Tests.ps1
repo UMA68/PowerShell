@@ -277,26 +277,170 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '正常系: 一部モジュールが未インストールで INSTALL される' {
 		It '未インストールのモジュールについて INSTALL ログが出力されること' {
 			# Arrange: テスト環境の準備
-			# TODO: 一部のみ未インストール状態の入力データを準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = ($PSVersionTable.PSVersion).ToString()
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+
+				$installedModule = Get-Module -ListAvailable -Name $ModuleName
+
+				if ($null -eq $installedModule) {
+					Write-CommonLog -Message "[NOTHING] $ModuleName" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストール中..." -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					Install-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -Scope CurrentUser -ErrorAction Stop
+					Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストールしました" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					return $true
+				}
+
+				Write-CommonLog -Message "[EXIST] $ModuleName Version: $ModuleVersion" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+				return $true
+			}
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return $null }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if ($Message -match '\[INSTALL\]') {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: ログ内容の検証
-			# TODO: 未インストール対象の INSTALL ログ出力を検証する
+			$script:LogMessages | Should -Not -BeNullOrEmpty
+			$allMessages = $script:LogMessages -join [Environment]::NewLine
+			$allMessages | Should -Match '\[INSTALL\].*SqlServer'
 		}
 
 		It 'Install-Module が必要な回数だけ呼び出されること (Mock 前提)' {
 			# Arrange: テスト環境の準備
-			# TODO: 未インストール対象数を制御できる入力データを準備する
-			# TODO: ここで Install-Module の Mock を定義する予定
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = ($PSVersionTable.PSVersion).ToString()
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+
+				$installedModule = Get-Module -ListAvailable -Name $ModuleName
+
+				if ($null -eq $installedModule) {
+					Write-CommonLog -Message "[NOTHING] $ModuleName" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストール中..." -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					Install-Module -Name $ModuleName -RequiredVersion $ModuleVersion -Force -Scope CurrentUser -ErrorAction Stop
+					Write-CommonLog -Message "[INSTALL] $ModuleName Version: $ModuleVersion をインストールしました" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+					return $true
+				}
+
+				Write-CommonLog -Message "[EXIST] $ModuleName Version: $ModuleVersion" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+				return $true
+			}
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return $null }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: 呼び出し回数の検証
-			# TODO: Install-Module の呼び出し回数を検証する
+			Assert-MockCalled Install-Module -Times 1
+			Assert-MockCalled Test-EnvModule -Times 3
 		}
 	}
 
