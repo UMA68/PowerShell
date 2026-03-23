@@ -513,14 +513,86 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 
 		It 'モジュールのインストール処理が実行されないこと' {
 			# Arrange: テスト環境の準備
-			# TODO: 「いいえ」選択後の分岐を確認できる入力を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			$mockYaml = [ordered]@{
+				Project   = 'InstallModule'
+				Version   = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = '0.0.1'   # ← バージョン不一致を確実に発生させる
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name    = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name    = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name    = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			# Mock 各種
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule { $true }     # 呼ばれないことを assert する
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}            # 呼ばれないことを assert する
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+
+			# Popup → No（7）
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member ScriptMethod Popup {
+					param($Message, $Timeout, $Title, $Type)
+					return 7
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+			# Write-CommonLog Mock（EXIST / INSTALL が出たら LogMessages に入る）
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if ($Message -match '\[(EXIST|INSTALL)\]') {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
-			# Assert: 非実行の検証
-			# TODO: モジュールインストール処理が実行されないことを検証する
+			# Assert: 中断動作の検証
+			# → モジュールループに入っていないので LogMessages は空のはず
+			$script:LogMessages | Should -BeNullOrEmpty
+
+			# Test-EnvModule は一度も呼ばれない
+			Assert-MockCalled Test-EnvModule -Times 0
+
+			# Install-Module も呼ばれない
+			Assert-MockCalled Install-Module -Times 0
+
+			# Write-CommonLog も呼ばれない（EXIST/INSTALL）
+			Assert-MockCalled Write-CommonLog -Times 0 -ParameterFilter { $Message -match '\[(EXIST|INSTALL)\]' }
 		}
 	}
 
