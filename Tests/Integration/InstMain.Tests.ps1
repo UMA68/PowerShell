@@ -955,26 +955,124 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '共通スクリプト読み込みエラー (Write-CommonLog.ps1 や Check-EnvModule.ps1 などが読み込めない)' {
 		It '共通スクリプトのドットソースに失敗した場合にエラーダイアログが表示されること' {
 			# Arrange: テスト環境の準備
-			# TODO: 共通スクリプトのドットソース失敗条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
 
-			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			# 共通スクリプトのパスを把握
+			$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
+			$backupPath         = "$writeCommonLogPath.bak"
 
-			# Assert: エラー通知の検証
-			# TODO: エラーダイアログ表示を検証する
-		}
+			# Write-CommonLog.ps1 を一時的にリネームして、dot-source に失敗させる
+			Rename-Item -Path $writeCommonLogPath -NewName $backupPath -Force
+
+			try {
+				. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+				. (Join-Path $script:ScriptDir  'Check-EnvModule.ps1')
+				. (Join-Path $script:ScriptDir  'Check-YamlModule.ps1')
+
+				Mock Test-YamlModule        { $true }
+				Mock Test-NoDoubleActivation { $true }
+				Mock Test-EnvModule         { $true }
+				Mock ConvertFrom-Yaml       { throw 'YAML should not be read in this scenario' }
+				Mock Install-Module         {}
+				Mock Invoke-Item            {}
+				Mock Write-Error            {}
+				Mock Get-Module {
+					switch ($Name) {
+						'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+						'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+						'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+						default           { return $null }
+					}
+				} -ParameterFilter { $ListAvailable }
+
+				# Popup のモック：呼び出されたかどうかを Assert する
+				Mock New-Object {
+					$wshShell = [pscustomobject]@{}
+					$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+						param($Message, $Timeout, $Title, $Type)
+						# ここで特に何もしない（返り値は使われない）
+						return 6
+					} -Force
+					return $wshShell
+				} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+				Mock Write-CommonLog {}
+
+				# Act: InstMain.ps1 の実行
+				. $script:InstMainPath -envFileName 'Env.yaml'
+
+				# Assert: エラー通知の検証（WScript.Shell の生成が 1 回）
+				Assert-MockCalled New-Object -Times 1 -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+			} finally {
+				# 必ず元に戻す
+				if (Test-Path $backupPath) {
+					Rename-Item -Path $backupPath -NewName $writeCommonLogPath -Force
+				}
+			}
 
 		It '共通スクリプト読み込みエラー発生後に処理が継続しないこと' {
-			# Arrange: テスト環境の準備
-			# TODO: 読み込みエラー後の継続可否を確認できる条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+				# Arrange: テスト環境の準備
+				$script:LogMessages.Clear()
 
-			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+				$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
+				$backupPath         = "$writeCommonLogPath.bak"
 
-			# Assert: 中断動作の検証
-			# TODO: 処理が継続しないことを検証する
+				Rename-Item -Path $writeCommonLogPath -NewName $backupPath -Force
+
+				try {
+					. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+					. (Join-Path $script:ScriptDir  'Check-EnvModule.ps1')
+					. (Join-Path $script:ScriptDir  'Check-YamlModule.ps1')
+
+					Mock Test-YamlModule        { $true }
+					Mock Test-NoDoubleActivation { $true }
+					Mock Test-EnvModule         { $true }
+					Mock ConvertFrom-Yaml       { throw 'YAML should not be read in this scenario' }
+					Mock Install-Module         {}
+					Mock Invoke-Item            {}
+					Mock Write-Error            {}
+
+					Mock Get-Module {
+						switch ($Name) {
+							'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+							'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+							'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+							default           { return $null }
+						}
+					} -ParameterFilter { $ListAvailable }
+
+					Mock New-Object {
+						$wshShell = [pscustomobject]@{}
+						$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+							param($Message, $Timeout, $Title, $Type)
+							return 6
+						} -Force
+						return $wshShell
+					} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+					# EXIST / INSTALL ログだけ拾う
+					Mock Write-CommonLog {
+						param($Message, $LogPath, $Level, $Quiet)
+						if ($Message -match '\[(EXIST|INSTALL)\]') {
+							[void]$script:LogMessages.Add($Message)
+						}
+					}
+
+					# Act
+					. $script:InstMainPath -envFileName 'Env.yaml'
+
+					# Assert: モジュール処理は一切行われない
+					$script:LogMessages | Should -BeNullOrEmpty
+					Assert-MockCalled Test-EnvModule -Times 0
+					Assert-MockCalled Install-Module -Times 0
+
+				} finally {
+					if (Test-Path $backupPath) {
+						Rename-Item -Path $backupPath -NewName $writeCommonLogPath -Force
+					}
+				}
+			}
 		}
 	}
 
