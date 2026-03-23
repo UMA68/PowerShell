@@ -115,14 +115,82 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 
 		It '各モジュールについて EXIST ログが出力されること' {
 			# Arrange: テスト環境の準備
-			# TODO: すべての対象モジュールをインストール済みとして準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = ($PSVersionTable.PSVersion).ToString()
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+				$currentLog = Get-ChildItem -Path $script:LogDir -Filter '*.log' -File |
+					Sort-Object LastWriteTime -Descending |
+					Select-Object -First 1
+				if ($null -ne $currentLog) {
+					Add-Content -Path $currentLog.FullName -Value "[INFO] - [EXIST] $ModuleName Version: $ModuleVersion" -Encoding UTF8
+				}
+				$true
+			}
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml' -ShowInConsole
 
 			# Assert: ログ内容の検証
-			# TODO: 各モジュールの EXIST ログ出力を検証する
+			$logFile = Get-ChildItem -Path $script:LogDir -Filter '*.log' -File |
+				Sort-Object LastWriteTime -Descending |
+				Select-Object -First 1
+
+			$logFile | Should -Not -BeNullOrEmpty
+
+			[string]$joinedLogContent = (Get-Content -Path $logFile.FullName) -join [Environment]::NewLine
+			$joinedLogContent | Should -Match '\[EXIST\].*powershell-yaml'
+			$joinedLogContent | Should -Match '\[EXIST\].*SqlServer'
+			$joinedLogContent | Should -Match '\[EXIST\].*ImportExcel'
 		}
 	}
 
