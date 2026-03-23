@@ -599,26 +599,121 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '二重起動検出 (Test-NoDoubleActivation が false を返す場合)' {
 		It '二重起動検出時に begin ブロックで処理が終了すること' {
 			# Arrange: テスト環境の準備
-			# TODO: Test-NoDoubleActivation が false を返す条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			$mockYaml = @{
+				PowerShell = @{ Version = ($PSVersionTable.PSVersion).ToString() }
+				ModuleList = @(
+					@{ Name = 'powershell-yaml'; RequiredVersion = '0.4.7' }
+					@{ Name = 'SqlServer';       RequiredVersion = '22.1.1' }
+					@{ Name = 'ImportExcel';     RequiredVersion = '7.8.5' }
+				)
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-NoDoubleActivation { $false }
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member ScriptMethod Popup {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				[void]$script:LogMessages.Add($Message)
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: begin ブロック終了の検証
-			# TODO: begin ブロックで処理終了することを検証する
+			($script:LogMessages -join [Environment]::NewLine) | Should -Match '(ERROR|二重起動)'
+			Assert-MockCalled Test-EnvModule -Times 0
+			Assert-MockCalled Install-Module -Times 0
 		}
 
 		It 'process / end ブロックの処理がスキップされること' {
 			# Arrange: テスト環境の準備
-			# TODO: 二重起動検出後の分岐を確認できる条件を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			$mockYaml = @{
+				PowerShell = @{ Version = ($PSVersionTable.PSVersion).ToString() }
+				ModuleList = @(
+					@{ Name = 'powershell-yaml'; RequiredVersion = '0.4.7' }
+					@{ Name = 'SqlServer';       RequiredVersion = '22.1.1' }
+					@{ Name = 'ImportExcel';     RequiredVersion = '7.8.5' }
+				)
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-NoDoubleActivation { $false }
+			Mock Test-YamlModule { $true }
+			Mock Test-EnvModule { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Install-Module {}
+			Mock Invoke-Item {}
+			Mock Write-Error {}
+
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member ScriptMethod Popup {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if ($Message -match '\[(EXIST|INSTALL)\]') {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: スキップの検証
-			# TODO: process / end ブロックが実行されないことを検証する
+			($script:LogMessages -join [Environment]::NewLine) | Should -Not -Match '\[EXIST\]'
+			($script:LogMessages -join [Environment]::NewLine) | Should -Not -Match '\[INSTALL\]'
+			Assert-MockCalled Test-EnvModule -Times 0
+			Assert-MockCalled Install-Module -Times 0
 		}
 	}
 
