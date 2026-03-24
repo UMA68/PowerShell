@@ -699,6 +699,10 @@ Install-Module -Name Pester -MinimumVersion 5.0 -Scope CurrentUser
 
 リポジトリの品質を保つため、変更前後にテストを実行してください（PowerShell 7.x / `pwsh` 前提）：
 
+`Tests/Integration/InstMain.Tests.ps1` の設計方針は、
+[ADR-0020: InstMain 統合テストの共通化方針とテスト基盤設計](docs/adr/0020-instmain-test-architecture.md)
+に従います。
+
 #### ローカルテスト（pwsh）
 
 <!-- updated -->
