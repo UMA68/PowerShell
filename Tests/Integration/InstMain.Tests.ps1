@@ -24,6 +24,10 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		$script:QuietValues = [System.Collections.Generic.List[bool]]::new()
 
 		function script:New-MockYaml {
+			<#
+			.SYNOPSIS
+				テスト用のモックYAMLハッシュテーブルを生成します。
+			#>
 			param(
 				[string]$PowerShellVersion = ($PSVersionTable.PSVersion).ToString(),
 				[switch]$ListStyle,
@@ -60,6 +64,10 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		}
 
 		function script:Initialize-InstMainTestEnvironment {
+			<#
+			.SYNOPSIS
+				InstMain テスト環境を初期化してMockを設定します。
+			#>
 			param(
 				[Parameter(Mandatory)]
 				[hashtable]$MockYaml
@@ -87,6 +95,10 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		}
 
 		function script:Enable-WriteCommonLogCapture {
+			<#
+			.SYNOPSIS
+				Write-CommonLog のMockを有効化してログメッセージをキャプチャします。
+			#>
 			$script:LogMessages = [System.Collections.Generic.List[string]]::new()
 			$script:QuietValues = [System.Collections.Generic.List[bool]]::new()
 
@@ -489,8 +501,8 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			Mock Get-Module {
 				switch ($Name) {
 					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
-					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
-					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
 					default { return $null }
 				}
 			} -ParameterFilter { $ListAvailable }
@@ -577,8 +589,8 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			Mock Get-Module {
 				switch ($Name) {
 					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
-					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
-					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
 					default { return $null }
 				}
 			} -ParameterFilter { $ListAvailable }
@@ -673,7 +685,6 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '共通スクリプト読み込みエラー (Write-CommonLog.ps1 や Check-EnvModule.ps1 などが読み込めない)' {
 		It '共通スクリプトのドットソースに失敗した場合にエラーダイアログが表示されること' {
 			# Arrange: テスト環境の準備
-			$mockYaml = New-MockYaml
 			$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
 			$backupPath = "$writeCommonLogPath.bak"
 
@@ -732,7 +743,6 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 
 		It '共通スクリプト読み込みエラー発生後に処理が継続しないこと' {
 			# Arrange: テスト環境の準備
-			$mockYaml = New-MockYaml
 			$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
 			$backupPath = "$writeCommonLogPath.bak"
 
