@@ -1079,26 +1079,150 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '-envFileName パラメーターによる YAML 切り替え' {
 		It '-envFileName で別の YAML を指定した場合に、その内容がログに反映されること' {
 			# Arrange: テスト環境の準備
-			# TODO: 切り替え用 YAML を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:LogMessages.Clear()
+
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = '7.3.9'
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule { $true }
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				if (-not [string]::IsNullOrWhiteSpace($Message)) {
+					[void]$script:LogMessages.Add($Message)
+				}
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: -envFileName を指定して InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Test.yaml'
 
 			# Assert: 反映内容の検証
-			# TODO: 指定 YAML の内容がログへ反映されることを検証する
+			$script:LogMessages | Should -Not -BeNullOrEmpty
+			$allMessages = $script:LogMessages -join [Environment]::NewLine
+			$allMessages | Should -Match 'InstallModule'
+			$allMessages | Should -Match 'Version: 1\.0\.0'
+			$allMessages | Should -Match 'powershell-yaml'
+			$allMessages | Should -Match 'SqlServer'
+			$allMessages | Should -Match 'ImportExcel'
 		}
 
 		It 'YAML に定義されたモジュール構成に応じて Test-EnvModule の呼び出し内容が変わること' {
 			# Arrange: テスト環境の準備
-			# TODO: モジュール構成が異なる YAML を準備する
-			# TODO: ここで必要な Mock を定義する予定
+			$script:CalledModules = @()
+
+			$mockYaml = [ordered]@{
+				Project = 'InstallModule'
+				Version = '1.0.0'
+				PowerShell = [ordered]@{
+					Version = '7.3.9'
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+				$script:CalledModules += ('{0}:{1}' -f $ModuleName, $ModuleVersion)
+				$true
+			}
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: -envFileName を指定して InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Test.yaml'
 
 			# Assert: 呼び出し内容の検証
-			# TODO: Test-EnvModule の呼び出し引数が変化することを検証する
+			$script:CalledModules | Should -Not -BeNullOrEmpty
+			$script:CalledModules | Should -Contain 'powershell-yaml:0.4.7'
+			$script:CalledModules | Should -Contain 'SqlServer:22.1.1'
+			$script:CalledModules | Should -Contain 'ImportExcel:7.8.5'
+			$script:CalledModules.Count | Should -Be 3
 		}
 	}
 
