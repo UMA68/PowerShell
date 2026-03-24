@@ -446,7 +446,7 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
   Where-Object { $_.Severity -eq 'Error' }
 ```
 
-> **Note**: Information レベルの警告は推奨ですが必須ではありません。詳細は [ADR-0006](adr/0006-psscriptanalyzer-information-level.md) を参照してください。
+> **Note**: Information レベルの警告は推奨ですが必須ではありません。詳細は [ADR-0006](docs/adr/0006-psscriptanalyzer-information-level.md) を参照してください。
 
 ### ユニットテスト
 
