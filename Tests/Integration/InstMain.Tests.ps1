@@ -1,4 +1,3 @@
-# TODO: 共通ヘルパー関数 Invoke-InstMainUnderTest を用意して、各 It から呼び出すことも検討
 Describe 'InstMain' -Tag 'Integration', 'Script' {
 	BeforeAll {
 		$script:TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) "InstMainTest_$(New-Guid)"
@@ -15,14 +14,44 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		$script:YamlDir = $yamlDir
 		$script:CreatedLogFiles = [System.Collections.Generic.List[string]]::new()
 		$script:LogMessages = [System.Collections.Generic.List[string]]::new()
+
+		function script:New-InstMainMockYaml {
+			param(
+				[string]$PowerShellVersion = ($PSVersionTable.PSVersion).ToString(),
+				[string]$Project = 'InstallModule',
+				[string]$Version = '1.0.0'
+			)
+
+			return [ordered]@{
+				Project = $Project
+				Version = $Version
+				PowerShell = [ordered]@{
+					Version = $PowerShellVersion
+				}
+				Module = [ordered]@{
+					'powershell-yaml' = [ordered]@{
+						Name = 'powershell-yaml'
+						Version = '0.4.7'
+					}
+					'SqlServer' = [ordered]@{
+						Name = 'SqlServer'
+						Version = '22.1.1'
+					}
+					'ImportExcel' = [ordered]@{
+						Name = 'ImportExcel'
+						Version = '7.8.5'
+					}
+				}
+			}
+		}
+
 	}
 
 	AfterAll {
-		if ($script:CreatedLogFiles) {
-			foreach ($createdLogFile in $script:CreatedLogFiles) {
-				if (Test-Path $createdLogFile) {
-					Remove-Item -Path $createdLogFile -Force
-				}
+		if ($script:CreatedLogFiles -and $script:CreatedLogFiles.Count -gt 0) {
+			$createdLogFiles = $script:CreatedLogFiles.ToArray() | Where-Object { Test-Path $_ }
+			if ($createdLogFiles.Count -gt 0) {
+				Remove-Item -Path $createdLogFiles -Force
 			}
 		}
 
@@ -744,15 +773,9 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		It '二重起動検出時に begin ブロックで処理が終了すること' {
 			# Arrange: テスト環境の準備
 			$script:LogMessages.Clear()
+			$script:WarningMessages = [System.Collections.Generic.List[string]]::new()
 
-			$mockYaml = @{
-				PowerShell = @{ Version = ($PSVersionTable.PSVersion).ToString() }
-				ModuleList = @(
-					@{ Name = 'powershell-yaml'; RequiredVersion = '0.4.7' }
-					@{ Name = 'SqlServer';       RequiredVersion = '22.1.1' }
-					@{ Name = 'ImportExcel';     RequiredVersion = '7.8.5' }
-				)
-			}
+			$mockYaml = New-InstMainMockYaml
 
 			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
 			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
@@ -766,16 +789,18 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			Mock Install-Module {}
 			Mock Invoke-Item {}
 			Mock Write-Error {}
-
+			Mock Write-Warning {
+				param($Message)
+				[void]$script:WarningMessages.Add($Message)
+			}
 			Mock Get-Module {
 				switch ($Name) {
 					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
-					'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
-					'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
 					default { return $null }
 				}
 			} -ParameterFilter { $ListAvailable }
-
 			Mock New-Object {
 				$wshShell = [pscustomobject]@{}
 				$wshShell | Add-Member ScriptMethod Popup {
@@ -784,7 +809,6 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 				} -Force
 				return $wshShell
 			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
-
 			Mock Write-CommonLog {
 				param($Message, $LogPath, $Level, $Quiet)
 				[void]$script:LogMessages.Add($Message)
@@ -794,7 +818,9 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: begin ブロック終了の検証
-			($script:LogMessages -join [Environment]::NewLine) | Should -Match '(ERROR|二重起動)'
+			($script:WarningMessages -join [Environment]::NewLine) | Should -Match '既に起動中'
+			Assert-MockCalled Write-Warning -Times 1 -ParameterFilter { $Message -eq '既に起動中のため処理を終了します' }
+			Assert-MockCalled Test-YamlModule -Times 0
 			Assert-MockCalled Test-EnvModule -Times 0
 			Assert-MockCalled Install-Module -Times 0
 		}
@@ -955,122 +981,104 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '共通スクリプト読み込みエラー (Write-CommonLog.ps1 や Check-EnvModule.ps1 などが読み込めない)' {
 		It '共通スクリプトのドットソースに失敗した場合にエラーダイアログが表示されること' {
 			# Arrange: テスト環境の準備
-			$script:LogMessages.Clear()
-
-			# 共通スクリプトのパスを把握
+			$mockYaml = New-InstMainMockYaml
 			$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
-			$backupPath         = "$writeCommonLogPath.bak"
+			$backupPath = "$writeCommonLogPath.bak"
 
-			# Write-CommonLog.ps1 を一時的にリネームして、dot-source に失敗させる
 			Rename-Item -Path $writeCommonLogPath -NewName $backupPath -Force
 
 			try {
 				. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
-				. (Join-Path $script:ScriptDir  'Check-EnvModule.ps1')
-				. (Join-Path $script:ScriptDir  'Check-YamlModule.ps1')
+				. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+				. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
 
-				Mock Test-YamlModule        { $true }
+				Mock Test-YamlModule { $true }
 				Mock Test-NoDoubleActivation { $true }
-				Mock Test-EnvModule         { $true }
-				Mock ConvertFrom-Yaml       { throw 'YAML should not be read in this scenario' }
-				Mock Install-Module         {}
-				Mock Invoke-Item            {}
-				Mock Write-Error            {}
+				Mock Test-EnvModule { $true }
+				Mock ConvertFrom-Yaml { throw 'YAML should not be read in this scenario' }
+				Mock Install-Module {}
+				Mock Invoke-Item {}
+				Mock Write-Error {}
 				Mock Get-Module {
 					switch ($Name) {
 						'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
-						'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
-						'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
-						default           { return $null }
+						'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+						'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+						default { return $null }
 					}
 				} -ParameterFilter { $ListAvailable }
-
-				# Popup のモック：呼び出されたかどうかを Assert する
 				Mock New-Object {
 					$wshShell = [pscustomobject]@{}
 					$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
 						param($Message, $Timeout, $Title, $Type)
-						# ここで特に何もしない（返り値は使われない）
 						return 6
 					} -Force
 					return $wshShell
 				} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
-				Mock Write-CommonLog {}
-
 				# Act: InstMain.ps1 の実行
 				. $script:InstMainPath -envFileName 'Env.yaml'
 
-				# Assert: エラー通知の検証（WScript.Shell の生成が 1 回）
+				# Assert: エラー通知の検証
 				Assert-MockCalled New-Object -Times 1 -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+				Assert-MockCalled Test-YamlModule -Times 0
+				Assert-MockCalled Test-EnvModule -Times 0
 
 			} finally {
-				# 必ず元に戻す
 				if (Test-Path $backupPath) {
 					Rename-Item -Path $backupPath -NewName $writeCommonLogPath -Force
 				}
 			}
+		}
 
 		It '共通スクリプト読み込みエラー発生後に処理が継続しないこと' {
-				# Arrange: テスト環境の準備
-				$script:LogMessages.Clear()
+			# Arrange: テスト環境の準備
+			$mockYaml = New-InstMainMockYaml
+			$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
+			$backupPath = "$writeCommonLogPath.bak"
 
-				$writeCommonLogPath = Join-Path $script:CommonDir 'Write-CommonLog.ps1'
-				$backupPath         = "$writeCommonLogPath.bak"
+			Rename-Item -Path $writeCommonLogPath -NewName $backupPath -Force
 
-				Rename-Item -Path $writeCommonLogPath -NewName $backupPath -Force
+			try {
+				. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+				. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+				. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
 
-				try {
-					. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
-					. (Join-Path $script:ScriptDir  'Check-EnvModule.ps1')
-					. (Join-Path $script:ScriptDir  'Check-YamlModule.ps1')
-
-					Mock Test-YamlModule        { $true }
-					Mock Test-NoDoubleActivation { $true }
-					Mock Test-EnvModule         { $true }
-					Mock ConvertFrom-Yaml       { throw 'YAML should not be read in this scenario' }
-					Mock Install-Module         {}
-					Mock Invoke-Item            {}
-					Mock Write-Error            {}
-
-					Mock Get-Module {
-						switch ($Name) {
-							'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
-							'SqlServer'       { return [pscustomobject]@{ Version = [version]'22.1.1' } }
-							'ImportExcel'     { return [pscustomobject]@{ Version = [version]'7.8.5' } }
-							default           { return $null }
-						}
-					} -ParameterFilter { $ListAvailable }
-
-					Mock New-Object {
-						$wshShell = [pscustomobject]@{}
-						$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
-							param($Message, $Timeout, $Title, $Type)
-							return 6
-						} -Force
-						return $wshShell
-					} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
-
-					# EXIST / INSTALL ログだけ拾う
-					Mock Write-CommonLog {
-						param($Message, $LogPath, $Level, $Quiet)
-						if ($Message -match '\[(EXIST|INSTALL)\]') {
-							[void]$script:LogMessages.Add($Message)
-						}
+				Mock Test-YamlModule { $true }
+				Mock Test-NoDoubleActivation { $true }
+				Mock Test-EnvModule { $true }
+				Mock ConvertFrom-Yaml { throw 'YAML should not be read in this scenario' }
+				Mock Install-Module {}
+				Mock Invoke-Item {}
+				Mock Write-Error {}
+				Mock Get-Module {
+					switch ($Name) {
+						'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+						'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+						'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+						default { return $null }
 					}
+				} -ParameterFilter { $ListAvailable }
+				Mock New-Object {
+					$wshShell = [pscustomobject]@{}
+					$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+						param($Message, $Timeout, $Title, $Type)
+						return 6
+					} -Force
+					return $wshShell
+				} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
 
-					# Act
-					. $script:InstMainPath -envFileName 'Env.yaml'
+				# Act
+				. $script:InstMainPath -envFileName 'Env.yaml'
 
-					# Assert: モジュール処理は一切行われない
-					$script:LogMessages | Should -BeNullOrEmpty
-					Assert-MockCalled Test-EnvModule -Times 0
-					Assert-MockCalled Install-Module -Times 0
+				# Assert: モジュール処理は一切行われない
+				Assert-MockCalled Test-YamlModule -Times 0
+				Assert-MockCalled Test-EnvModule -Times 0
+				Assert-MockCalled Install-Module -Times 0
 
-				} finally {
-					if (Test-Path $backupPath) {
-						Rename-Item -Path $backupPath -NewName $writeCommonLogPath -Force
-					}
+			} finally {
+				if (Test-Path $backupPath) {
+					Rename-Item -Path $backupPath -NewName $writeCommonLogPath -Force
 				}
 			}
 		}
@@ -1080,28 +1088,7 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		It '-envFileName で別の YAML を指定した場合に、その内容がログに反映されること' {
 			# Arrange: テスト環境の準備
 			$script:LogMessages.Clear()
-
-			$mockYaml = [ordered]@{
-				Project = 'InstallModule'
-				Version = '1.0.0'
-				PowerShell = [ordered]@{
-					Version = '7.3.9'
-				}
-				Module = [ordered]@{
-					'powershell-yaml' = [ordered]@{
-						Name = 'powershell-yaml'
-						Version = '0.4.7'
-					}
-					'SqlServer' = [ordered]@{
-						Name = 'SqlServer'
-						Version = '22.1.1'
-					}
-					'ImportExcel' = [ordered]@{
-						Name = 'ImportExcel'
-						Version = '7.8.5'
-					}
-				}
-			}
+			$mockYaml = New-InstMainMockYaml
 
 			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
 			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
@@ -1111,7 +1098,14 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 			Mock Test-YamlModule { $true }
 			Mock Test-NoDoubleActivation { $true }
 			Mock ConvertFrom-Yaml { $mockYaml }
-			Mock Test-EnvModule { $true }
+			Mock Test-EnvModule {
+				param(
+					[string]$ModuleName,
+					[string]$ModuleVersion
+				)
+				Write-CommonLog -Message "[EXIST] $ModuleName Version: $ModuleVersion" -LogPath 'mock.log' -Level 'INFO' -Quiet:$false
+				$true
+			}
 			Mock Install-Module {}
 			Mock Write-Error {}
 			Mock Invoke-Item {}
@@ -1154,28 +1148,7 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 		It 'YAML に定義されたモジュール構成に応じて Test-EnvModule の呼び出し内容が変わること' {
 			# Arrange: テスト環境の準備
 			$script:CalledModules = @()
-
-			$mockYaml = [ordered]@{
-				Project = 'InstallModule'
-				Version = '1.0.0'
-				PowerShell = [ordered]@{
-					Version = '7.3.9'
-				}
-				Module = [ordered]@{
-					'powershell-yaml' = [ordered]@{
-						Name = 'powershell-yaml'
-						Version = '0.4.7'
-					}
-					'SqlServer' = [ordered]@{
-						Name = 'SqlServer'
-						Version = '22.1.1'
-					}
-					'ImportExcel' = [ordered]@{
-						Name = 'ImportExcel'
-						Version = '7.8.5'
-					}
-				}
-			}
+			$mockYaml = New-InstMainMockYaml
 
 			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
 			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
@@ -1229,26 +1202,104 @@ Describe 'InstMain' -Tag 'Integration', 'Script' {
 	Context '-ShowInConsole スイッチの動作' {
 		It '-ShowInConsole 指定時に Write-CommonLog の Quiet パラメーターが false になること (Mock 前提)' {
 			# Arrange: テスト環境の準備
-			# TODO: -ShowInConsole 指定時の条件を準備する
-			# TODO: ここで Write-CommonLog の Mock を定義する予定
+			$script:LogMessages.Clear()
+			$script:QuietValues = New-Object 'System.Collections.Generic.List[bool]'
+
+			$mockYaml = New-InstMainMockYaml
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule { $true }
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				[void]$script:LogMessages.Add($Message)
+				[void]$script:QuietValues.Add([bool]$Quiet)
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: -ShowInConsole を指定して InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml' -ShowInConsole
 
 			# Assert: パラメーター値の検証
-			# TODO: Quiet が false で渡されることを検証する
+			$script:QuietValues | Should -Not -BeNullOrEmpty
+			foreach ($quietValue in $script:QuietValues) {
+				$quietValue | Should -Be $false
+			}
 		}
 
 		It 'デフォルト実行時に Quiet パラメーターが true になること (Mock 前提)' {
 			# Arrange: テスト環境の準備
-			# TODO: デフォルト実行時の条件を準備する
-			# TODO: ここで Write-CommonLog の Mock を定義する予定
+			$script:LogMessages.Clear()
+			$script:QuietValues = New-Object 'System.Collections.Generic.List[bool]'
+
+			$mockYaml = New-InstMainMockYaml
+
+			. (Join-Path $script:CommonDir 'NoDoubleActivation.ps1')
+			. (Join-Path $script:CommonDir 'Write-CommonLog.ps1')
+			. (Join-Path $script:ScriptDir 'Check-EnvModule.ps1')
+			. (Join-Path $script:ScriptDir 'Check-YamlModule.ps1')
+
+			Mock Test-YamlModule { $true }
+			Mock Test-NoDoubleActivation { $true }
+			Mock ConvertFrom-Yaml { $mockYaml }
+			Mock Test-EnvModule { $true }
+			Mock Install-Module {}
+			Mock Write-Error {}
+			Mock Invoke-Item {}
+			Mock Get-Module {
+				switch ($Name) {
+					'powershell-yaml' { return [pscustomobject]@{ Version = [version]'0.4.7' } }
+					'SqlServer' { return [pscustomobject]@{ Version = [version]'22.1.1' } }
+					'ImportExcel' { return [pscustomobject]@{ Version = [version]'7.8.5' } }
+					default { return $null }
+				}
+			} -ParameterFilter { $ListAvailable }
+			Mock New-Object {
+				$wshShell = [pscustomobject]@{}
+				$wshShell | Add-Member -MemberType ScriptMethod -Name Popup -Value {
+					param($Message, $Timeout, $Title, $Type)
+					return 6
+				} -Force
+				return $wshShell
+			} -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+			Mock Write-CommonLog {
+				param($Message, $LogPath, $Level, $Quiet)
+				[void]$script:LogMessages.Add($Message)
+				[void]$script:QuietValues.Add([bool]$Quiet)
+			}
 
 			# Act: InstMain.ps1 の実行
-			# TODO: デフォルト引数で InstMain.ps1 を実行する
+			. $script:InstMainPath -envFileName 'Env.yaml'
 
 			# Assert: パラメーター値の検証
-			# TODO: Quiet が true で渡されることを検証する
+			$script:QuietValues | Should -Not -BeNullOrEmpty
+			foreach ($quietValue in $script:QuietValues) {
+				$quietValue | Should -Be $true
+			}
 		}
 	}
 }
