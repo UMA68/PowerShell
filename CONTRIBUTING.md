@@ -466,6 +466,16 @@ Invoke-Pester -Path .\Tests\ -CodeCoverage .\Common\*.ps1 -CodeCoverageOutputFil
 Invoke-Pester -Path .\Tests\ -CI
 ```
 
+### InstMain 統合テストの設計ポリシー
+
+`Tests/Integration/InstMain.Tests.ps1` を変更する場合は、
+[ADR-0020: InstMain 統合テストの共通化方針とテスト基盤設計](docs/adr/0020-instmain-test-architecture.md)
+にしたがってください。
+
+- Arrangeは `New-MockYaml` / `Initialize-InstMainTestEnvironment` / `Enable-WriteCommonLogCapture` を使って共通化する
+- `Write-CommonLog` の昇格は `BeforeAll` に限定し、各 `It` では必要に応じて `Mock Write-CommonLog` を上書きする
+- ローカル実行は `Run-Pester5.ps1` を優先し、Pester 5.x（とくに5.6.1）前提を維持する
+
 ## セキュリティ
 
 ### 機密情報の取り扱い
