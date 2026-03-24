@@ -97,6 +97,42 @@ Invoke-Pester -Path .\Tests\ -Filter @{ FullName = '*Get-ScriptPaths*' } -Verbos
 Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
 ```
 
+### InstMain 統合テストを Pester 5.6.1 で絞り込み実行
+
+```powershell
+# Pester 5.6.1 を固定して読み込む
+Remove-Module Pester -ErrorAction SilentlyContinue
+Import-Module Pester -RequiredVersion 5.6.1 -Force
+
+# 二重起動検出: It を 1 本だけ実行
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.二重起動検出 (Test-NoDoubleActivation が false を返す場合).二重起動検出時に begin ブロックで処理が終了すること' `
+    -Output Detailed
+
+# 共通スクリプト読み込みエラー: It を 1 本だけ実行
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.共通スクリプト読み込みエラー (Write-CommonLog.ps1 や Check-EnvModule.ps1 などが読み込めない).共通スクリプトのドットソースに失敗した場合にエラーダイアログが表示されること' `
+    -Output Detailed
+
+# envFileName 切り替え: It を 1 本だけ実行
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.-envFileName パラメーターによる YAML 切り替え.-envFileName で別の YAML を指定した場合に、その内容がログに反映されること' `
+    -Output Detailed
+
+# Context 単位で実行
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.二重起動検出 (Test-NoDoubleActivation が false を返す場合).*' `
+    -Output Detailed
+
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.共通スクリプト読み込みエラー (Write-CommonLog.ps1 や Check-EnvModule.ps1 などが読み込めない).*' `
+    -Output Detailed
+
+Invoke-Pester -Path .\Tests\Integration\InstMain.Tests.ps1 `
+    -FullNameFilter 'InstMain.-envFileName パラメーターによる YAML 切り替え.*' `
+    -Output Detailed
+```
+
 ## カバレッジレポートの取得
 
 ### ローカルでの測定
