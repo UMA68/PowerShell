@@ -29,8 +29,8 @@ permissions:
 env:
   # === 予算ガードの閾値（環境に合わせて変更） ===
   # Actions minutes（月内の「請求対象分」）上限
-  # MAX_ACTIONS_MINUTES: "2000"    # 例: Freeなら2000、Proなら3000、Teamなら3000/組織、Enterpriseなら50000など
-  MAX_ACTIONS_MINUTES: "400"    # Windowsランナーは5倍消費されるため、Free相当の2000分を400分に設定
+  MAX_ACTIONS_MINUTES: "2000"    # 例: Freeなら2000、Proなら3000、Teamなら3000/組織、Enterpriseなら50000など
+  # MAX_ACTIONS_MINUTES: "400"    # 2000以下は設定できないっぽいので、元に戻す　# Windowsランナーは5倍消費されるため、Free相当の2000分を400分に設定
   MAX_STORAGE_GB: "0.5"         # Free: 500 MB, Pro: 2 GB, Team: 2 GB, Enterprise: 50 GB
   # 【組織運用】組織名（例: your-org）。個人運用なら空文字に
   ORG_NAME: ""
