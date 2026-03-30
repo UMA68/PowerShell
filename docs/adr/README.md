@@ -76,6 +76,7 @@ tests/                # Pester テスト
 - [ADR-0018: PSScriptAnalyzer の Path 型差異を吸収するため、差分チェック実装を単一ファイル解析方式に変更する](0018-scriptanalyzer-single-file-analysis-for-path-type-compatibility.md)
 - [ADR-0019: GitHub Actions のドットソース実行経路で ValidateSet パラメーターバインディングの型不一致が起きるため、workflow 側で型を確定させて回避する](0019-github-actions-dot-source-validateset-parameter-binding.md)
 - [ADR-0020: InstMain 統合テストの共通化方針とテスト基盤設計](0020-instmain-test-architecture.md)
+- [ADR-0021: Podman Desktop Accounts において GitHub Account ログインを採用しない判断](0021-Podman-Desktop-Accounts-without-GitHub-Login.md)
 
 CI / ScriptAnalyzerの具体的な運用手順は [Playbook — PowerShell リポジトリ CI / 運用](../guides/Playbook.md) を参照。
 
