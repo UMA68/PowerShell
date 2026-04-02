@@ -190,11 +190,25 @@ $count = 0
 すべてのコード変更は、PSScriptAnalyzerのチェックを通過する必要があります。
 
 ```powershell
-# リポジトリ全体をチェック
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+# 自動生成物を除いた PowerShell ファイルを対象にリポジトリ全体をチェック
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+        $_.FullName -notmatch '\\.venv\\' -and
+        $_.FullName -notmatch '\\.localmodules\\' -and
+        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+        $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
 
 # Error/Warning レベルのみをチェック（推奨）
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+        $_.FullName -notmatch '\\.venv\\' -and
+        $_.FullName -notmatch '\\.localmodules\\' -and
+        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+        $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 } |
   Where-Object { $_.Severity -in 'Error', 'Warning' }
 
 # 特定のファイルをチェック
@@ -431,18 +445,39 @@ fix(scope): バグ修正の簡潔な説明
 ### PSScriptAnalyzer による静的解析
 
 ```powershell
-# すべてのスクリプトをチェック
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+# 自動生成物を除いた PowerShell ファイルを対象にすべてのスクリプトをチェック
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+        $_.FullName -notmatch '\\.venv\\' -and
+        $_.FullName -notmatch '\\.localmodules\\' -and
+        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+        $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
 
 # Error/Warning レベルのみをチェック（推奨）
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+        $_.FullName -notmatch '\\.venv\\' -and
+        $_.FullName -notmatch '\\.localmodules\\' -and
+        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+        $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 } |
   Where-Object { $_.Severity -in 'Error', 'Warning' }
 
 # 特定のフォルダーをチェック
 Invoke-ScriptAnalyzer -Path .\Common\ -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 
 # エラーのみ表示
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+        $_.FullName -notmatch '\\.venv\\' -and
+        $_.FullName -notmatch '\\.localmodules\\' -and
+        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+        $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 } |
   Where-Object { $_.Severity -eq 'Error' }
 ```
 

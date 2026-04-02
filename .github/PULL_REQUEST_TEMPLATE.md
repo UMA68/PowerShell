@@ -66,7 +66,14 @@ Closes #(issue番号）
 - [ ] PSScriptAnalyzerのチェックを通過している
 
   ```powershell
-  Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+  Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+    Where-Object {
+      $_.FullName -notmatch '\\.venv\\' -and
+      $_.FullName -notmatch '\\.localmodules\\' -and
+      $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+      $_.FullName -notmatch '\\.github\\'
+    } |
+    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
   ```
 
 - [ ] [SCOPE_GUIDELINES.md](../SCOPE_GUIDELINES.md) に準拠している

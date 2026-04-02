@@ -778,17 +778,31 @@ pwsh ./scripts/Invoke-ScriptAnalyzerChanged.ps1 -BaseRef origin/main -HeadRef HE
 ```
 
 ```powershell
-# コード品質をチェック
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+# 自動生成物を除いた PowerShell ファイルを対象にコード品質をチェック
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+  Where-Object {
+    $_.FullName -notmatch '\\.venv\\' -and
+    $_.FullName -notmatch '\\.localmodules\\' -and
+    $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+    $_.FullName -notmatch '\\.github\\'
+  } |
+  ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
 
 # Error/Warning レベルのみをチェック（推奨）
-Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+  Where-Object {
+    $_.FullName -notmatch '\\.venv\\' -and
+    $_.FullName -notmatch '\\.localmodules\\' -and
+    $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+    $_.FullName -notmatch '\\.github\\'
+  } |
+  ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 } |
   Where-Object { $_.Severity -in 'Error', 'Warning' }
 ```
 
 > **Note**: Information レベルの警告は推奨ですが必須ではありません。詳細は [ADR-0006](docs/adr/0006-psscriptanalyzer-information-level.md) を参照してください。
 
-> **Note**: 実際の適用ルール・除外ルールの正本は [PSScriptAnalyzerSettings.psd1](PSScriptAnalyzerSettings.psd1) です。`LOG/`（配下含む）および検証成果物（例: `coverage.xml`, `testResults.xml`）は対象外として扱います。方針の背景は [ADR-0011](docs/adr/0011-repository-wide-scriptanalyzer-policy.md) を参照してください。
+> **Note**: リポジトリ全体のチェックは、`.venv` などの自動生成物を拾わないよう PowerShell で対象ファイルを列挙して実行します。実際の適用ルール・除外ルールの正本は [PSScriptAnalyzerSettings.psd1](PSScriptAnalyzerSettings.psd1) です。`LOG/`（配下含む）および検証成果物（例: `coverage.xml`, `testResults.xml`）は対象外として扱います。方針の背景は [ADR-0011](docs/adr/0011-repository-wide-scriptanalyzer-policy.md) を参照してください。
 
 ### 8. 暗号化鍵の作成（オプション）
 
