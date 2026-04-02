@@ -42,6 +42,8 @@ param(
 
     [Parameter()]
     [string[]]$ExcludeGlobs = @(
+        '.venv/**',
+        '**/.venv/**',
         'Tests/**',
         'docs/**',
         '.github/**',

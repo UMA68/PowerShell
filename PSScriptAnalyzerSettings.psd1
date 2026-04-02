@@ -6,8 +6,15 @@
     このリポジトリ全体で使用する PowerShell コード品質チェックのルールを定義します。
     
 .USAGE
-    # リポジトリ全体を再帰的にチェック
-    Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
+    # 自動生成物を除いた PowerShell ファイルを対象にリポジトリ全体をチェック
+    Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
+        Where-Object {
+            $_.FullName -notmatch '\\.venv\\' -and
+            $_.FullName -notmatch '\\.localmodules\\' -and
+            $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
+            $_.FullName -notmatch '\\.github\\'
+        } |
+        ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
     
     # 特定のファイルをチェック
     Invoke-ScriptAnalyzer -Path .\Script\YourScript.ps1 -Settings .\PSScriptAnalyzerSettings.psd1
