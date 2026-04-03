@@ -60,14 +60,10 @@ jobs:
             }
           }
 
-          # @('Error') は object[] になるため、ドットソース実行経路では ValidateSet の
-          # リフレクション検証で "Argument types do not match" が発生する。
-          # 代入時点で LanguagePrimitives.ConvertTo を通して string[] に確定させることで回避する。
-          [string[]] $failSeverity = @('Error')
-          .\scripts\Invoke-ScriptAnalyzerChanged.ps1 `
+          & .\scripts\Invoke-ScriptAnalyzerChanged.ps1 `
             -BaseRef $baseRef `
             -HeadRef 'HEAD' `
-            -FailOnSeverity $failSeverity `
+            -FailOnSeverity 'Error' `
             -OutputJsonPath 'LOG/psscriptanalyzer-changed.json'
           
       - name: 結果をアップロード（エラー時のみ）
