@@ -351,18 +351,10 @@ if (-not (Test-Path $dir)) {
 
 ```powershell
 Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
-Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
-    Where-Object {
-        $_.FullName -notmatch '\\.venv\\' -and
-        $_.FullName -notmatch '\\.localmodules\\' -and
-        $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
-        $_.FullName -notmatch '\\.github\\'
-    } |
-    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
 ```
 
 - 推奨ルール例: `PSUseDeclaredVarsMoreThanAssignments`, `PSAvoidGlobalVars`, `PSUseCorrectCasing`, `PSUseConsistentWhitespace`。
-- ルールセットを使う場合: `Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 | Where-Object { $_.FullName -notmatch '\\.venv\\' -and $_.FullName -notmatch '\\.localmodules\\' -and $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and $_.FullName -notmatch '\\.github\\' } | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }`
+- 実際の実行手順は [README.md](README.md) の「7. コード品質チェック」を参照。
 
 ### Pester でのスコープ検証
 

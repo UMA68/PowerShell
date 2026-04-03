@@ -65,16 +65,7 @@ Closes #(issue番号）
 
 - [ ] PSScriptAnalyzerのチェックを通過している
 
-  ```powershell
-  Get-ChildItem -Recurse -File -Include *.ps1,*.psm1,*.psd1 |
-    Where-Object {
-      $_.FullName -notmatch '\\.venv\\' -and
-      $_.FullName -notmatch '\\.localmodules\\' -and
-      $_.FullName -notmatch '(\\|^)(Tests|docs|adr|LOG)(\\|$)' -and
-      $_.FullName -notmatch '\\.github\\'
-    } |
-    ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 }
-  ```
+  手順は [README.md](../README.md) の「7. コード品質チェック」を参照
 
 - [ ] [SCOPE_GUIDELINES.md](../SCOPE_GUIDELINES.md) に準拠している
 - [ ] 適切なエラーハンドリングを実装している
