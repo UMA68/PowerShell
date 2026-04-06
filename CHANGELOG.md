@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-04-06
+- Verified test execution on PowerShell 7.6.0 LTS
+- All Pester tests passed with Pester 5.6.1 (no test runner or test code changes required)
+
 ## 2026-03-02
 
 - DecompileDll integration tests migrated and stabilized
