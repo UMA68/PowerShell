@@ -95,28 +95,29 @@ Invoke-Pester -Path .\Tests\ -Filter @{ FullName = '*Get-ScriptPaths*' } -Verbos
 
 # タグでフィルタリング
 Invoke-Pester -Path .\Tests\ -Tag 'Unit' -Verbose
+```
 
 ## InstMain 統合テストの設計ポリシー
 
-InstMain.Tests.ps1 は、他の統合テストと比較して依存関係や Mock 構造が特に複雑です。  
+InstMain.Tests.ps1は、他の統合テストと比較して依存関係やMock構造がとくに複雑です。  
 このため、保守性と再現性を確保するための専用設計方針（ADR-0020）を採用しています。
 
-➡ 詳細な設計判断は ADR-0020 を参照してください：  
+➡ 詳細な設計判断はADR-0020を参照してください：  
 [docs/adr/0020-instmain-test-architecture.md](../docs/adr/0020-instmain-test-architecture.md)
 
 ### 主な設計方針
 
-- `New-MockYaml` による YAML テストデータ生成の共通化  
+- `New-MockYaml` によるYAMLテストデータ生成の共通化  
 - `Initialize-InstMainTestEnvironment` による  
-    - 共通 dot-source  
+    - 共通dot-source  
     - Test-* 関数のスコープ昇格  
-    - 基本 Mock の一括初期化  
-- `Enable-WriteCommonLogCapture` による Quiet / ログメッセージの捕捉の共通化  
+    - 基本Mockの一括初期化  
+- `Enable-WriteCommonLogCapture` によるQuiet / ログメッセージの捕捉の共通化  
 - `Write-CommonLog` の昇格は **BeforeAll で一度だけ** 行い、  
-    各 `It` では必要に応じて Mock で上書きする方針  
-- 実行環境は **Pester 5.6.1 固定**（Run-Pester5.ps1 を使用）
+    各 `It` では必要に応じてMockで上書きする方針  
+- 実行環境は **Pester 5.6.1 固定**（Run-Pester5.ps1を使用）
 
-InstMain.Tests.ps1 を変更する場合は、必ず ADR の方針に従ってください。
+InstMain.Tests.ps1を変更する場合は、必ずADRの方針にしたがってください。
 
 ### InstMain 統合テストを Pester 5.6.1 で絞り込み実行
 
