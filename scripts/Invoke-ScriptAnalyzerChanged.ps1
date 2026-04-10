@@ -277,7 +277,7 @@ foreach ($targetPath in $displayTargets) {
     }
 }
 
-$analysisResults = @($analysisResults)
+$analysisResults = $analysisResults.ToArray()
 
 Write-Host ''
 Write-Host 'PSScriptAnalyzer 結果:' -ForegroundColor Yellow

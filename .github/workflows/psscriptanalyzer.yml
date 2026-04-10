@@ -39,6 +39,14 @@ jobs:
         shell: pwsh
         run: |
           Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
+
+      - name: Invoke-ScriptAnalyzerChanged のパラメータ型を表示
+        shell: pwsh
+        run: |
+          $cmd = Get-Command .\scripts\Invoke-ScriptAnalyzerChanged.ps1
+          $cmd.Parameters.GetEnumerator() |
+            Sort-Object Key |
+            ForEach-Object { "{0} : {1}" -f $_.Key, $_.Value.ParameterType.FullName }
           
       - name: 変更差分のみ PSScriptAnalyzer を実行
         shell: pwsh
@@ -63,7 +71,7 @@ jobs:
           & .\scripts\Invoke-ScriptAnalyzerChanged.ps1 `
             -BaseRef $baseRef `
             -HeadRef 'HEAD' `
-            -FailOnSeverity 'Error' `
+            -FailOnSeverity @('Error') `
             -OutputJsonPath 'LOG/psscriptanalyzer-changed.json'
           
       - name: 結果をアップロード（エラー時のみ）
