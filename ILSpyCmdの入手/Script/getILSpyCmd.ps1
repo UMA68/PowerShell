@@ -87,7 +87,7 @@
 
 .NOTES
     File Name      : getILSpyCmd.ps1
-    Author         : UMA
+    Author         : UMA68
     Prerequisite   : PowerShell 7.x, powershell-yaml module
     Version        : 1.4.0
     Last Updated   : 2026-01-19

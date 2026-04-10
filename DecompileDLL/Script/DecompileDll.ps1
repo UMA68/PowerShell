@@ -162,7 +162,7 @@
 .NOTES
     File Name      : DecompileDll.ps1
     Version        : 2.1.0
-    Author         : UMA
+    Author         : UMA68
     Prerequisite   : PowerShell 7.x, ILSpyCmd, WinMerge/VS Code, powershell-yaml module
     
     前提条件:

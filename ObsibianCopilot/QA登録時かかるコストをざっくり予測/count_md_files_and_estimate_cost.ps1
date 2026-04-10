@@ -125,7 +125,7 @@
 
 .NOTES
     File Name      : count_md_files_and_estimate_cost.ps1
-    Author         : UMA
+    Author         : UMA68        
     Prerequisite   : PowerShell 5.0以上
     Cost Reference : https://openai.com/api/pricing/
     Version        : v1.1.0

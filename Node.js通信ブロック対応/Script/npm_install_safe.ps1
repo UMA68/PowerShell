@@ -50,7 +50,7 @@
 
 .NOTES
     Version        : 2.0.0
-    Author         : UMA
+    Author         : UMA68
     Prerequisite   : PowerShell 5.1以降, 管理者権限, Node.js, ファイアウォールルール
 #>
 

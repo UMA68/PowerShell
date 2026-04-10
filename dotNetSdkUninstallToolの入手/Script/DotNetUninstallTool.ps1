@@ -59,7 +59,7 @@
 
 .NOTES
         File Name   : DotNetUninstallTool.ps1
-        Author      : UMA
+        Author      : UMA68
         PowerShell  : 7.x 以上
         Modules     : powershell-yaml（YAML読み込み）
         Version     : 1.2.0

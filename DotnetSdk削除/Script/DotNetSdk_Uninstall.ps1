@@ -88,7 +88,7 @@
 
 .NOTES
     File Name      : DotNetSdk_Uninstall.ps1
-    Author         : UMA
+    Author         : UMA68
     Prerequisite   : PowerShell 7.x, dotnet-core-uninstall tool, powershell-yaml module
     Version        : 1.1.0
     
