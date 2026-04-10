@@ -77,6 +77,7 @@ tests/                # Pester テスト
 - [ADR-0019: GitHub Actions のドットソース実行経路で ValidateSet パラメーターバインディングの型不一致が起きるため、workflow 側で型を確定させて回避する](0019-github-actions-dot-source-validateset-parameter-binding.md)
 - [ADR-0020: InstMain 統合テストの共通化方針とテスト基盤設計](0020-instmain-test-architecture.md)
 - [ADR-0021: Podman Desktop Accounts において GitHub Account ログインを採用しない判断](0021-Podman-Desktop-Accounts-without-GitHub-Login.md)
+- [ADR-0022: PSScriptAnalyzer 差分チェックの Argument types do not match は結果集約処理を修正し、workflow には型観測ログを追加して再発調査を容易にする](0022-scriptanalyzer-argument-types-do-not-match-root-cause.md)
 
 CI / ScriptAnalyzerの具体的な運用手順は [Playbook — PowerShell リポジトリ CI / 運用](../guides/Playbook.md) を参照。
 

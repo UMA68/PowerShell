@@ -93,6 +93,7 @@ ADR-0007でPowerShell Core（7.x）への統一を決定済みであり、整合
 
 - [ADR-0014: ScriptAnalyzer 差分チェックの FailOnSeverity を当面 Error のみにする](0014-psscriptanalyzer-failonseverity-error-only.md)
 - [ADR-0018: PSScriptAnalyzer の Path 型差異を吸収するため、差分チェック実装を単一ファイル解析方式に変更する](0018-scriptanalyzer-single-file-analysis-for-path-type-compatibility.md)
+- [ADR-0022: PSScriptAnalyzer 差分チェックの Argument types do not match は結果集約処理を修正し、workflow には型観測ログを追加して再発調査を容易にする](0022-scriptanalyzer-argument-types-do-not-match-root-cause.md)
 - [.github/workflows/psscriptanalyzer.yml](../../.github/workflows/psscriptanalyzer.yml)
 - [scripts/Invoke-ScriptAnalyzerChanged.ps1](../../scripts/Invoke-ScriptAnalyzerChanged.ps1)
 - Playbook: [PowerShell リポジトリ CI 運用 Playbook](../guides/Playbook.md)
