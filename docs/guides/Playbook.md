@@ -133,6 +133,12 @@ ScriptAnalyzerも、判断を助けるための信号機として扱う。
 
 ### ADR 参照
 - [ADR-0014: PSScriptAnalyzerのFailOnSeverityをErrorのみに変更する](../adr/0014-psscriptanalyzer-failonseverity-error-only.md)
+- [ADR-0018: PSScriptAnalyzerのPath型差異を吸収するため、差分チェック実装を単一ファイル解析方式に変更する](../adr/0018-scriptanalyzer-single-file-analysis-for-path-type-compatibility.md)
+- [ADR-0019: GitHub Actionsのドットソース実行経路でValidateSetパラメーターバインディングの型不一致が起きるため、workflow側で型を確定させて回避する](../adr/0019-github-actions-dot-source-validateset-parameter-binding.md)
+- [ADR-0022: PSScriptAnalyzer差分チェックのArgument types do not matchは結果集約処理を修正し、workflowには型観測ログを追加して再発調査を容易にする](../adr/0022-scriptanalyzer-argument-types-do-not-match-root-cause.md)
+
+### 関連 Playbook
+- [PSScriptAnalyzerの`Argument types do not match`再発対応手順](scriptanalyzer-argument-types-do-not-match-playbook.md)
 
 ---
 
