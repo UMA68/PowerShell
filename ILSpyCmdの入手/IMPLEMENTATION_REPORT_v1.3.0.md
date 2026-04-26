@@ -2,7 +2,6 @@
 
 **実装日:** 2026-01-19  
 **改善者:** GitHub Copilot  
-**スクリプト:** c:/Users/徳永光浩/GitHub/PowerShell/ILSpyCmdの入手/Script/getILSpyCmd.ps1
 
 ---
 

@@ -2,8 +2,6 @@
 
 **実装日:** 2026-01-19  
 **改善者:** GitHub Copilot  
-**対象スクリプト:** c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\Script\getILSpyCmd.ps1
-
 ---
 
 ## 実装概要
@@ -317,7 +315,7 @@ $env:YAML_CONFIG = "D:\Config\getILSpyCmd.yaml"
 **公開フォルダー構成:**
 
 ```Shell
-c:\Users\徳永光浩\GitHub\PowerShell\ILSpyCmdの入手\
+PowerShell\ILSpyCmdの入手\
 ├── Script/
 │   ├── getILSpyCmd.ps1               (v1.4.0 - メインスクリプト)
 │   └── Verify_v1.3.0.ps1             (検証スクリプト)

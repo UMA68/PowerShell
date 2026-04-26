@@ -208,7 +208,7 @@ cd "MakeContainer"
 ### 基本的な実行
 
 ```powershell
-cd "C:\Users\徳永光浩\GitHub\PowerShell\SQLクエリー実行\Script"
+PowerShell\SQLクエリー実行\Script"
 .\\ sqlMain.ps1
 ```
 
