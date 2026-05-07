@@ -44,7 +44,7 @@ podman rm mssql2022
 
 ```PowerShell
 # 起動
-podman-compose up -d
+podman compose up -d
 ```
 
 ---
