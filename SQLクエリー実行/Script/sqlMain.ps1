@@ -377,7 +377,7 @@ begin {
     try {
         if (Test-Path -Path $script:KeyPath) { # 鍵ファイルが存在する場合
             [byte[]]$script:EncryptedKey = [System.IO.File]::ReadAllBytes($script:KeyPath)
-            Write-Information "鍵ファイル『$DecryptionKey』を読み込みました。"
+            Write-Host "鍵ファイル『$DecryptionKey』を読み込みました。"
         } else { # 鍵ファイルが存在しない場合
             throw "鍵ファイル『$DecryptionKey』が見つかりません。"
         }
@@ -402,7 +402,7 @@ begin {
         Write-Warning "パスワードの復号化に失敗しました。"
         Write-Error $_.Exception.Message
         Write-Warning "パスワードファイル『$pwFile』と鍵ファイル『$DecryptionKey』が正しいことを確認してください。"
-        Write-Information "何かキーを押してください。"
+        Write-Host "何かキーを押してください。"
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
         $script:CanExecuteProcess = $false
         return
@@ -556,13 +556,13 @@ process {
     # 処理完了時に統計情報を表示・ログ記録
     $totalCount = $SqlFiles.Count
     $summaryMsg = "`n実行完了: 合計 $totalCount 件 (成功: $successCount 件, エラー: $errorCount 件)"
-    Write-Information $summaryMsg
+    Write-Host $summaryMsg
     Write-Output $summaryMsg | Out-File -FilePath $script:LogPath -Append
 
     if ($totalCount -gt 0) { # 成功率計算
         $successRate = [math]::Round((($totalCount - $errorCount) / $totalCount) * 100, 2)
         $rateMsg = "成功率: $successRate%"
-        Write-Information $rateMsg
+        Write-Host $rateMsg
         Write-Output $rateMsg | Out-File -FilePath $script:LogPath -Append
     }
 }
@@ -573,19 +573,19 @@ end {
 
     if (-not $script:CanExecuteProcess) { # エラー終了時の処理
         Write-Warning "前段のエラーにより処理を完了できませんでした。"
-        Write-Information ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
+        Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
         $script:password = $null
         # エラー時も何かキーを押すまで待機
-        Write-Information "何かキーを押してください。"
+        Write-Host "何かキーを押してください。"
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
         return
     }
 
-    Write-Information ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
+    Write-Host ("処理時間: {0:D2}:Min {1:D2}:Sec" -f $elapsed.Minutes, $elapsed.Seconds)
     $script:password = $null
 
     # 何かキーを押して終了
-    Write-Information "何かキーを押してください。"   
+    Write-Host "何かキーを押してください。"   
     $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
 
     # ログを表示
